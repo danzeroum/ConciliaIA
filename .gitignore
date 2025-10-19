@@ -113,3 +113,4 @@ docs/_build/
 !.env.example
 !config/keys.example.yaml
 !src/infrastructure/security/secrets_manager.py
+!tests/unit/security/test_password_hasher.py
