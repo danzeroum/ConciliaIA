@@ -7,6 +7,7 @@ from .reconciliation_match import MatchType, ReconciliationMatch
 from .sale import Sale
 from .settlement import Settlement, SettlementStatus
 from .tenant import Tenant, TenantTier
+from .user import User
 
 __all__ = [
     "AcquirerTransaction",
@@ -23,4 +24,5 @@ __all__ = [
     "SettlementStatus",
     "Tenant",
     "TenantTier",
+    "User",
 ]
