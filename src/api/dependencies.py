@@ -42,7 +42,10 @@ def get_reconciliation_use_case(
 
     sale_repo = InMemorySaleRepository()
     transaction_repo = InMemoryTransactionRepository()
-    match_repo = InMemoryMatchRepository()
+    match_repo = InMemoryMatchRepository(
+        sale_repo=sale_repo,
+        transaction_repo=transaction_repo,
+    )
     divergence_repo = InMemoryDivergenceRepository()
 
     matching_service = MatchingService(

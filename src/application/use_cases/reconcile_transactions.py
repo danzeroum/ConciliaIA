@@ -11,7 +11,7 @@ import structlog
 
 from src.application.services import AnomalyDetectionService, MatchingService
 from src.domain.entities import Divergence, ReconciliationMatch
-from src.domain.repositories import (
+from src.infrastructure.persistence.repositories import (
     DivergenceRepository,
     MatchRepository,
     SaleRepository,
