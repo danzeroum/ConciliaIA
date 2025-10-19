@@ -8,7 +8,8 @@ from decimal import Decimal
 import pytest
 
 from src.application.strategies import ExactMatcher
-from src.domain.entities import AcquirerTransaction, MatchType, Money, Sale
+from src.domain.entities import AcquirerTransaction, MatchType, Sale
+from src.domain.value_objects import Money
 
 
 class TestExactMatcher:
@@ -35,12 +36,10 @@ class TestExactMatcher:
             tenant_id="tenant-123",
             acquirer="cielo",
             nsu="123456789",
+            amount=Money(Decimal("150.00")),
             transaction_date=date(2025, 1, 15),
-            settlement_date=date(2025, 2, 15),
-            gross_amount=Money(Decimal("150.00")),
-            mdr_fee=Money(Decimal("4.50")),
+            mdr_amount=Money(Decimal("4.50")),
             net_amount=Money(Decimal("145.50")),
-            installments=1,
         )
 
     @pytest.mark.asyncio
@@ -63,7 +62,7 @@ class TestExactMatcher:
         assert match.sale_id == sample_sale.id
         assert match.transaction_id == matching_transaction.id
         assert match.match_type == MatchType.EXACT
-        assert match.confidence == Decimal("1.0")
+        assert match.confidence == Decimal("1.00")
 
     @pytest.mark.asyncio
     async def test_no_match_when_nsu_differs(
@@ -77,10 +76,9 @@ class TestExactMatcher:
             tenant_id="tenant-123",
             acquirer="cielo",
             nsu="000000000",
+            amount=matching_transaction.amount,
             transaction_date=matching_transaction.transaction_date,
-            settlement_date=matching_transaction.settlement_date,
-            gross_amount=matching_transaction.gross_amount,
-            mdr_fee=matching_transaction.mdr_fee,
+            mdr_amount=matching_transaction.mdr_amount,
             net_amount=matching_transaction.net_amount,
         )
 
@@ -105,10 +103,9 @@ class TestExactMatcher:
             tenant_id="tenant-123",
             acquirer="cielo",
             nsu="123456789",
+            amount=Money(Decimal("150.01")),
             transaction_date=date(2025, 1, 15),
-            settlement_date=date(2025, 2, 15),
-            gross_amount=Money(Decimal("150.01")),
-            mdr_fee=Money(Decimal("4.50")),
+            mdr_amount=Money(Decimal("4.50")),
             net_amount=Money(Decimal("145.51")),
         )
 
@@ -140,10 +137,9 @@ class TestExactMatcher:
                 tenant_id="tenant-123",
                 acquirer="cielo",
                 nsu=f"NSU{index:03d}",
+                amount=Money(Decimal(f"{100 + index}.00")),
                 transaction_date=date(2025, 1, 15),
-                settlement_date=date(2025, 2, 15),
-                gross_amount=Money(Decimal(f"{100 + index}.00")),
-                mdr_fee=Money(Decimal("3.00")),
+                mdr_amount=Money(Decimal("3.00")),
                 net_amount=Money(Decimal(f"{97 + index}.00")),
             )
             for index in range(3)
@@ -158,7 +154,7 @@ class TestExactMatcher:
         assert not unmatched_sales
         assert not unmatched_transactions
         assert all(match.match_type == MatchType.EXACT for match in matches)
-        assert all(match.confidence == Decimal("1.0") for match in matches)
+        assert all(match.confidence == Decimal("1.00") for match in matches)
 
     @pytest.mark.asyncio
     async def test_prevent_duplicate_transactions(self, matcher: ExactMatcher) -> None:
@@ -186,10 +182,9 @@ class TestExactMatcher:
             tenant_id="tenant-123",
             acquirer="cielo",
             nsu="DUPLICATE",
+            amount=Money(Decimal("100.00")),
             transaction_date=date(2025, 1, 10),
-            settlement_date=date(2025, 2, 10),
-            gross_amount=Money(Decimal("100.00")),
-            mdr_fee=Money(Decimal("3.00")),
+            mdr_amount=Money(Decimal("3.00")),
             net_amount=Money(Decimal("97.00")),
         )
 

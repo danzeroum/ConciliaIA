@@ -1,136 +1,96 @@
-"""Fuzzy matching strategy tolerant to small amount or date variations."""
+"""Fuzzy matching strategy implementing BR-002 and BR-003."""
 
 from __future__ import annotations
 
 from decimal import Decimal
 from typing import List, Tuple
+from uuid import uuid4
 
-import structlog
-
-from src.application.interfaces import MatchingStrategy
-from src.domain.entities import (
-    AcquirerTransaction,
-    MatchType,
-    ReconciliationMatch,
-    Sale,
-)
-
-logger = structlog.get_logger(__name__)
+from src.domain.entities import AcquirerTransaction, MatchType, ReconciliationMatch, Sale
+from .base_matcher import BaseMatcher
 
 
-class FuzzyMatcher(MatchingStrategy):
-    """Match by accepting limited amount or date variance."""
+class FuzzyMatcher(BaseMatcher):
+    """Match sales and transactions allowing tolerances in amount and date."""
 
-    AMOUNT_TOLERANCE = Decimal("0.50")
-    DATE_TOLERANCE_DAYS = 1
+    def __init__(self, amount_tolerance: Decimal = Decimal("0.50"), date_tolerance_days: int = 1):
+        super().__init__()
+        self.amount_tolerance = amount_tolerance
+        self.date_tolerance_days = date_tolerance_days
 
-    async def match(
+    async def _match_logic(
         self,
         sales: List[Sale],
         transactions: List[AcquirerTransaction],
     ) -> Tuple[List[ReconciliationMatch], List[Sale], List[AcquirerTransaction]]:
-        logger.info(
-            "fuzzy_matcher_started",
-            sales=len(sales),
-            transactions=len(transactions),
-        )
-
         matches: List[ReconciliationMatch] = []
+        remaining_transactions = transactions.copy()
         unmatched_sales: List[Sale] = []
-        matched_transaction_ids: set[str] = set()
 
         for sale in sales:
-            best_candidate: AcquirerTransaction | None = None
-            best_confidence = Decimal("0")
+            best_match = None
+            best_confidence = Decimal("0.0")
 
-            for transaction in transactions:
-                if transaction.id in matched_transaction_ids:
-                    continue
-
-                if sale.nsu != transaction.nsu:
-                    continue
-
-                amount_diff = abs(sale.amount.amount - transaction.gross_amount.amount)
-                if amount_diff > self.AMOUNT_TOLERANCE:
-                    continue
-
-                date_diff_days = abs((sale.date - transaction.transaction_date).days)
-                if date_diff_days > self.DATE_TOLERANCE_DAYS:
-                    continue
-
-                confidence = self._calculate_confidence(amount_diff, date_diff_days)
-                if confidence > best_confidence:
+            for transaction in remaining_transactions:
+                confidence = self._calculate_fuzzy_confidence(sale, transaction)
+                if confidence >= Decimal("0.85") and confidence > best_confidence:
+                    best_match = transaction
                     best_confidence = confidence
-                    best_candidate = transaction
 
-            if best_candidate is None:
-                unmatched_sales.append(sale)
-                continue
-
-            matches.append(
-                self._create_match(
-                    sale=sale,
-                    transaction=best_candidate,
-                    confidence=best_confidence,
+            if best_match:
+                match_type = self._determine_match_type(sale, best_match)
+                matches.append(
+                    ReconciliationMatch(
+                        id=f"match-{uuid4()}",
+                        tenant_id=sale.tenant_id,
+                        sale_id=sale.id,
+                        transaction_id=best_match.id,
+                        match_type=match_type,
+                        confidence=best_confidence,
+                    )
                 )
-            )
-            matched_transaction_ids.add(best_candidate.id)
+                remaining_transactions.remove(best_match)
 
-        unmatched_transactions = [
-            txn for txn in transactions if txn.id not in matched_transaction_ids
-        ]
+                self.logger.debug(
+                    "fuzzy_match_found",
+                    sale_id=sale.id,
+                    transaction_id=best_match.id,
+                    match_type=match_type.value,
+                    confidence=float(best_confidence),
+                )
+            else:
+                unmatched_sales.append(sale)
 
-        logger.info(
-            "fuzzy_matcher_completed",
-            matches=len(matches),
-            unmatched_sales=len(unmatched_sales),
-        )
+        return matches, unmatched_sales, remaining_transactions
 
-        return matches, unmatched_sales, unmatched_transactions
+    def _calculate_fuzzy_confidence(self, sale: Sale, transaction: AcquirerTransaction) -> Decimal:
+        factors: dict[str, bool] = {}
 
-    def _calculate_confidence(
-        self, amount_diff: Decimal, date_diff_days: int
-    ) -> Decimal:
-        if date_diff_days == 0:
-            base = Decimal("0.95")
-            penalty = (amount_diff / self.AMOUNT_TOLERANCE) * Decimal("0.10")
-            confidence = base - penalty
-            return max(confidence, Decimal("0.85"))
+        factors["nsu_match"] = sale.nsu == transaction.nsu
 
-        if amount_diff == 0:
-            return Decimal("0.90")
-        return Decimal("0.85")
+        amount_diff = abs(sale.amount.amount - transaction.amount.amount)
+        factors["amount_match"] = amount_diff <= self.amount_tolerance
 
-    def _create_match(
-        self,
-        sale: Sale,
-        transaction: AcquirerTransaction,
-        confidence: Decimal,
-    ) -> ReconciliationMatch:
-        amount_diff = abs(sale.amount.amount - transaction.gross_amount.amount)
+        date_diff_days = abs((sale.date - transaction.transaction_date).days)
+        factors["date_match"] = date_diff_days <= self.date_tolerance_days
+
+        if sale.authorization_code and transaction.authorization_code:
+            factors["authorization_match"] = sale.authorization_code == transaction.authorization_code
+
+        confidence = self._calculate_confidence(factors)
+
+        if amount_diff > 0:
+            penalty = (Decimal(str(amount_diff)) / self.amount_tolerance) * Decimal("0.10")
+            confidence -= penalty
+
+        return max(confidence, Decimal("0.0"))
+
+    def _determine_match_type(self, sale: Sale, transaction: AcquirerTransaction) -> MatchType:
+        amount_diff = abs(sale.amount.amount - transaction.amount.amount)
         date_diff = abs((sale.date - transaction.transaction_date).days)
 
         if amount_diff > 0 and date_diff == 0:
-            match_type = MatchType.FUZZY_AMOUNT
-        elif date_diff > 0 and amount_diff == 0:
-            match_type = MatchType.FUZZY_DATE
-        else:
-            match_type = MatchType.FUZZY_AMOUNT
-
-        return ReconciliationMatch(
-            id=_generate_uuid(),
-            tenant_id=sale.tenant_id,
-            sale_id=sale.id,
-            transaction_id=transaction.id,
-            match_type=match_type,
-            confidence=confidence,
-        )
-
-
-def _generate_uuid() -> str:
-    from uuid import uuid4
-
-    return str(uuid4())
-
-
-__all__ = ["FuzzyMatcher"]
+            return MatchType.FUZZY_AMOUNT
+        if date_diff > 0 and amount_diff == 0:
+            return MatchType.FUZZY_DATE
+        return MatchType.FUZZY_AMOUNT

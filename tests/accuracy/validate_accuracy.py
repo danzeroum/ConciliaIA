@@ -34,7 +34,7 @@ def _compute_metrics(dataset: Dict[str, Sequence[dict]]) -> AccuracyMetrics:
     loop = asyncio.new_event_loop()
     try:
         matches, _, _ = loop.run_until_complete(
-            matching_service.match(list(sales), list(transactions))
+            matching_service.match_all(list(sales), list(transactions))
         )
     finally:
         loop.close()

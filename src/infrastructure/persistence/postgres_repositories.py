@@ -1,4 +1,4 @@
-"""PostgreSQL repository implementations for the domain layer."""
+"""Async PostgreSQL repository implementations."""
 
 from __future__ import annotations
 
@@ -8,7 +8,8 @@ from typing import List
 
 import asyncpg
 
-from src.domain.entities import AcquirerTransaction, Money, Sale
+from src.domain.entities import AcquirerTransaction, Sale
+from src.domain.value_objects import Money
 from src.domain.repositories import SaleRepository, TransactionRepository
 
 
@@ -18,12 +19,13 @@ class PostgresSaleRepository(SaleRepository):
     def __init__(self, pool: asyncpg.Pool) -> None:
         self.pool = pool
 
-    async def find_unmatched(self, tenant_id: str, start_date: date, end_date: date) -> List[Sale]:
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[Sale]:
         query = """
             SELECT id, tenant_id, nsu, amount, date, payment_method, installments, created_at
             FROM sales
             WHERE tenant_id = $1
-              AND matched = FALSE
               AND date BETWEEN $2 AND $3
             ORDER BY date, nsu
         """
@@ -56,18 +58,12 @@ class PostgresSaleRepository(SaleRepository):
                 query,
                 sale.id,
                 sale.tenant_id,
-                sale.nsu,
+                str(sale.nsu),
                 sale.amount.amount,
                 sale.date,
                 sale.payment_method,
                 sale.installments,
             )
-
-    async def mark_as_matched(self, sale_id: str) -> None:
-        query = "UPDATE sales SET matched = TRUE WHERE id = $1"
-
-        async with self.pool.acquire() as connection:
-            await connection.execute(query, sale_id)
 
 
 class PostgresTransactionRepository(TransactionRepository):
@@ -76,15 +72,13 @@ class PostgresTransactionRepository(TransactionRepository):
     def __init__(self, pool: asyncpg.Pool) -> None:
         self.pool = pool
 
-    async def find_unmatched(
+    async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[AcquirerTransaction]:
         query = """
-            SELECT id, tenant_id, acquirer, nsu, transaction_date, settlement_date,
-                   gross_amount, mdr_fee, net_amount, installments, created_at
+            SELECT id, tenant_id, acquirer, nsu, transaction_date, amount, mdr_amount, net_amount
             FROM acquirer_transactions
             WHERE tenant_id = $1
-              AND matched = FALSE
               AND transaction_date BETWEEN $2 AND $3
             ORDER BY transaction_date, nsu
         """
@@ -100,13 +94,10 @@ class PostgresTransactionRepository(TransactionRepository):
                     tenant_id=str(row["tenant_id"]),
                     acquirer=row["acquirer"],
                     nsu=row["nsu"],
+                    amount=Money(Decimal(str(row["amount"]))),
                     transaction_date=row["transaction_date"],
-                    settlement_date=row["settlement_date"],
-                    gross_amount=Money(Decimal(str(row["gross_amount"]))),
-                    mdr_fee=Money(Decimal(str(row["mdr_fee"]))),
+                    mdr_amount=Money(Decimal(str(row["mdr_amount"]))),
                     net_amount=Money(Decimal(str(row["net_amount"]))),
-                    installments=row["installments"],
-                    created_at=row["created_at"],
                 )
             )
 

@@ -1,73 +1,84 @@
-"""Matching service that orchestrates the cascade of strategies."""
+"""Matching service orchestrating strategy cascade."""
 
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple
+from typing import List, Tuple
 
 import structlog
 
-from src.application.interfaces import MatchingStrategy
-from src.domain.entities import (
-    AcquirerTransaction,
-    ReconciliationMatch,
-    Sale,
-)
+from src.application.strategies import ExactMatcher, FuzzyMatcher, InstallmentMatcher, MLMatcher
+from src.domain.entities import AcquirerTransaction, ReconciliationMatch, Sale
 
 logger = structlog.get_logger(__name__)
 
 
 class MatchingService:
-    """Execute matching strategies in a cascade ordered by confidence."""
+    """Orchestrates multiple matching strategies in cascade."""
 
     def __init__(
         self,
-        exact_matcher: MatchingStrategy,
-        fuzzy_matcher: MatchingStrategy,
-        ml_matcher: MatchingStrategy,
+        exact_matcher: ExactMatcher,
+        fuzzy_matcher: FuzzyMatcher,
+        ml_matcher: MLMatcher,
+        installment_matcher: InstallmentMatcher | None = None,
     ) -> None:
-        self._strategies: Sequence[tuple[str, MatchingStrategy]] = (
-            ("exact", exact_matcher),
-            ("fuzzy", fuzzy_matcher),
-            ("ml", ml_matcher),
-        )
+        self.exact_matcher = exact_matcher
+        self.fuzzy_matcher = fuzzy_matcher
+        self.ml_matcher = ml_matcher
+        self.installment_matcher = installment_matcher or InstallmentMatcher()
+        self.logger = logger.bind(service="MatchingService")
 
-    async def match(
+    async def match_all(
         self,
         sales: List[Sale],
         transactions: List[AcquirerTransaction],
     ) -> Tuple[List[ReconciliationMatch], List[Sale], List[AcquirerTransaction]]:
-        """Run strategies sequentially returning matches and leftovers."""
+        self.logger.info(
+            "cascade_matching_started",
+            sales_count=len(sales),
+            transactions_count=len(transactions),
+        )
 
-        remaining_sales = list(sales)
-        remaining_transactions = list(transactions)
-        collected_matches: List[ReconciliationMatch] = []
+        all_matches: List[ReconciliationMatch] = []
+        remaining_sales = sales.copy()
+        remaining_transactions = transactions.copy()
 
-        for name, strategy in self._strategies:
-            if not remaining_sales or not remaining_transactions:
-                break
-
-            logger.info(
-                "matching_strategy_started",
-                strategy=name,
-                remaining_sales=len(remaining_sales),
-                remaining_transactions=len(remaining_transactions),
+        if remaining_sales:
+            matches, remaining_sales, remaining_transactions = await self.exact_matcher.match(
+                remaining_sales, remaining_transactions
             )
+            all_matches.extend(matches)
+            self.logger.info("exact_matcher_completed", matches=len(matches))
 
-            matches, remaining_sales, remaining_transactions = await strategy.match(
-                sales=remaining_sales,
-                transactions=remaining_transactions,
+        if remaining_sales:
+            matches, remaining_sales, remaining_transactions = await self.installment_matcher.match(
+                remaining_sales, remaining_transactions
             )
+            all_matches.extend(matches)
+            self.logger.info("installment_matcher_completed", matches=len(matches))
 
-            collected_matches.extend(matches)
-
-            logger.info(
-                "matching_strategy_completed",
-                strategy=name,
-                matches_found=len(matches),
-                remaining_sales=len(remaining_sales),
+        if remaining_sales:
+            matches, remaining_sales, remaining_transactions = await self.fuzzy_matcher.match(
+                remaining_sales, remaining_transactions
             )
+            all_matches.extend(matches)
+            self.logger.info("fuzzy_matcher_completed", matches=len(matches))
 
-        return collected_matches, remaining_sales, remaining_transactions
+        if remaining_sales:
+            matches, remaining_sales, remaining_transactions = await self.ml_matcher.match(
+                remaining_sales, remaining_transactions
+            )
+            all_matches.extend(matches)
+            self.logger.info("ml_matcher_completed", matches=len(matches))
 
+        match_rate = len(all_matches) / len(sales) if sales else 0.0
 
-__all__ = ["MatchingService"]
+        self.logger.info(
+            "cascade_matching_completed",
+            total_matches=len(all_matches),
+            unmatched_sales=len(remaining_sales),
+            unmatched_transactions=len(remaining_transactions),
+            match_rate=match_rate,
+        )
+
+        return all_matches, remaining_sales, remaining_transactions

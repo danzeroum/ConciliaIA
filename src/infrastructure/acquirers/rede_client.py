@@ -1,4 +1,4 @@
-"""Rede REST API integration client."""
+"""Client responsible for retrieving transactions from Rede's REST API."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ from typing import Dict, List, Tuple
 import aiohttp
 import structlog
 
-from src.domain.entities import AcquirerTransaction, Money
+from src.domain.entities import AcquirerTransaction
+from src.domain.value_objects import Money
 from src.infrastructure.security import SecretsManager
 
 logger = structlog.get_logger(__name__)
@@ -118,7 +119,6 @@ class RedeAPIClient:
             try:
                 nsu = str(raw["nsu"])
                 transaction_date = date.fromisoformat(str(raw["transactionDate"]))
-                settlement_date = date.fromisoformat(str(raw["settlementDate"]))
 
                 transactions.append(
                     AcquirerTransaction(
@@ -126,12 +126,10 @@ class RedeAPIClient:
                         tenant_id=tenant_id,
                         acquirer="rede",
                         nsu=nsu,
+                        amount=Money(Decimal(str(raw["grossAmount"]))),
                         transaction_date=transaction_date,
-                        settlement_date=settlement_date,
-                        gross_amount=Money(Decimal(str(raw["grossAmount"]))),
-                        mdr_fee=Money(Decimal(str(raw["mdrFee"]))),
+                        mdr_amount=Money(Decimal(str(raw["mdrFee"]))),
                         net_amount=Money(Decimal(str(raw["netAmount"]))),
-                        installments=int(raw.get("installments", 1)),
                     )
                 )
             except Exception as exc:  # pragma: no cover - defensive parsing

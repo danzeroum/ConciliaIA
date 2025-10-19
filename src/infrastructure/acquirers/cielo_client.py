@@ -1,4 +1,4 @@
-"""Cielo EDI integration client."""
+"""Client responsible for fetching and parsing Cielo CNAB 240 files."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ from typing import List
 import aiohttp
 import structlog
 
-from src.domain.entities import AcquirerTransaction, Money
+from src.domain.entities import AcquirerTransaction
+from src.domain.value_objects import Money
 from src.infrastructure.security import SecretsManager
 
 logger = structlog.get_logger(__name__)
@@ -103,13 +104,6 @@ class CieloEDIClient:
                     int(transaction_date_str[6:8]),
                 )
 
-                settlement_date_str = line[77:85]
-                settlement_date = date(
-                    int(settlement_date_str[0:4]),
-                    int(settlement_date_str[4:6]),
-                    int(settlement_date_str[6:8]),
-                )
-
                 gross_cents = int(line[99:114])
                 mdr_cents = int(line[115:130])
                 net_cents = int(line[131:146])
@@ -118,20 +112,16 @@ class CieloEDIClient:
                 mdr_fee = Money(Decimal(mdr_cents) / Decimal("100"))
                 net_amount = Money(Decimal(net_cents) / Decimal("100"))
 
-                installments = int(line[147:150])
-
                 transactions.append(
                     AcquirerTransaction(
                         id=f"cielo_{nsu}_{transaction_date_str}",
                         tenant_id=tenant_id,
                         acquirer="cielo",
                         nsu=nsu,
+                        amount=gross_amount,
                         transaction_date=transaction_date,
-                        settlement_date=settlement_date,
-                        gross_amount=gross_amount,
-                        mdr_fee=mdr_fee,
+                        mdr_amount=mdr_fee,
                         net_amount=net_amount,
-                        installments=installments,
                     )
                 )
             except Exception as exc:  # pragma: no cover - defensive parsing
