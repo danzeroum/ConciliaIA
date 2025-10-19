@@ -32,3 +32,7 @@ class DivergenceRepository(ABC):
         self, tenant_id: str, severity: Severity
     ) -> List[Divergence]:
         """Return divergences filtered by severity."""
+
+    @abstractmethod
+    async def find_critical_open(self, tenant_id: str) -> List[Divergence]:
+        """Return critical divergences that remain open."""

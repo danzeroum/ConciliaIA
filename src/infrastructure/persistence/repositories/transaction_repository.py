@@ -27,3 +27,13 @@ class TransactionRepository(ABC):
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[AcquirerTransaction]:
         """Return transactions that took place within the provided interval."""
+
+    @abstractmethod
+    async def find_unmatched(self, tenant_id: str) -> List[AcquirerTransaction]:
+        """Return all transactions without an associated match."""
+
+    @abstractmethod
+    async def find_by_acquirer(
+        self, tenant_id: str, acquirer: str, start_date: date, end_date: date
+    ) -> List[AcquirerTransaction]:
+        """Return transactions filtered by acquirer within a period."""
