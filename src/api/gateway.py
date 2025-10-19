@@ -10,7 +10,7 @@ from typing import List
 
 import redis.asyncio as redis
 import structlog
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -108,6 +108,7 @@ async def tenant_isolation_middleware(request: Request, call_next):
     if request.url.path in {"/health", "/api/docs", "/api/redoc"}:
         response = await call_next(request)
         response.headers.setdefault("X-Request-ID", request_id)
+        _apply_security_headers(response)
         return response
 
     try:
@@ -129,6 +130,7 @@ async def tenant_isolation_middleware(request: Request, call_next):
         response = await call_next(request)
         response.headers.setdefault("X-Request-ID", request_id)
         response.headers["X-Tenant-ID"] = tenant_ctx.tenant_id
+        _apply_security_headers(response)
         return response
 
     except HTTPException:
@@ -136,6 +138,15 @@ async def tenant_isolation_middleware(request: Request, call_next):
     except Exception as exc:  # pragma: no cover - defensive branch
         logger.error("tenant_middleware_error", error=str(exc), request_id=request_id)
         raise HTTPException(status_code=500, detail="Internal server error") from exc
+
+
+def _apply_security_headers(response: Response) -> None:
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+    )
+    response.headers["Server"] = "ConciliaAI"
 
 
 @app.get("/health")

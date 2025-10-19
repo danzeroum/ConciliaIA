@@ -60,6 +60,7 @@ async def logging_middleware(
 
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = f"{duration_ms:.2f}ms"
+    _apply_security_headers(response)
     return response
 
 
@@ -107,6 +108,15 @@ app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(reconciliation.router, prefix="/api/v1", tags=["Reconciliation"])
 app.include_router(divergences.router, prefix="/api/v1", tags=["Divergences"])
 app.include_router(matches.router, prefix="/api/v1", tags=["Matches"])
+
+
+def _apply_security_headers(response: Response) -> None:
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+    )
+    response.headers["Server"] = "ConciliaAI"
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
