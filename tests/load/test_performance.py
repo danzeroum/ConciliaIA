@@ -11,8 +11,8 @@ class ReconciliationUser(HttpUser):
 
     def on_start(self) -> None:
         response = self.client.post(
-            "/api/v1/auth/login",
-            json={"username": "test-tenant", "password": "test-password"},
+            "/auth/login",
+            json={"email": "test@example.com", "password": "TestPassword123!"},
         )
         payload = response.json()
         self.token = payload.get("access_token", "")

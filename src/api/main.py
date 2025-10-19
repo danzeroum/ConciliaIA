@@ -34,7 +34,12 @@ async def lifespan(app: FastAPI):
     secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
     dependencies.jwt_handler = JWTHandler(secret_key=secret_key)
     dependencies.password_hasher = PasswordHasher(rounds=12)
-    limiter_rate = int(os.getenv("RATE_LIMIT_PER_MINUTE", "100"))
+    limiter_rate = int(
+        os.getenv(
+            "RATE_LIMIT_REQUESTS_PER_MINUTE",
+            os.getenv("RATE_LIMIT_PER_MINUTE", "100"),
+        )
+    )
     dependencies.rate_limiter = RateLimiter(requests_per_minute=limiter_rate)
     dependencies.auth_middleware = AuthMiddleware(dependencies.jwt_handler)
 
