@@ -1,0 +1,565 @@
+domain_model:
+  version: "1.0"
+  created_at: "2025-10-18T00:00:00Z"
+  created_by: "ia-business-analyst"
+  project: "ConciliaAI"
+  
+  bounded_contexts:
+    
+    # Context 1: Sales (Vendas do Lojista)
+    sales:
+      description: "Vendas realizadas pelo lojista via POS ou E-commerce"
+      
+      entities:
+        - name: "Sale"
+          description: "Venda realizada pelo lojista"
+          is_aggregate_root: true
+          
+          attributes:
+            - name: "sale_id"
+              type: "string"
+              unique: true
+              example: "SALE-20250118-0001"
+            
+            - name: "timestamp"
+              type: "datetime"
+              required: true
+              example: "2025-01-18T14:32:15Z"
+            
+            - name: "amount"
+              type: "Money"
+              required: true
+              validation: "> 0 AND <= 1000000.00"
+              example: "150.00 BRL"
+            
+            - name: "payment_method"
+              type: "PaymentMethod"
+              required: true
+              enum: ["credit_card", "debit_card", "pix", "cash"]
+            
+            - name: "card_brand"
+              type: "CardBrand"
+              required_if: "payment_method = credit_card OR debit_card"
+              enum: ["visa", "mastercard", "elo", "amex", "hipercard"]
+            
+            - name: "card_last_4"
+              type: "string"
+              length: 4
+              pattern: "\\d{4}"
+              example: "1234"
+            
+            - name: "installments"
+              type: "integer"
+              validation: ">= 1 AND <= 12"
+              default: 1
+              example: 3
+            
+            - name: "store_id"
+              type: "string"
+              required: true
+              example: "STORE-SP-001"
+            
+            - name: "pos_terminal_id"
+              type: "string"
+              required: true
+              example: "POS-001"
+          
+          relationships:
+            - to: "Transaction"
+              type: "one-to-one"
+              description: "Uma venda deve ter exatamente uma transação (cenário ideal)"
+              exceptions: "Parcelado loja pode gerar N transações"
+        
+        - name: "SaleItem"
+          description: "Item individual da venda"
+          
+          attributes:
+            - name: "product_id"
+              type: "string"
+            - name: "quantity"
+              type: "integer"
+            - name: "unit_price"
+              type: "Money"
+            - name: "total_price"
+              type: "Money"
+          
+          relationships:
+            - to: "Sale"
+              type: "many-to-one"
+              description: "Venda contém múltiplos itens"
+      
+      value_objects:
+        - name: "Money"
+          description: "Valor monetário com precisão"
+          attributes:
+            - amount: "Decimal(10,2)"
+            - currency: "string (default: BRL)"
+          
+          business_rules:
+            - "Sempre usar precisão de 2 casas decimais"
+            - "Arredondar usando HALF_UP"
+            - "Validar amount >= 0"
+        
+        - name: "CardBrand"
+          description: "Bandeira do cartão"
+          values: ["visa", "mastercard", "elo", "amex", "hipercard"]
+        
+        - name: "PaymentMethod"
+          values: ["credit_card", "debit_card", "pix", "cash"]
+    
+    # Context 2: AcquirerTransactions (Transações da Adquirente)
+    acquirer_transactions:
+      description: "Transações processadas pelas adquirentes (Cielo, Rede, Stone)"
+      
+      entities:
+        - name: "Transaction"
+          description: "Transação registrada pela adquirente"
+          is_aggregate_root: true
+          
+          attributes:
+            - name: "transaction_id"
+              type: "string"
+              unique: true
+              example: "cielo-tx-123456789"
+            
+            - name: "acquirer"
+              type: "Acquirer"
+              required: true
+              enum: ["cielo", "rede", "stone", "mercado_pago"]
+            
+            - name: "nsu"
+              type: "string"
+              description: "Número Sequencial Único da adquirente"
+              length: 9
+              unique_per: ["acquirer", "date"]
+              example: "123456789"
+            
+            - name: "authorization_code"
+              type: "string"
+              length: 6
+              example: "ABC123"
+            
+            - name: "amount"
+              type: "Money"
+              required: true
+              example: "150.00 BRL"
+            
+            - name: "card_brand"
+              type: "CardBrand"
+              required: true
+            
+            - name: "card_last_4"
+              type: "string"
+              length: 4
+            
+            - name: "transaction_date"
+              type: "date"
+              required: true
+              example: "2025-01-18"
+            
+            - name: "transaction_time"
+              type: "time"
+              example: "14:32:15"
+            
+            - name: "installment_plan"
+              type: "InstallmentPlan"
+              required_if: "installments > 1"
+            
+            - name: "mdr_rate"
+              type: "Percentage"
+              description: "Taxa MDR cobrada (%)"
+              validation: ">= 0.005 AND <= 0.10"
+              example: 0.025
+            
+            - name: "mdr_amount"
+              type: "Money"
+              description: "Valor da taxa MDR (amount * mdr_rate)"
+              calculated: true
+              formula: "amount * mdr_rate"
+            
+            - name: "net_amount"
+              type: "Money"
+              description: "Valor líquido (amount - mdr_amount)"
+              calculated: true
+              formula: "amount - mdr_amount"
+            
+            - name: "status"
+              type: "TransactionStatus"
+              enum: ["approved", "cancelled", "chargeback"]
+              default: "approved"
+          
+          relationships:
+            - to: "Settlement"
+              type: "one-to-one"
+              description: "Toda transação tem uma liquidação prevista"
+        
+        - name: "Settlement"
+          description: "Liquidação/Pagamento ao lojista"
+          
+          attributes:
+            - name: "settlement_id"
+              type: "string"
+              unique: true
+            
+            - name: "expected_date"
+              type: "date"
+              description: "Data prevista de pagamento"
+              example: "2025-02-18"
+            
+            - name: "actual_date"
+              type: "date"
+              nullable: true
+              description: "Data real de pagamento (null se pendente)"
+            
+            - name: "status"
+              type: "SettlementStatus"
+              enum: ["pending", "paid", "delayed"]
+              default: "pending"
+            
+            - name: "delay_days"
+              type: "integer"
+              calculated: true
+              formula: "actual_date - expected_date (se actual_date != null)"
+          
+          relationships:
+            - to: "Transaction"
+              type: "one-to-one"
+              description: "Cada liquidação pertence a uma transação"
+      
+      value_objects:
+        - name: "InstallmentPlan"
+          attributes:
+            - current_installment: "integer (1-12)"
+            - total_installments: "integer (1-12)"
+            - installment_amount: "Money"
+          
+          validation:
+            - "current_installment <= total_installments"
+            - "installment_amount * total_installments ≈ transaction_amount"
+        
+        - name: "Percentage"
+          description: "Taxa percentual (0.0-1.0)"
+          base_type: "Decimal(5,4)"
+          validation: ">= 0.0000 AND <= 1.0000"
+        
+        - name: "Acquirer"
+          values: ["cielo", "rede", "stone", "mercado_pago", "getnet", "pagseguro"]
+    
+    # Context 3: Reconciliation (Reconciliação)
+    reconciliation:
+      description: "Processo de matching entre vendas e transações"
+      
+      entities:
+        - name: "Match"
+          description: "Venda matched com transação"
+          is_aggregate_root: true
+          
+          attributes:
+            - name: "match_id"
+              type: "string"
+              unique: true
+              example: "MATCH-2025-0001"
+            
+            - name: "sale_id"
+              type: "string"
+              foreign_key: "Sale"
+            
+            - name: "transaction_id"
+              type: "string"
+              foreign_key: "Transaction"
+            
+            - name: "match_type"
+              type: "MatchType"
+              enum: ["exact", "fuzzy_amount", "fuzzy_date", "ml_based"]
+            
+            - name: "confidence"
+              type: "Confidence"
+              validation: ">= 0.0 AND <= 1.0"
+              example: 0.98
+            
+            - name: "matched_at"
+              type: "datetime"
+              auto: true
+            
+            - name: "validated"
+              type: "boolean"
+              default: false
+              description: "true se passou por todas validações"
+          
+          business_rules:
+            - "confidence >= 0.95 → auto-approve"
+            - "confidence < 0.95 → requires_human_review"
+        
+        - name: "Divergence"
+          description: "Divergência detectada entre venda e transação"
+          is_aggregate_root: true
+          
+          attributes:
+            - name: "divergence_id"
+              type: "string"
+              unique: true
+            
+            - name: "match_id"
+              type: "string"
+              foreign_key: "Match"
+              nullable: true
+              description: "null se unmatched"
+            
+            - name: "divergence_type"
+              type: "DivergenceType"
+              required: true
+              enum:
+                - "amount_mismatch"
+                - "mdr_variance"
+                - "missing_transaction"
+                - "missing_sale"
+                - "unauthorized_chargeback"
+                - "settlement_delay"
+            
+            - name: "severity"
+              type: "Severity"
+              required: true
+              enum: ["critical", "high", "medium", "low"]
+            
+            - name: "expected_value"
+              type: "Money"
+              nullable: true
+            
+            - name: "actual_value"
+              type: "Money"
+              nullable: true
+            
+            - name: "difference"
+              type: "Money"
+              calculated: true
+              formula: "abs(expected_value - actual_value)"
+            
+            - name: "suggested_action"
+              type: "string"
+              description: "Ação sugerida para resolver"
+              examples:
+                - "Contestar R$ 45,00 com Cielo"
+                - "Revisar manualmente"
+                - "Aguardar 7 dias"
+            
+            - name: "status"
+              type: "DivergenceStatus"
+              enum: ["open", "investigating", "resolved", "ignored"]
+              default: "open"
+            
+            - name: "resolved_at"
+              type: "datetime"
+              nullable: true
+          
+          business_rules:
+            - "severity = CRITICAL → notify immediately"
+            - "severity = HIGH → notify within 4h"
+            - "severity = MEDIUM → daily digest"
+            - "severity = LOW → weekly summary"
+        
+        - name: "Anomaly"
+          description: "Anomalia que requer ação corretiva"
+          
+          attributes:
+            - name: "anomaly_id"
+              type: "string"
+            
+            - name: "divergence_id"
+              type: "string"
+              foreign_key: "Divergence"
+            
+            - name: "anomaly_type"
+              type: "AnomalyType"
+              enum:
+                - "mdr_overcharge"
+                - "missing_transaction_d7"
+                - "chargeback_without_authorization"
+                - "settlement_delayed_30days"
+            
+            - name: "detected_at"
+              type: "datetime"
+              auto: true
+            
+            - name: "requires_human_action"
+              type: "boolean"
+              description: "true se HITL obrigatório"
+            
+            - name: "action_taken"
+              type: "string"
+              nullable: true
+              examples:
+                - "Contestação enviada"
+                - "Follow-up agendado"
+                - "Ignorado pelo usuário"
+            
+            - name: "action_taken_at"
+              type: "datetime"
+              nullable: true
+      
+      value_objects:
+        - name: "Confidence"
+          base_type: "Decimal(3,2)"
+          validation: ">= 0.00 AND <= 1.00"
+          interpretation:
+            - "1.00: Exact match"
+            - "0.95-0.99: High confidence"
+            - "0.90-0.94: Medium confidence"
+            - "< 0.90: Low confidence (HITL)"
+        
+        - name: "Severity"
+          values: ["critical", "high", "medium", "low"]
+          calculation_rules:
+            critical:
+              - "difference > 1000.00 BRL"
+              - "variance_percentage > 0.20"
+            high:
+              - "difference 500-1000 BRL"
+              - "variance_percentage 0.10-0.20"
+            medium:
+              - "difference 100-500 BRL"
+              - "variance_percentage 0.05-0.10"
+            low:
+              - "difference < 100 BRL"
+              - "variance_percentage < 0.05"
+  
+  # Linguagem Ubíqua (Glossário)
+  ubiquitous_language:
+    terms:
+      - term: "NSU"
+        full_name: "Número Sequencial Único"
+        definition: "Identificador único da transação na adquirente"
+        aliases: ["transaction_id", "seq_number"]
+        context: "AcquirerTransactions"
+        example: "123456789"
+      
+      - term: "EC"
+        full_name: "Estabelecimento Comercial"
+        definition: "Identificador do lojista na Cielo"
+        context: "Cielo"
+        example: "1234567890"
+      
+      - term: "PV"
+        full_name: "Ponto de Venda"
+        definition: "Identificador do lojista na Rede"
+        context: "Rede"
+        example: "PV123456"
+      
+      - term: "MDR"
+        full_name: "Merchant Discount Rate"
+        definition: "Taxa percentual cobrada pela adquirente sobre o valor da venda"
+        aliases: ["taxa", "fee", "discount_rate"]
+        context: "AcquirerTransactions"
+        typical_values:
+          - "Débito: 2.0-2.5%"
+          - "Crédito à vista: 2.5-3.5%"
+          - "Crédito parcelado: 3.5-8.0%"
+      
+      - term: "Chargeback"
+        definition: "Estorno forçado de uma transação por contestação do portador do cartão"
+        triggers:
+          - "Cliente não reconhece compra"
+          - "Produto não entregue"
+          - "Fraude"
+        impact: "Lojista perde valor + paga tarifa (~R$ 50)"
+      
+      - term: "Antecipação"
+        full_name: "Antecipação de Recebíveis"
+        definition: "Recebimento antecipado de parcelas futuras mediante desconto"
+        example: "Receber hoje R$ 2.850 ao invés de R$ 3.000 em 30 dias (5% desconto)"
+      
+      - term: "D+N"
+        definition: "Prazo de liquidação em dias úteis após a transação"
+        examples:
+          - "D+0: Mesmo dia (Stone)"
+          - "D+1: Próximo dia útil (débito padrão)"
+          - "D+30: 30 dias úteis (crédito padrão)"
+      
+      - term: "Bandeira"
+        definition: "Empresa operadora da rede de cartões"
+        values: ["Visa", "Mastercard", "Elo", "Amex", "Hipercard"]
+        role: "Intermedia entre adquirente e emissor"
+      
+      - term: "Captura"
+        definition: "Confirmação definitiva da transação após autorização"
+        timing: "Geralmente ao final do dia (batch)"
+        impact: "Só transações capturadas são liquidadas"
+      
+      - term: "Parcelado Loja"
+        definition: "Lojista recebe parcelado (N vezes) ao longo dos meses"
+        example: "Venda R$ 1.200 em 12x → lojista recebe R$ 100/mês por 12 meses"
+      
+      - term: "Parcelado Emissor"
+        definition: "Lojista recebe à vista, banco emissor parcela para cliente"
+        example: "Venda R$ 1.200 em 12x → lojista recebe R$ 1.200 - MDR de uma vez"
+  
+  # Relacionamentos Cross-Context
+  relationships:
+    - from: "Sales.Sale"
+      to: "AcquirerTransactions.Transaction"
+      type: "one-to-one (ideal) or one-to-many (parcelado loja)"
+      cardinality: "1:1 ou 1:N"
+      description: "Venda gera uma ou mais transações dependendo do plano de parcelamento"
+    
+    - from: "Reconciliation.Match"
+      to: "Sales.Sale"
+      type: "many-to-one"
+      cardinality: "N:1"
+      description: "Um match referencia uma venda"
+    
+    - from: "Reconciliation.Match"
+      to: "AcquirerTransactions.Transaction"
+      type: "many-to-one"
+      cardinality: "N:1"
+      description: "Um match referencia uma transação"
+    
+    - from: "Reconciliation.Divergence"
+      to: "Reconciliation.Match"
+      type: "one-to-one (optional)"
+      cardinality: "1:0..1"
+      description: "Divergência pode ou não ter match associado"
+  
+  # Invariantes de Negócio
+  business_invariants:
+    - id: "INV-001"
+      description: "Valor líquido sempre menor que valor bruto"
+      formula: "net_amount < amount"
+      applies_to: "Transaction"
+    
+    - id: "INV-002"
+      description: "MDR dentro de limites razoáveis"
+      formula: "mdr_rate >= 0.005 AND mdr_rate <= 0.10"
+      applies_to: "Transaction"
+    
+    - id: "INV-003"
+      description: "Data de liquidação sempre posterior ou igual à transação"
+      formula: "settlement.expected_date >= transaction.transaction_date"
+      applies_to: "Settlement"
+    
+    - id: "INV-004"
+      description: "Parcela atual não pode exceder total"
+      formula: "current_installment <= total_installments"
+      applies_to: "InstallmentPlan"
+    
+    - id: "INV-005"
+      description: "Confidence de match válido"
+      formula: "confidence >= 0.0 AND confidence <= 1.0"
+      applies_to: "Match"
+    
+    - id: "INV-006"
+      description: "Match só válido se confidence >= 0.70"
+      formula: "IF validated = true THEN confidence >= 0.70"
+      applies_to: "Match"
+
+metadata:
+  version: "1.0"
+  created_at: "2025-10-18T00:00:00Z"
+  created_by: "ia-business-analyst"
+  reviewed_by: []
+  approved_by: []
+  status: "draft"
+  
+  changelog:
+    - version: "1.0"
+      date: "2025-10-18"
+      author: "ia-business-analyst"
+      changes: "Criação inicial do domain model"

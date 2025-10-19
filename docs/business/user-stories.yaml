@@ -1,0 +1,402 @@
+user_stories:
+  version: "1.0"
+  created_at: "2025-10-18T00:00:00Z"
+  created_by: "ia-business-analyst"
+  project: "ConciliaAI"
+  
+  epics:
+    - epic_id: "EPIC-1"
+      name: "Integração com Adquirentes"
+      description: "Coletar transações de adquirentes via EDI e API"
+      priority: "P0 - MVP"
+      story_points_total: 42
+      
+      stories:
+        - story_id: "US-001"
+          title: "Como sistema, quero coletar EDI Cielo diariamente via SFTP"
+          persona: "Sistema"
+          priority: "P0"
+          story_points: 8
+          description: |
+            Sistema deve baixar arquivo EDI da Cielo todos os dias às 6h AM,
+            fazer parse das transações e normalizar para schema canônico.
+          acceptance_criteria:
+            - "Sistema conecta SFTP Cielo com credenciais seguras (AWS Secrets)"
+            - "Download automático todo dia às 6h"
+            - "Parser processa 100% das linhas válidas"
+            - "Linhas inválidas vão para dead letter queue"
+            - "Tempo de parsing < 1min para 10k transações"
+            - "Logs estruturados sem dados sensíveis"
+          business_rules:
+            - "BR-010"
+            - "BR-011"
+            - "BR-012"
+          dependencies: []
+          definition_of_done:
+            - "Código implementado e revisado"
+            - "Testes unitários >= 85%"
+            - "Teste de integração com EDI"
+            - "Documentação atualizada"
+            - "Deploy em staging"
+
+        - story_id: "US-002"
+          title: "Como sistema, quero integrar API Rede em tempo real"
+          persona: "Sistema"
+          priority: "P0"
+          story_points: 13
+          description: |
+            Sistema deve consultar API SOAP da Rede a cada hora para obter
+            transações do dia, com retry automático e fallback para EDI.
+          acceptance_criteria:
+            - "Consulta API Rede SOAP a cada 1h"
+            - "Retry 3x com exponential backoff"
+            - "Circuit breaker após 5 falhas"
+            - "Fallback para EDI se indisponível >4h"
+            - "Parse XML para schema canônico"
+            - "Alertar Ops se API down >30min"
+          dependencies:
+            - "US-001"
+          definition_of_done:
+            - "Client com retry e circuit breaker"
+            - "Fallback validado em teste"
+            - "Monitoramento configurado"
+
+        - story_id: "US-003"
+          title: "Como sistema, quero integrar Stone API em tempo real"
+          persona: "Sistema"
+          priority: "P1"
+          story_points: 8
+          acceptance_criteria:
+            - "Consulta API REST Stone a cada 1h"
+            - "Parse JSON para schema canônico"
+            - "Rate limiting respeitado"
+            - "Webhook opcional suportado"
+          dependencies:
+            - "US-001"
+            - "US-002"
+
+        - story_id: "US-004"
+          title: "Como desenvolvedor, quero schema canônico de transações"
+          persona: "Desenvolvedor"
+          priority: "P0"
+          story_points: 5
+          description: |
+            Definir schema único que normalize transações de todas adquirentes,
+            facilitando reconciliação e reduzindo acoplamento.
+          acceptance_criteria:
+            - "JSON Schema documentado"
+            - "Conversores Cielo → Canônico"
+            - "Conversores Rede → Canônico"
+            - "Conversores Stone → Canônico"
+            - "Validação automática via JSON Schema"
+          dependencies: []
+
+        - story_id: "US-005"
+          title: "Como Ops, quero monitorar health dos conectores"
+          persona: "Ops"
+          priority: "P1"
+          story_points: 5
+          acceptance_criteria:
+            - "Dashboard com status em tempo real"
+            - "Métricas: success_rate, latency, error_count"
+            - "Alertas Slack se error_rate > 10%"
+            - "Endpoint /health/connectors"
+          dependencies:
+            - "US-001"
+            - "US-002"
+
+        - story_id: "US-006"
+          title: "Como sistema, quero dead letter queue para erros de parsing"
+          persona: "Sistema"
+          priority: "P1"
+          story_points: 3
+          acceptance_criteria:
+            - "Linhas inválidas vão para SQS DLQ"
+            - "Dashboard para itens em DLQ"
+            - "Reprocessamento manual disponível"
+            - "Retenção de 30 dias"
+          dependencies:
+            - "US-001"
+    
+    - epic_id: "EPIC-2"
+      name: "Reconciliação Automática"
+      description: "Matching vendas × transações com precisão 99.5%+"
+      priority: "P0 - MVP"
+      story_points_total: 47
+      
+      stories:
+        - story_id: "US-010"
+          title: "Como lojista, quero reconciliação automática diária"
+          persona: "Mariana"
+          priority: "P0"
+          story_points: 21
+          description: |
+            Sistema deve reconciliar automaticamente todas as vendas do dia
+            com transações das adquirentes, identificando matches e divergências.
+          acceptance_criteria:
+            - "Taxa de matching >= 99.5%"
+            - "Processamento de 10k transações em < 5min"
+            - "Dashboard com resultado em tempo real"
+            - "Email sumário às 8h"
+            - "Exportação Excel com 1 clique"
+          business_rules:
+            - "BR-001"
+            - "BR-002"
+            - "BR-003"
+            - "BR-004"
+            - "BR-005"
+          dependencies:
+            - "US-001"
+            - "US-002"
+            - "US-004"
+
+        - story_id: "US-011"
+          title: "Como lojista, quero ver divergências em ordem de impacto"
+          persona: "Mariana"
+          priority: "P0"
+          story_points: 8
+          acceptance_criteria:
+            - "Ordenação por severity × valor"
+            - "Filtros por severidade, adquirente, período"
+            - "Indicadores visuais de severity"
+            - "Detalhes com venda vs transação"
+          dependencies:
+            - "US-010"
+
+        - story_id: "US-012"
+          title: "Como lojista, quero exportar relatório de reconciliação"
+          persona: "Roberto"
+          priority: "P1"
+          story_points: 5
+          acceptance_criteria:
+            - "Exportação Excel com múltiplas abas"
+            - "Abas: Matched, Divergences, Summary"
+            - "Filtros aplicados refletidos no export"
+            - "Formatação profissional"
+          dependencies:
+            - "US-011"
+
+        - story_id: "US-013"
+          title: "Como sistema, quero matching baseado em ML para casos complexos"
+          persona: "Sistema"
+          priority: "P2"
+          story_points: 13
+          acceptance_criteria:
+            - "Confidence threshold >= 0.90"
+            - "Precision >= 95%"
+            - "Recall >= 90%"
+            - "Explainability das features"
+          dependencies:
+            - "US-010"
+    
+    - epic_id: "EPIC-3"
+      name: "Detecção de Anomalias"
+      description: "Identificar divergências que geram perda financeira"
+      priority: "P0 - MVP"
+      story_points_total: 34
+      
+      stories:
+        - story_id: "US-020"
+          title: "Como lojista, quero ser alertado sobre taxas MDR incorretas"
+          persona: "Mariana"
+          priority: "P0"
+          story_points: 13
+          acceptance_criteria:
+            - "Detecção de variação > 10% em tempo real"
+            - "Alerta via email e push"
+            - "Cálculo do valor a recuperar"
+            - "Sugestão de contestação"
+            - "Histórico de ocorrências"
+          business_rules:
+            - "BR-020"
+            - "BR-010"
+            - "BR-011"
+            - "BR-012"
+            - "BR-013"
+          dependencies:
+            - "US-010"
+
+        - story_id: "US-021"
+          title: "Como lojista, quero detectar vendas sem transação (missing)"
+          persona: "Mariana"
+          priority: "P0"
+          story_points: 8
+          acceptance_criteria:
+            - "Alerta D+7 severity MEDIUM"
+            - "Alerta D+30 severity HIGH"
+            - "Alerta D+90 severity CRITICAL"
+            - "Sugestão de ação: verificar captura"
+            - "Dashboard com aging"
+          business_rules:
+            - "BR-021"
+          dependencies:
+            - "US-010"
+
+        - story_id: "US-022"
+          title: "Como lojista, quero detectar chargebacks não autorizados"
+          persona: "Mariana"
+          priority: "P1"
+          story_points: 8
+          acceptance_criteria:
+            - "Detecção D+0"
+            - "Alerta CRITICAL imediato"
+            - "Cálculo total_loss"
+            - "Draft de contestação"
+            - "Countdown de 30 dias"
+          business_rules:
+            - "BR-022"
+            - "BR-030"
+          dependencies:
+            - "US-010"
+
+        - story_id: "US-023"
+          title: "Como lojista, quero detectar pagamentos atrasados"
+          persona: "Roberto"
+          priority: "P1"
+          story_points: 5
+          acceptance_criteria:
+            - "Detecção delay > 7 dias"
+            - "Severity progressiva"
+            - "Sugestão de follow-up"
+            - "Tracking de dias em atraso"
+          business_rules:
+            - "BR-023"
+          dependencies:
+            - "US-010"
+    
+    - epic_id: "EPIC-4"
+      name: "Dashboard & Notificações"
+      description: "Interface visual e alertas em linguagem simples"
+      priority: "P0 - MVP"
+      story_points_total: 34
+      
+      stories:
+        - story_id: "US-030"
+          title: "Como lojista, quero dashboard com visão geral"
+          persona: "Mariana"
+          priority: "P0"
+          story_points: 13
+          description: |
+            Tela principal com métricas chave: dinheiro recuperável,
+            divergências críticas e taxa de matching.
+          acceptance_criteria:
+            - "KPIs: Valor Recuperável, Divergências Críticas, Matching Rate"
+            - "Gráfico evolução 30 dias"
+            - "Ações rápidas"
+            - "Layout responsivo"
+            - "Tempo de carregamento < 2s"
+          dependencies:
+            - "US-010"
+            - "US-020"
+
+        - story_id: "US-031"
+          title: "Como lojista, quero ação 'Contestar' em 1 clique"
+          persona: "Mariana"
+          priority: "P0"
+          story_points: 8
+          acceptance_criteria:
+            - "Botão visível para severidades HIGH e CRITICAL"
+            - "Modal com preview"
+            - "Campos pré-preenchidos"
+            - "Opção enviar ou copiar texto"
+            - "Tracking de contestações"
+          dependencies:
+            - "US-030"
+
+        - story_id: "US-032"
+          title: "Como lojista, quero alertas por email quando algo crítico acontece"
+          persona: "Mariana"
+          priority: "P0"
+          story_points: 5
+          acceptance_criteria:
+            - "Email imediato para CRITICAL"
+            - "Digest diário para HIGH"
+            - "Resumo semanal para MEDIUM"
+            - "Linguagem simples"
+            - "Link direto para dashboard"
+          dependencies:
+            - "US-020"
+
+        - story_id: "US-033"
+          title: "Como franqueador, quero visão consolidada multi-loja"
+          persona: "Roberto"
+          priority: "P1"
+          story_points: 8
+          acceptance_criteria:
+            - "Filtro por loja"
+            - "Comparativo de perdas"
+            - "Totais consolidados"
+            - "Drill-down por loja"
+          dependencies:
+            - "US-030"
+    
+    - epic_id: "EPIC-5"
+      name: "Previsão de Fluxo de Caixa"
+      description: "Forecast próximos 90 dias com 95% de acurácia"
+      priority: "P1 - v1.1"
+      story_points_total: 21
+      
+      stories:
+        - story_id: "US-040"
+          title: "Como lojista, quero prever meus recebimentos dos próximos 90 dias"
+          persona: "Mariana"
+          priority: "P1"
+          story_points: 13
+          description: |
+            Usar Prophet ou modelo similar para prever recebimentos futuros
+            baseado em vendas atuais, histórico e sazonalidade.
+          acceptance_criteria:
+            - "Forecast 90 dias com MAE < 5%"
+            - "Gráfico com intervalo de confiança"
+            - "Breakdown por adquirente e forma de pagamento"
+            - "Considerar parcelas, antecipações e chargebacks"
+            - "Atualização diária automática"
+          dependencies:
+            - "US-010"
+
+        - story_id: "US-041"
+          title: "Como lojista, quero simular cenários 'what-if'"
+          persona: "Roberto"
+          priority: "P2"
+          story_points: 8
+          description: |
+            Simular impacto de decisões: antecipar parcelas, negociar taxas
+            ou alterar volume de vendas projetado.
+          acceptance_criteria:
+            - "Cenários: antecipação, mudança de taxa, volume de vendas"
+            - "Comparação lado a lado"
+            - "Impacto financeiro esperado"
+          dependencies:
+            - "US-040"
+  
+  summary:
+    total_epics: 5
+    total_stories: 20
+    total_story_points: 178
+    
+    by_priority:
+      P0: 102
+      P1: 55
+      P2: 21
+    
+    by_persona:
+      Sistema: 5
+      Desenvolvedor: 1
+      Ops: 1
+      Mariana: 9
+      Roberto: 4
+    
+    estimated_velocity: 20
+    estimated_sprints: 9
+
+metadata:
+  version: "1.0"
+  created_at: "2025-10-18T00:00:00Z"
+  created_by: "ia-business-analyst"
+  status: "draft"
+  
+  changelog:
+    - version: "1.0"
+      date: "2025-10-18"
+      author: "ia-business-analyst"
+      changes: "Criação inicial do backlog de user stories"
