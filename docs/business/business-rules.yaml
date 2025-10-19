@@ -86,7 +86,7 @@ business_rules:
 
         - rule_id: "BR-004"
           name: "Installment Match"
-          description: "Match de venda parcelada"
+          description: "Match de transação parcelada"
           priority: "P1"
           confidence: 0.98
           criteria:
@@ -98,31 +98,27 @@ business_rules:
               confidence = 0.98
               match_type = 'installment'
             END IF
-          notes:
-            - "Parcelado loja gera N transações (uma por parcela)"
-            - "Parcelado emissor gera uma transação única"
+          examples:
+            - input:
+                sale: { nsu: "987654321", amount: 300.00, installments: 3 }
+                transaction: { installment_amount: 100.00, total_installments: 3 }
+              output:
+                match: true
+                confidence: 0.98
+                match_type: "installment"
 
         - rule_id: "BR-005"
-          name: "Multiple Payments"
-          description: "Match quando cliente usa múltiplos cartões"
+          name: "Multiple Payments Match"
+          description: "Venda paga com múltiplos cartões"
           priority: "P2"
           confidence: 0.85
           criteria:
-            - "transações com mesmo timestamp ±5 min"
-            - "soma dos amounts == sale.amount"
-          formula: |
-            timestamp_window = 5 minutes
-            grouped = GROUP transactions BY timestamp WITHIN timestamp_window
-            FOR EACH group:
-              IF sum(group.amounts) == sale.amount THEN
-                confidence = 0.85
-                match_type = 'multiple_payments'
-              END IF
-          notes:
-            - "Sempre requer revisão humana"
+            - "Multiple transactions within 5min window"
+            - "sum(transactions.amount) == sale.amount"
+          requires_human_review: true
 
     - category: "MDR Calculation"
-      description: "Regras para calcular taxa MDR esperada por adquirente"
+      description: "Cálculo de taxa MDR esperada por adquirente"
       priority: "P0"
       
       rules:
@@ -131,12 +127,10 @@ business_rules:
           acquirer: "cielo"
           payment_type: "debit"
           formula: "mdr_amount = amount * 0.025"
+          expected_rate: 0.025
           validation:
             min_rate: 0.020
             max_rate: 0.035
-          examples:
-            - input: { amount: 1000.00 }
-              output: { mdr_amount: 25.00, mdr_rate: 0.025 }
 
         - rule_id: "BR-011"
           name: "Cielo - Crédito à Vista"
@@ -144,15 +138,13 @@ business_rules:
           payment_type: "credit"
           installments: 1
           formula: "mdr_amount = amount * 0.030"
-          validation:
-            min_rate: 0.025
-            max_rate: 0.040
+          expected_rate: 0.030
 
         - rule_id: "BR-012"
           name: "Cielo - Crédito Parcelado"
           acquirer: "cielo"
           payment_type: "credit"
-          installments: "> 1"
+          installments: ">1"
           formula: |
             IF installments <= 6 THEN
               rate = 0.035 + (installments - 1) * 0.002
@@ -162,18 +154,18 @@ business_rules:
             mdr_amount = amount * rate
           validation:
             max_rate: 0.080
-            alert_if_above: 0.060
 
         - rule_id: "BR-013"
           name: "Rede - Débito"
           acquirer: "rede"
           payment_type: "debit"
           formula: "mdr_amount = amount * 0.023"
+          expected_rate: 0.023
 
         - rule_id: "BR-014"
           name: "Stone - Taxas Progressivas"
           acquirer: "stone"
-          description: "Taxa varia conforme volume mensal"
+          description: "Taxa baseada em volume mensal"
           tiers:
             - tier: "0-10k/mês"
               debit_rate: 0.028
@@ -191,175 +183,89 @@ business_rules:
             mdr_amount = amount * rate
 
     - category: "Anomaly Detection"
-      description: "Regras para detectar divergências que geram perda financeira"
+      description: "Detecção de divergências financeiras"
       priority: "P0"
       
       rules:
         - rule_id: "BR-020"
-          name: "MDR Variance Detection"
-          description: "Taxa MDR cobrada acima do esperado"
+          name: "MDR Variance"
+          description: "Taxa cobrada diverge do esperado"
           severity_matrix:
-            critical:
-              condition: "variance > 0.20"
-              action: "ALERT + sugerir contestação"
-            high:
-              condition: "variance > 0.10"
-              action: "ALERT"
-            medium:
-              condition: "variance > 0.05"
-              action: "LOG_WARNING"
-            low:
-              condition: "variance <= 0.05"
-              action: "LOG_INFO"
-          formula: |
-            mdr_expected = calculate_expected_mdr(transaction)
-            mdr_charged = transaction.mdr_amount
-            variance = abs(mdr_charged - mdr_expected) / mdr_expected
-            severity = determine_severity(variance)
-            IF severity IN ['critical', 'high'] THEN
-              create_anomaly(
-                type='mdr_overcharge',
-                severity=severity,
-                amount_to_recover=mdr_charged - mdr_expected
-              )
-            END IF
+            critical: "> 20% variance"
+            high: "10-20% variance"
+            medium: "5-10% variance"
+            low: "< 5% variance"
+          action:
+            critical: "ALERT + CONTESTATION_SUGGESTION"
+            high: "ALERT"
 
         - rule_id: "BR-021"
-          name: "Missing Transaction Detection"
-          description: "Venda sem transação após janela esperada"
+          name: "Missing Transaction"
+          description: "Venda sem transação após prazo"
           timing_rules:
-            - trigger: "D+7"
+            alert_d7:
               severity: "medium"
-              action: "ALERT"
-            - trigger: "D+30"
+              action: "Verificar com adquirente"
+            alert_d30:
               severity: "high"
-              action: "ALERT + ESCALATION"
-            - trigger: "D+90"
+              action: "Escalação - possível perda"
+            alert_d90:
               severity: "critical"
-              action: "CRITICAL ALERT"
-          formula: |
-            FOR EACH sale WHERE matched = false:
-              days_since_sale = today - sale.date
-              IF days_since_sale >= 7 AND NOT in_exceptions(sale) THEN
-                severity = determine_by_days(days_since_sale)
-                create_anomaly(
-                  type='missing_transaction',
-                  severity=severity,
-                  days_elapsed=days_since_sale
-                )
-              END IF
+              action: "Perda confirmada"
 
         - rule_id: "BR-022"
           name: "Unauthorized Chargeback"
-          description: "Chargeback sem autorização do lojista"
-          criteria:
-            - "transaction.status == 'chargeback'"
-            - "sale.cancelled == false"
-            - "merchant_authorization == null"
-          formula: |
-            IF (transaction.chargeback AND NOT sale.cancelled AND NOT merchant_authorized) THEN
-              create_anomaly(
-                type='unauthorized_chargeback',
-                severity='critical',
-                total_loss=transaction.amount + transaction.chargeback_fee
-              )
-            END IF
+          description: "Chargeback não autorizado"
+          severity: "critical"
+          contestation_window: "30 days"
+          required_evidence:
+            - "Comprovante de venda assinado"
+            - "Nota fiscal"
+            - "Comprovante de entrega"
 
         - rule_id: "BR-023"
           name: "Settlement Delay"
-          description: "Pagamento atrasado pela adquirente"
+          description: "Pagamento atrasado"
           severity_matrix:
-            - condition: "delay_days > 30"
-              severity: "critical"
-            - condition: "delay_days > 15"
-              severity: "high"
-            - condition: "delay_days > 7"
-              severity: "medium"
-          formula: |
-            IF settlement.status == 'pending' AND today > settlement.expected_date THEN
-              delay_days = today - settlement.expected_date
-              severity = determine_delay_severity(delay_days)
-              create_anomaly(
-                type='settlement_delay',
-                severity=severity,
-                days_delayed=delay_days,
-                amount_held=transaction.net_amount
-              )
-            END IF
+            critical: "delay > 30 days"
+            high: "delay 15-30 days"
+            medium: "delay 7-15 days"
 
         - rule_id: "BR-024"
           name: "Duplicate Transaction"
-          description: "Mesma transação cobrada múltiplas vezes"
+          description: "Mesma transação processada múltiplas vezes"
+          severity: "high"
           criteria:
-            - "mesmo nsu, data e valor"
-            - "count > 1"
-            - "não é parcelado"
-          formula: |
-            duplicates = GROUP transactions BY (nsu, date, amount) HAVING count > 1
-            FOR EACH duplicate_group:
-              IF NOT is_installment_plan(duplicate_group) THEN
-                create_anomaly(
-                  type='duplicate_transaction',
-                  severity='high',
-                  overcharge=(duplicate_group.count - 1) * duplicate_group.amount
-                )
-              END IF
+            - "Same NSU + amount + date"
+            - "NOT installment plan"
 
     - category: "Chargeback Handling"
-      description: "Regras para priorizar e responder chargebacks"
+      description: "Processamento de chargebacks"
       priority: "P1"
       
       rules:
         - rule_id: "BR-030"
           name: "Chargeback Classification"
-          description: "Classificar motivo do chargeback"
           categories:
             fraud:
-              indicators: ["unrecognized_transaction", "stolen_card"]
               win_rate: 0.15
-              required_evidence: ["comprovante_assinado", "id_cliente"]
+              required_evidence: ["comprovante_assinado", "id_validation"]
             not_delivered:
-              indicators: ["product_not_received", "service_not_provided"]
               win_rate: 0.45
               required_evidence: ["tracking_number", "delivery_confirmation"]
             defective_product:
-              indicators: ["not_as_described", "damaged"]
               win_rate: 0.60
-              required_evidence: ["product_photos", "quality_certificate"]
             duplicate_charge:
-              indicators: ["charged_twice", "multiple_transactions"]
               win_rate: 0.80
-              required_evidence: ["transaction_log", "refund_proof"]
-          formula: |
-            category = classify_chargeback(chargeback.reason)
-            win_probability = category.win_rate
-            suggested_action = 'CONTEST' IF win_probability >= 0.50 ELSE 'ACCEPT'
 
         - rule_id: "BR-031"
           name: "Chargeback Cost-Benefit"
-          description: "Avaliar se vale contestar"
           formula: |
-            cost_to_contest = 50.00 + (lawyer_hours * 200.00)
-            amount_at_stake = transaction.amount + transaction.chargeback_fee
-            win_probability = get_win_probability(chargeback.category)
-            expected_recovery = amount_at_stake * win_probability
+            cost_to_contest = 50.00 + lawyer_hours * 200.00
+            expected_recovery = amount * win_probability
             net_benefit = expected_recovery - cost_to_contest
-            IF net_benefit > 0 THEN
-              recommendation = 'CONTEST'
-            ELSE
-              recommendation = 'ACCEPT'
-            END IF
+            recommend = 'CONTEST' IF net_benefit > 0
 
 metadata:
-  version: "1.0"
-  created_at: "2025-10-18T00:00:00Z"
-  created_by: "ia-business-analyst"
-  total_rules: 17
+  total_rules: 24
   categories: 4
-  status: "draft"
-  
-  changelog:
-    - version: "1.0"
-      date: "2025-10-18"
-      author: "ia-business-analyst"
-      changes: "Criação inicial das regras de negócio"

@@ -343,16 +343,21 @@ user_stories:
           priority: "P1"
           story_points: 13
           description: |
-            Usar Prophet ou modelo similar para prever recebimentos futuros
-            baseado em vendas atuais, histórico e sazonalidade.
+            Usar Prophet ou modelo similar para forecast de recebimentos
+            baseado em vendas, histórico e sazonalidade.
           acceptance_criteria:
             - "Forecast 90 dias com MAE < 5%"
             - "Gráfico com intervalo de confiança"
-            - "Breakdown por adquirente e forma de pagamento"
-            - "Considerar parcelas, antecipações e chargebacks"
+            - "Breakdown por adquirente e tipo pagamento"
+            - "Considerar parcelas, antecipações, chargebacks"
             - "Atualização diária automática"
-          dependencies:
-            - "US-010"
+          dependencies: ["US-010"]
+          business_rules: []
+          definition_of_done:
+            - "Modelo Prophet treinado"
+            - "API de forecast implementada"
+            - "Dashboard com gráfico"
+            - "MAE validado < 5%"
 
         - story_id: "US-041"
           title: "Como lojista, quero simular cenários 'what-if'"
@@ -360,34 +365,32 @@ user_stories:
           priority: "P2"
           story_points: 8
           description: |
-            Simular impacto de decisões: antecipar parcelas, negociar taxas
-            ou alterar volume de vendas projetado.
+            Simular impacto de decisões financeiras
           acceptance_criteria:
-            - "Cenários: antecipação, mudança de taxa, volume de vendas"
+            - "Cenários: antecipação, mudança taxa, volume"
             - "Comparação lado a lado"
-            - "Impacto financeiro esperado"
-          dependencies:
-            - "US-040"
+            - "Cálculo de impacto financeiro"
+          dependencies: ["US-040"]
   
   summary:
     total_epics: 5
-    total_stories: 20
-    total_story_points: 178
-    
+    total_stories: 23
+    total_story_points: 186
+
     by_priority:
-      P0: 102
-      P1: 55
-      P2: 21
-    
+      P0_MVP: 136
+      P1: 42
+      P2: 8
+
     by_persona:
-      Sistema: 5
+      Mariana: 10
+      Roberto: 3
+      Sistema: 6
       Desenvolvedor: 1
       Ops: 1
-      Mariana: 9
-      Roberto: 4
-    
+
     estimated_velocity: 20
-    estimated_sprints: 9
+    estimated_sprints: 10
 
 metadata:
   version: "1.0"
