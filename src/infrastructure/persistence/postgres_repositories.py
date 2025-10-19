@@ -10,7 +10,10 @@ import asyncpg
 
 from src.domain.entities import AcquirerTransaction, Sale
 from src.domain.value_objects import Money
-from src.domain.repositories import SaleRepository, TransactionRepository
+from src.infrastructure.persistence.repositories import (
+    SaleRepository,
+    TransactionRepository,
+)
 
 
 class PostgresSaleRepository(SaleRepository):
@@ -32,6 +35,55 @@ class PostgresSaleRepository(SaleRepository):
 
         async with self.pool.acquire() as connection:
             rows = await connection.fetch(query, tenant_id, start_date, end_date)
+
+        return [
+            Sale(
+                id=str(row["id"]),
+                tenant_id=str(row["tenant_id"]),
+                nsu=row["nsu"],
+                amount=Money(Decimal(str(row["amount"]))),
+                date=row["date"],
+                payment_method=row["payment_method"],
+                installments=row["installments"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
+    async def find_by_id(self, tenant_id: str, sale_id: str) -> Sale | None:
+        query = """
+            SELECT id, tenant_id, nsu, amount, date, payment_method, installments, created_at
+            FROM sales
+            WHERE tenant_id = $1 AND id = $2
+        """
+
+        async with self.pool.acquire() as connection:
+            row = await connection.fetchrow(query, tenant_id, sale_id)
+
+        if row is None:
+            return None
+
+        return Sale(
+            id=str(row["id"]),
+            tenant_id=str(row["tenant_id"]),
+            nsu=row["nsu"],
+            amount=Money(Decimal(str(row["amount"]))),
+            date=row["date"],
+            payment_method=row["payment_method"],
+            installments=row["installments"],
+            created_at=row["created_at"],
+        )
+
+    async def find_unmatched(self, tenant_id: str) -> List[Sale]:
+        query = """
+            SELECT id, tenant_id, nsu, amount, date, payment_method, installments, created_at
+            FROM sales
+            WHERE tenant_id = $1 AND matched = FALSE
+            ORDER BY date, nsu
+        """
+
+        async with self.pool.acquire() as connection:
+            rows = await connection.fetch(query, tenant_id)
 
         return [
             Sale(
@@ -102,6 +154,32 @@ class PostgresTransactionRepository(TransactionRepository):
             )
 
         return transactions
+
+    async def find_by_id(
+        self, tenant_id: str, transaction_id: str
+    ) -> AcquirerTransaction | None:
+        query = """
+            SELECT id, tenant_id, acquirer, nsu, transaction_date, amount, mdr_amount, net_amount
+            FROM acquirer_transactions
+            WHERE tenant_id = $1 AND id = $2
+        """
+
+        async with self.pool.acquire() as connection:
+            row = await connection.fetchrow(query, tenant_id, transaction_id)
+
+        if row is None:
+            return None
+
+        return AcquirerTransaction(
+            id=str(row["id"]),
+            tenant_id=str(row["tenant_id"]),
+            acquirer=row["acquirer"],
+            nsu=row["nsu"],
+            amount=Money(Decimal(str(row["amount"]))),
+            transaction_date=row["transaction_date"],
+            mdr_amount=Money(Decimal(str(row["mdr_amount"]))),
+            net_amount=Money(Decimal(str(row["net_amount"]))),
+        )
 
 
 __all__ = ["PostgresSaleRepository", "PostgresTransactionRepository"]
