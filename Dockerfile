@@ -1,45 +1,47 @@
-# BuildToValue v7.0 - Dockerfile
-FROM python:3.11-slim
+# Multi-stage build for optimized image size
 
-# Metadata
-LABEL maintainer="BuildToValue Team <team@buildtovalue.com>"
-LABEL version="7.0"
-LABEL description="BuildToValue v7 - AI Squad for Software Development"
+FROM python:3.11-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    jq \
-    postgresql-client \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Copy application files
-COPY . .
+FROM python:3.11-slim
 
-# Create necessary directories
-RUN mkdir -p \
-    .buildtovalue/config \
-    .buildtovalue/ledger/decisions \
-    .buildtovalue/learning/rag-index \
-    logs
+WORKDIR /app
 
-# Make scripts executable
-RUN find scripts -type f -name "*.sh" -exec chmod +x {} +
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Expose application port
-EXPOSE 8080
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v7/health || exit 1
+COPY --from=builder /root/.local /home/appuser/.local
 
-# Default command
-CMD ["python", "src/main.py"]
+COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser migrations/ ./migrations/
+COPY --chown=appuser:appuser requirements.txt ./requirements.txt
+
+USER appuser
+
+ENV PATH=/home/appuser/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    ENVIRONMENT=production \
+    LOG_LEVEL=INFO
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
