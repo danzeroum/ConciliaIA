@@ -112,3 +112,4 @@ docs/_build/
 # Except example files
 !.env.example
 !config/keys.example.yaml
+!src/infrastructure/security/secrets_manager.py
