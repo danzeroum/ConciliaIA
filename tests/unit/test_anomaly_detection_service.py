@@ -8,7 +8,8 @@ from decimal import Decimal
 import pytest
 
 from src.application.services import AnomalyDetectionService
-from src.domain.entities import AcquirerTransaction, Money, Sale, Severity
+from src.domain.entities import AcquirerTransaction, DivergenceType, Sale, Severity
+from src.domain.value_objects import Money
 
 
 class TestAnomalyDetectionService:
@@ -29,18 +30,18 @@ class TestAnomalyDetectionService:
             payment_method="credit_1x",
         )
 
-        divergences = await service.detect_anomalies(
+        divergences = await service.detect_all_anomalies(
             tenant_id="tenant-123",
             unmatched_sales=[sale],
             unmatched_transactions=[],
+            matches=[],
         )
 
         assert len(divergences) == 1
         divergence = divergences[0]
-        assert divergence.type == "missing_transaction"
-        assert divergence.severity == Severity.MEDIUM
-        assert divergence.sale_id == sale.id
-        assert divergence.amount_at_risk == sale.amount
+        assert divergence.divergence_type is DivergenceType.MISSING_TRANSACTION
+        assert divergence.severity is Severity.MEDIUM
+        assert divergence.expected_value == sale.amount
 
     @pytest.mark.asyncio
     async def test_missing_transaction_high_severity(
@@ -55,14 +56,15 @@ class TestAnomalyDetectionService:
             payment_method="credit_1x",
         )
 
-        divergences = await service.detect_anomalies(
+        divergences = await service.detect_all_anomalies(
             tenant_id="tenant-123",
             unmatched_sales=[sale],
             unmatched_transactions=[],
+            matches=[],
         )
 
         assert len(divergences) == 1
-        assert divergences[0].severity == Severity.HIGH
+        assert divergences[0].severity is Severity.HIGH
 
     @pytest.mark.asyncio
     async def test_missing_transaction_critical_severity(
@@ -77,14 +79,15 @@ class TestAnomalyDetectionService:
             payment_method="credit_1x",
         )
 
-        divergences = await service.detect_anomalies(
+        divergences = await service.detect_all_anomalies(
             tenant_id="tenant-123",
             unmatched_sales=[sale],
             unmatched_transactions=[],
+            matches=[],
         )
 
         assert len(divergences) == 1
-        assert divergences[0].severity == Severity.CRITICAL
+        assert divergences[0].severity is Severity.CRITICAL
 
     @pytest.mark.asyncio
     async def test_no_divergence_within_seven_days(
@@ -99,38 +102,48 @@ class TestAnomalyDetectionService:
             payment_method="debit",
         )
 
-        divergences = await service.detect_anomalies(
+        divergences = await service.detect_all_anomalies(
             tenant_id="tenant-123",
             unmatched_sales=[sale],
             unmatched_transactions=[],
+            matches=[],
         )
 
         assert not divergences
 
     @pytest.mark.asyncio
-    async def test_unexpected_fee_detection(
+    async def test_duplicate_transaction_detection(
         self, service: AnomalyDetectionService
     ) -> None:
-        transaction = AcquirerTransaction(
+        transaction1 = AcquirerTransaction(
             id="txn-999",
             tenant_id="tenant-123",
             acquirer="cielo",
-            nsu="FEE001",
+            nsu="DUPL001",
+            amount=Money(Decimal("150.00")),
             transaction_date=date.today(),
-            settlement_date=date.today() + timedelta(days=30),
-            gross_amount=Money(Decimal("150.00")),
-            mdr_fee=Money(Decimal("150.00")),
-            net_amount=Money(Decimal("0.00")),
+            mdr_amount=Money(Decimal("4.50")),
+            net_amount=Money(Decimal("145.50")),
+        )
+        transaction2 = AcquirerTransaction(
+            id="txn-1000",
+            tenant_id="tenant-123",
+            acquirer="cielo",
+            nsu="DUPL001",
+            amount=Money(Decimal("150.00")),
+            transaction_date=date.today(),
+            mdr_amount=Money(Decimal("4.50")),
+            net_amount=Money(Decimal("145.50")),
         )
 
-        divergences = await service.detect_anomalies(
+        divergences = await service.detect_all_anomalies(
             tenant_id="tenant-123",
             unmatched_sales=[],
-            unmatched_transactions=[transaction],
+            unmatched_transactions=[transaction1, transaction2],
+            matches=[],
         )
 
         assert len(divergences) == 1
         divergence = divergences[0]
-        assert divergence.type == "unexpected_fee"
-        assert divergence.transaction_id == transaction.id
-        assert divergence.amount_at_risk == transaction.mdr_fee
+        assert divergence.divergence_type is DivergenceType.DUPLICATE_TRANSACTION
+        assert divergence.severity is Severity.HIGH

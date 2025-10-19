@@ -1,6 +1,4 @@
-"""Reconciliation API routes."""
-
-from __future__ import annotations
+"""API routes for executing reconciliation flows."""
 
 from datetime import date
 
@@ -8,7 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from src.api.dependencies import get_current_tenant, get_reconciliation_use_case
-from src.application.use_cases.reconcile_transactions import ReconcileTransactionsUseCase
+from src.application.use_cases.reconcile_transactions import (
+    ReconcileTransactionsUseCase,
+)
 from src.domain.entities import Tenant
 
 router = APIRouter()
@@ -31,7 +31,8 @@ class ReconciliationResponse(BaseModel):
     matched: int = Field(..., description="Number of matches created")
     divergences: int = Field(..., description="Number of divergences detected")
     accuracy: float = Field(..., description="Accuracy percentage (0-100)")
-    processing_time_ms: int = Field(..., description="Processing time in milliseconds")
+    precision: float = Field(..., description="Precision (0-100)")
+    recall: float = Field(..., description="Recall (0-100)")
 
 
 @router.post(
@@ -67,4 +68,10 @@ async def execute_reconciliation(
         end_date=request.end_date,
     )
 
-    return ReconciliationResponse(**result)
+    return ReconciliationResponse(
+        matched=result.matched_count,
+        divergences=len(result.divergences),
+        accuracy=float(result.accuracy * 100),
+        precision=float(result.precision * 100),
+        recall=float(result.recall * 100),
+    )

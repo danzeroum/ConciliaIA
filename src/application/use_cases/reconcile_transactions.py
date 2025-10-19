@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Dict
+from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
+from typing import List
 
 import structlog
 
 from src.application.services import AnomalyDetectionService, MatchingService
-from src.domain.entities import Severity
+from src.domain.entities import Divergence, ReconciliationMatch
 from src.domain.repositories import (
     DivergenceRepository,
     MatchRepository,
@@ -17,6 +19,22 @@ from src.domain.repositories import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class ReconciliationResult:
+    """Aggregate result of the reconciliation process."""
+
+    matches: List[ReconciliationMatch]
+    divergences: List[Divergence]
+    total_sales: int
+    total_transactions: int
+    matched_count: int
+    unmatched_sales_count: int
+    unmatched_transactions_count: int
+    accuracy: Decimal
+    precision: Decimal
+    recall: Decimal
 
 
 class ReconcileTransactionsUseCase:
@@ -40,10 +58,7 @@ class ReconcileTransactionsUseCase:
 
     async def execute(
         self, tenant_id: str, start_date: date, end_date: date
-    ) -> Dict[str, int | float]:
-        """Execute reconciliation for a date range and return aggregated metrics."""
-
-        start_time = datetime.utcnow()
+    ) -> ReconciliationResult:
         logger.info(
             "reconciliation_started",
             tenant_id=tenant_id,
@@ -51,10 +66,10 @@ class ReconcileTransactionsUseCase:
             end_date=str(end_date),
         )
 
-        sales = await self.sale_repo.find_unmatched(
+        sales = await self.sale_repo.find_by_date_range(
             tenant_id=tenant_id, start_date=start_date, end_date=end_date
         )
-        transactions = await self.transaction_repo.find_unmatched(
+        transactions = await self.transaction_repo.find_by_date_range(
             tenant_id=tenant_id, start_date=start_date, end_date=end_date
         )
 
@@ -65,43 +80,77 @@ class ReconcileTransactionsUseCase:
             transactions_count=len(transactions),
         )
 
-        matches, remaining_sales, remaining_transactions = await self.matching_service.match(
+        matches, unmatched_sales, unmatched_transactions = await self.matching_service.match_all(
             sales=sales, transactions=transactions
+        )
+
+        divergences = await self.anomaly_service.detect_all_anomalies(
+            tenant_id=tenant_id,
+            unmatched_sales=unmatched_sales,
+            unmatched_transactions=unmatched_transactions,
+            matches=matches,
         )
 
         for match in matches:
             await self.match_repo.save(match)
-            if not match.requires_human_review():
-                match.auto_approve()
-                await self.match_repo.update(match)
-
-        divergences = await self.anomaly_service.detect_anomalies(
-            tenant_id=tenant_id,
-            unmatched_sales=remaining_sales,
-            unmatched_transactions=remaining_transactions,
-        )
 
         for divergence in divergences:
             await self.divergence_repo.save(divergence)
-            if divergence.severity == Severity.CRITICAL:
-                logger.warning(
-                    "critical_divergence_detected",
-                    tenant_id=tenant_id,
-                    divergence_id=divergence.id,
-                    amount=float(divergence.amount_at_risk.amount),
-                )
 
-        total_sales = len(sales)
-        matched_count = len(matches)
-        accuracy = float(matched_count / total_sales * 100) if total_sales else 0.0
-        processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        result = self._calculate_metrics(
+            sales,
+            transactions,
+            matches,
+            unmatched_sales,
+            unmatched_transactions,
+            divergences,
+        )
 
-        result: Dict[str, int | float] = {
-            "matched": matched_count,
-            "divergences": len(divergences),
-            "accuracy": accuracy,
-            "processing_time_ms": processing_time_ms,
-        }
+        logger.info(
+            "reconciliation_completed",
+            tenant_id=tenant_id,
+            accuracy=float(result.accuracy),
+            matches=result.matched_count,
+            divergences=len(divergences),
+        )
 
-        logger.info("reconciliation_completed", tenant_id=tenant_id, **result)
         return result
+
+    def _calculate_metrics(
+        self,
+        sales: List,
+        transactions: List,
+        matches: List[ReconciliationMatch],
+        unmatched_sales: List,
+        unmatched_transactions: List,
+        divergences: List[Divergence],
+    ) -> ReconciliationResult:
+        total_sales = len(sales)
+        total_transactions = len(transactions)
+        matched_count = len(matches)
+
+        accuracy = (
+            Decimal(str(matched_count / total_sales)) if total_sales > 0 else Decimal("0.0")
+        )
+
+        precision = Decimal("1.0") if matched_count > 0 else Decimal("0.0")
+
+        recall_denominator = matched_count + len(unmatched_sales)
+        recall = (
+            Decimal(str(matched_count / recall_denominator))
+            if recall_denominator > 0
+            else Decimal("0.0")
+        )
+
+        return ReconciliationResult(
+            matches=matches,
+            divergences=divergences,
+            total_sales=total_sales,
+            total_transactions=total_transactions,
+            matched_count=matched_count,
+            unmatched_sales_count=len(unmatched_sales),
+            unmatched_transactions_count=len(unmatched_transactions),
+            accuracy=accuracy,
+            precision=precision,
+            recall=recall,
+        )

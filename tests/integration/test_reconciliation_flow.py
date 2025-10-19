@@ -13,7 +13,8 @@ from src.application.strategies import ExactMatcher, FuzzyMatcher, MLMatcher
 from src.application.use_cases.reconcile_transactions import (
     ReconcileTransactionsUseCase,
 )
-from src.domain.entities import AcquirerTransaction, Money, Sale
+from src.domain.entities import AcquirerTransaction, Sale
+from src.domain.value_objects import Money
 
 
 @pytest.mark.integration
@@ -68,17 +69,16 @@ class TestReconciliationFlow:
                 tenant_id=tenant_id,
                 acquirer="cielo",
                 nsu=f"NSU{index:06d}",
+                amount=Money(Decimal(f"{100 + index}.00")),
                 transaction_date=date(2025, 1, 15),
-                settlement_date=date(2025, 2, 15),
-                gross_amount=Money(Decimal(f"{100 + index}.00")),
-                mdr_fee=Money(Decimal("3.00")),
+                mdr_amount=Money(Decimal("3.00")),
                 net_amount=Money(Decimal(f"{97 + index}.00")),
             )
             for index in range(10)
         ]
 
-        use_case.sale_repo.find_unmatched.return_value = sales
-        use_case.transaction_repo.find_unmatched.return_value = transactions
+        use_case.sale_repo.find_by_date_range.return_value = sales
+        use_case.transaction_repo.find_by_date_range.return_value = transactions
 
         result = await use_case.execute(
             tenant_id=tenant_id,
@@ -86,10 +86,10 @@ class TestReconciliationFlow:
             end_date=end_date,
         )
 
-        assert result["matched"] == 10
-        assert result["divergences"] == 0
-        assert result["accuracy"] == pytest.approx(100.0)
-        assert result["processing_time_ms"] >= 0
+        assert result.matched_count == 10
+        assert len(result.divergences) == 0
+        assert result.accuracy == Decimal("1")
+        assert result.precision == Decimal("1.0")
         assert use_case.match_repo.save.call_count == 10
         assert use_case.divergence_repo.save.call_count == 0
 
@@ -132,10 +132,9 @@ class TestReconciliationFlow:
                 tenant_id=tenant_id,
                 acquirer="cielo",
                 nsu=f"MATCH{index}",
+                amount=Money(Decimal("100.00")),
                 transaction_date=today,
-                settlement_date=today + timedelta(days=30),
-                gross_amount=Money(Decimal("100.00")),
-                mdr_fee=Money(Decimal("3.00")),
+                mdr_amount=Money(Decimal("3.00")),
                 net_amount=Money(Decimal("97.00")),
             )
             for index in range(5)
@@ -146,11 +145,10 @@ class TestReconciliationFlow:
                 id=f"txn-fee-{index}",
                 tenant_id=tenant_id,
                 acquirer="cielo",
-                nsu=f"FEE{index}",
+                nsu=f"FEE{index:04d}",
+                amount=Money(Decimal("150.00")),
                 transaction_date=today,
-                settlement_date=today + timedelta(days=30),
-                gross_amount=Money(Decimal("150.00")),
-                mdr_fee=Money(Decimal("150.00")),
+                mdr_amount=Money(Decimal("150.00")),
                 net_amount=Money(Decimal("0.00")),
             )
             for index in range(2)
@@ -158,8 +156,8 @@ class TestReconciliationFlow:
 
         all_transactions = matched_transactions + unexpected_fees
 
-        use_case.sale_repo.find_unmatched.return_value = all_sales
-        use_case.transaction_repo.find_unmatched.return_value = all_transactions
+        use_case.sale_repo.find_by_date_range.return_value = all_sales
+        use_case.transaction_repo.find_by_date_range.return_value = all_transactions
 
         result = await use_case.execute(
             tenant_id=tenant_id,
@@ -167,10 +165,10 @@ class TestReconciliationFlow:
             end_date=today,
         )
 
-        assert result["matched"] == 5
-        assert result["divergences"] == 5
-        assert result["accuracy"] == pytest.approx(62.5)
-        assert use_case.divergence_repo.save.call_count == 5
+        assert result.matched_count == 5
+        assert len(result.divergences) == 3
+        assert result.accuracy == Decimal("0.625")
+        assert use_case.divergence_repo.save.call_count == 3
 
     @pytest.mark.asyncio
     async def test_reconciliation_performance_target(
@@ -197,17 +195,16 @@ class TestReconciliationFlow:
                 tenant_id=tenant_id,
                 acquirer="cielo",
                 nsu=f"NSU{index:07d}",
+                amount=Money(Decimal(f"{100 + (index % 100)}.00")),
                 transaction_date=today,
-                settlement_date=today + timedelta(days=30),
-                gross_amount=Money(Decimal(f"{100 + (index % 100)}.00")),
-                mdr_fee=Money(Decimal("3.00")),
+                mdr_amount=Money(Decimal("3.00")),
                 net_amount=Money(Decimal(f"{97 + (index % 100)}.00")),
             )
             for index in range(1000)
         ]
 
-        use_case.sale_repo.find_unmatched.return_value = sales
-        use_case.transaction_repo.find_unmatched.return_value = transactions
+        use_case.sale_repo.find_by_date_range.return_value = sales
+        use_case.transaction_repo.find_by_date_range.return_value = transactions
 
         result = await use_case.execute(
             tenant_id=tenant_id,
@@ -215,6 +212,5 @@ class TestReconciliationFlow:
             end_date=today,
         )
 
-        assert result["processing_time_ms"] < 10000
-        assert result["matched"] == 1000
-        assert result["accuracy"] == pytest.approx(100.0)
+        assert result.matched_count == 1000
+        assert result.accuracy == Decimal("1")

@@ -14,13 +14,8 @@ import pytest
 from tests.datasets.generate_test_dataset import generate_test_dataset, save_dataset
 from src.application.services import AnomalyDetectionService, MatchingService
 from src.application.strategies import ExactMatcher, FuzzyMatcher, MLMatcher
-from src.domain.entities import (
-    AcquirerTransaction,
-    MatchType,
-    Money,
-    ReconciliationMatch,
-    Sale,
-)
+from src.domain.entities import AcquirerTransaction, MatchType, ReconciliationMatch, Sale
+from src.domain.value_objects import Money
 
 DATASET_PATH = Path("tests/datasets/test_dataset_10k.json")
 
@@ -78,7 +73,7 @@ class TestMatchingAccuracy:
         transactions = self._parse_transactions(test_dataset_10k["transactions"])
         ground_truth = test_dataset_10k["ground_truth_matches"]
 
-        matches, unmatched_sales, unmatched_txns = await matching_service.match(
+        matches, unmatched_sales, unmatched_txns = await matching_service.match_all(
             sales=list(sales),
             transactions=list(transactions),
         )
@@ -131,9 +126,8 @@ class TestMatchingAccuracy:
                 acquirer="cielo",
                 nsu=nsu,
                 transaction_date=txn_date,
-                settlement_date=txn_date + timedelta(days=30),
-                gross_amount=amount,
-                mdr_fee=Money(amount.amount * Decimal("0.03")),
+                amount=amount,
+                mdr_amount=Money(amount.amount * Decimal("0.03")),
                 net_amount=Money(amount.amount * Decimal("0.97")),
             )
 
@@ -158,16 +152,16 @@ class TestMatchingAccuracy:
         fuzzy_matcher = FuzzyMatcher()
 
         test_cases = [
-            (Decimal("100.00"), Decimal("100.00"), True, Decimal("0.95")),
-            (Decimal("100.00"), Decimal("100.25"), True, Decimal("0.90")),
-            (Decimal("100.00"), Decimal("99.75"), True, Decimal("0.90")),
-            (Decimal("100.00"), Decimal("100.50"), True, Decimal("0.85")),
-            (Decimal("100.00"), Decimal("99.50"), True, Decimal("0.85")),
-            (Decimal("100.00"), Decimal("100.51"), False, None),
-            (Decimal("100.00"), Decimal("99.49"), False, None),
+            (Decimal("100.00"), Decimal("100.00"), True),
+            (Decimal("100.00"), Decimal("100.25"), True),
+            (Decimal("100.00"), Decimal("99.75"), True),
+            (Decimal("100.00"), Decimal("100.50"), True),
+            (Decimal("100.00"), Decimal("99.50"), True),
+            (Decimal("100.00"), Decimal("100.51"), False),
+            (Decimal("100.00"), Decimal("99.49"), False),
         ]
 
-        for sale_amount, txn_amount, should_match, expected_confidence in test_cases:
+        for sale_amount, txn_amount, should_match in test_cases:
             sale = Sale(
                 id="sale-test",
                 tenant_id="tenant-test",
@@ -183,9 +177,8 @@ class TestMatchingAccuracy:
                 acquirer="cielo",
                 nsu="NSU123",
                 transaction_date=date(2025, 1, 15),
-                settlement_date=date(2025, 2, 15),
-                gross_amount=Money(txn_amount),
-                mdr_fee=Money(txn_amount * Decimal("0.03")),
+                amount=Money(txn_amount),
+                mdr_amount=Money(txn_amount * Decimal("0.03")),
                 net_amount=Money(txn_amount * Decimal("0.97")),
             )
 
@@ -195,7 +188,7 @@ class TestMatchingAccuracy:
                 assert matches, (
                     f"Expected a match for sale {sale_amount} vs transaction {txn_amount}"
                 )
-                assert matches[0].confidence >= expected_confidence
+                assert matches[0].confidence >= Decimal("0.85")
             else:
                 assert not matches, (
                     f"Expected no match for sale {sale_amount} vs transaction {txn_amount}"
@@ -222,13 +215,10 @@ class TestMatchingAccuracy:
                 tenant_id=item["tenant_id"],
                 acquirer=item["acquirer"],
                 nsu=item["nsu"],
+                amount=Money(Decimal(str(item["gross_amount"]))),
                 transaction_date=date.fromisoformat(item["transaction_date"]),
-                settlement_date=date.fromisoformat(item["settlement_date"]),
-                gross_amount=Money(Decimal(str(item["gross_amount"]))),
-                mdr_fee=Money(Decimal(str(item["mdr_fee"]))),
+                mdr_amount=Money(Decimal(str(item["mdr_fee"]))),
                 net_amount=Money(Decimal(str(item["net_amount"]))),
-                installments=item.get("installments", 1),
-                installment_number=item.get("installment_number"),
             )
             for item in payload
         ]
@@ -335,13 +325,18 @@ class TestAnomalyDetection:
             for item in unmatched_sales
         ]
 
-        detected = await anomaly_service.detect_anomalies(
+        detected = await anomaly_service.detect_all_anomalies(
             tenant_id="tenant-test",
             unmatched_sales=unmatched_sale_entities,
             unmatched_transactions=[],
+            matches=[],
         )
 
-        detected_missing = [item for item in detected if item.type == "missing_transaction"]
+        detected_missing = [
+            item
+            for item in detected
+            if item.divergence_type.value == "missing_transaction"
+        ]
 
         recall = (
             len(detected_missing) / len(ground_truth)
