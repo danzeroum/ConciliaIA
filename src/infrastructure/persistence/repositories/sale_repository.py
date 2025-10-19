@@ -29,3 +29,7 @@ class SaleRepository(ABC):
     @abstractmethod
     async def find_unmatched(self, tenant_id: str) -> List[Sale]:
         """Return all sales that have not yet been reconciled."""
+
+    @abstractmethod
+    async def find_by_nsu(self, tenant_id: str, nsu: str) -> List[Sale]:
+        """Return sales matching the provided NSU pattern."""

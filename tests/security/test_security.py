@@ -2,28 +2,39 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, Dict
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.api.gateway import check_rate_limit
+from src.api import dependencies
+from src.api.dependencies import get_reconciliation_use_case
 
 
 @pytest.fixture
-def api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def api_client() -> TestClient:
     from src.main import app
 
-    async def _noop(*_: Any, **__: Any) -> None:
-        return None
+    class _FakeUseCase:
+        async def execute(self, *args: Any, **kwargs: Any) -> Any:
+            return SimpleNamespace(
+                matched_count=0,
+                divergences=[],
+                accuracy=1.0,
+                precision=1.0,
+                recall=1.0,
+            )
 
-    monkeypatch.setattr("src.infrastructure.database.init_database_pool", _noop)
-    monkeypatch.setattr("src.infrastructure.cache.init_redis_pool", _noop)
-    monkeypatch.setattr("src.infrastructure.database.close_database_pool", _noop)
-    monkeypatch.setattr("src.infrastructure.cache.close_redis_pool", _noop)
+    app.dependency_overrides[get_reconciliation_use_case] = lambda: _FakeUseCase()
 
-    with TestClient(app) as client:
-        yield client
+    try:
+        with TestClient(app) as client:
+            yield client
+    finally:
+        app.dependency_overrides.clear()
+        dependencies.database = None
 
 
 @pytest.mark.security

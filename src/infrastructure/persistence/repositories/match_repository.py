@@ -26,3 +26,13 @@ class MatchRepository(ABC):
         self, tenant_id: str, sale_id: str
     ) -> List[ReconciliationMatch]:
         """Return all matches associated with a sale."""
+
+    @abstractmethod
+    async def find_by_transaction(
+        self, tenant_id: str, transaction_id: str
+    ) -> List[ReconciliationMatch]:
+        """Return all matches associated with a transaction."""
+
+    @abstractmethod
+    async def find_requiring_review(self, tenant_id: str) -> List[ReconciliationMatch]:
+        """Return matches that still require manual review."""

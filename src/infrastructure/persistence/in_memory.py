@@ -53,6 +53,13 @@ class InMemorySaleRepository(SaleRepository):
             if sale.tenant_id == tenant_id and sale.id not in self._matched_sales
         ]
 
+    async def find_by_nsu(self, tenant_id: str, nsu: str) -> List[Sale]:
+        return [
+            sale
+            for sale in self._sales.values()
+            if sale.tenant_id == tenant_id and nsu.lower() in str(sale.nsu).lower()
+        ]
+
     def mark_as_matched(self, sale_id: str) -> None:
         self._matched_sales.add(sale_id)
 
@@ -84,6 +91,24 @@ class InMemoryTransactionRepository(TransactionRepository):
 
     async def save(self, transaction: AcquirerTransaction) -> None:
         self._transactions[transaction.id] = transaction
+
+    async def find_unmatched(self, tenant_id: str) -> List[AcquirerTransaction]:
+        return [
+            txn
+            for txn in self._transactions.values()
+            if txn.tenant_id == tenant_id and txn.id not in self._matched_transactions
+        ]
+
+    async def find_by_acquirer(
+        self, tenant_id: str, acquirer: str, start_date: date, end_date: date
+    ) -> List[AcquirerTransaction]:
+        return [
+            txn
+            for txn in self._transactions.values()
+            if txn.tenant_id == tenant_id
+            and str(txn.acquirer).lower() == acquirer.lower()
+            and start_date <= txn.transaction_date <= end_date
+        ]
 
     def mark_as_matched(self, transaction_id: str) -> None:
         self._matched_transactions.add(transaction_id)
@@ -125,6 +150,22 @@ class InMemoryMatchRepository(MatchRepository):
             if match.tenant_id == tenant_id and match.sale_id == sale_id
         ]
 
+    async def find_by_transaction(
+        self, tenant_id: str, transaction_id: str
+    ) -> List[ReconciliationMatch]:
+        return [
+            match
+            for match in self._matches.values()
+            if match.tenant_id == tenant_id and match.transaction_id == transaction_id
+        ]
+
+    async def find_requiring_review(self, tenant_id: str) -> List[ReconciliationMatch]:
+        return [
+            match
+            for match in self._matches.values()
+            if match.tenant_id == tenant_id and match.requires_review
+        ]
+
 
 class InMemoryDivergenceRepository(DivergenceRepository):
     """Store divergences for inspection."""
@@ -159,4 +200,13 @@ class InMemoryDivergenceRepository(DivergenceRepository):
             divergence
             for divergence in self._divergences.values()
             if divergence.tenant_id == tenant_id and divergence.severity == severity
+        ]
+
+    async def find_critical_open(self, tenant_id: str) -> List[Divergence]:
+        return [
+            divergence
+            for divergence in self._divergences.values()
+            if divergence.tenant_id == tenant_id
+            and divergence.severity == Severity.CRITICAL
+            and divergence.status == DivergenceStatus.OPEN
         ]
