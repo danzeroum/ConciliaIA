@@ -49,23 +49,10 @@ const createPrismaClient = (): PrismaClient => {
     log: logLevels,
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    prisma.$use(async (params: Record<string, unknown>, next: (params: Record<string, unknown>) => Promise<unknown>) => {
-      const start = Date.now();
-      const result = await next(params);
-      const duration = Date.now() - start;
-      const action = [params.model, params.action].filter(Boolean).join('.');
-      console.debug(`[Prisma] ${action} executed in ${duration}ms`);
-      return result;
-    });
-  }
-
   if (!globalForPrisma.prismaShutdownHookRegistered) {
     const shutdown = async () => {
       await prisma.$disconnect();
     };
-
-    prisma.$on('beforeExit', shutdown);
 
     const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
     signals.forEach((signal) => {

@@ -8,9 +8,9 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "src",
     "types": ["node", "vitest"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
-  "exclude": ["node_modules", "conciliaai-frontend"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "tests", "conciliaai-frontend"]
 }
