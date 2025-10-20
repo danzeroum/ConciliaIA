@@ -6,6 +6,13 @@ import { createUserSchema } from './dtos/create-user.dto';
 import { updateUserSchema } from './dtos/update-user.dto';
 import { UserService } from './services/user.service';
 
+/**
+ * @swagger
+ * tags:
+ *   - name: Users
+ *     description: User management endpoints
+ */
+
 export class UsersController {
   public readonly router: Router;
 
@@ -15,8 +22,116 @@ export class UsersController {
   }
 
   private registerRoutes(): void {
+    /**
+     * @swagger
+     * /users:
+     *   post:
+     *     summary: Create a new user
+     *     tags: [Users]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateUserInput'
+     *     responses:
+     *       201:
+     *         description: User created successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/User'
+     *       400:
+     *         description: Validation error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       409:
+     *         description: Email already in use
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
     this.router.post('/users', this.createUser);
+
+    /**
+     * @swagger
+     * /users/{id}:
+     *   get:
+     *     summary: Get a user by ID
+     *     tags: [Users]
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: User identifier
+     *     responses:
+     *       200:
+     *         description: User found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/User'
+     *       404:
+     *         description: User not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
     this.router.get('/users/:id', this.getUserById);
+
+    /**
+     * @swagger
+     * /users/{id}:
+     *   patch:
+     *     summary: Update a user
+     *     tags: [Users]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: User identifier
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateUserInput'
+     *     responses:
+     *       200:
+     *         description: User updated successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/User'
+     *       400:
+     *         description: Validation error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       404:
+     *         description: User not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
     this.router.patch('/users/:id', authMiddleware, this.updateUser);
   }
 

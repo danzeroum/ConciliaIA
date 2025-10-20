@@ -6,6 +6,13 @@ import { createProductSchema } from './dtos/create-product.dto';
 import { updateProductSchema } from './dtos/update-product.dto';
 import { ProductService } from './services/product.service';
 
+/**
+ * @swagger
+ * tags:
+ *   - name: Products
+ *     description: Product catalog management
+ */
+
 export class ProductsController {
   public readonly router: Router;
 
@@ -15,10 +22,179 @@ export class ProductsController {
   }
 
   private registerRoutes(): void {
+    /**
+     * @swagger
+     * /products:
+     *   post:
+     *     summary: Create a new product
+     *     tags: [Products]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateProductInput'
+     *     responses:
+     *       201:
+     *         description: Product created successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Product'
+     *       400:
+     *         description: Validation error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       409:
+     *         description: SKU already in use
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
     this.router.post('/products', authMiddleware, this.createProduct);
+
+    /**
+     * @swagger
+     * /products:
+     *   get:
+     *     summary: List products
+     *     tags: [Products]
+     *     responses:
+     *       200:
+     *         description: Products found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/Product'
+     */
     this.router.get('/products', this.getAllProducts);
+
+    /**
+     * @swagger
+     * /products/{id}:
+     *   get:
+     *     summary: Get product by ID
+     *     tags: [Products]
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: Product identifier
+     *     responses:
+     *       200:
+     *         description: Product found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Product'
+     *       404:
+     *         description: Product not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
     this.router.get('/products/:id', this.getProductById);
+
+    /**
+     * @swagger
+     * /products/{id}:
+     *   patch:
+     *     summary: Update a product
+     *     tags: [Products]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: Product identifier
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateProductInput'
+     *     responses:
+     *       200:
+     *         description: Product updated successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Product'
+     *       400:
+     *         description: Validation error
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       404:
+     *         description: Product not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
     this.router.patch('/products/:id', authMiddleware, this.updateProduct);
+
+    /**
+     * @swagger
+     * /products/{id}:
+     *   delete:
+     *     summary: Delete a product
+     *     tags: [Products]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         schema:
+     *           type: string
+     *         required: true
+     *         description: Product identifier
+     *     responses:
+     *       200:
+     *         description: Product deleted successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Product'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     *       404:
+     *         description: Product not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
     this.router.delete('/products/:id', authMiddleware, this.deleteProduct);
   }
 
