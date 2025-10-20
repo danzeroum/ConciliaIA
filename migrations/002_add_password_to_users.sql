@@ -1,0 +1,5 @@
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "password" TEXT NOT NULL DEFAULT '';
+
+UPDATE "User" SET "password" = '' WHERE "password" IS NULL;
+
+ALTER TABLE "User" ALTER COLUMN "password" DROP DEFAULT;

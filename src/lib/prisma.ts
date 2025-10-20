@@ -50,7 +50,7 @@ const createPrismaClient = (): PrismaClient => {
   });
 
   if (process.env.NODE_ENV === 'development') {
-    prisma.$use(async (params, next) => {
+    prisma.$use(async (params: Record<string, unknown>, next: (params: Record<string, unknown>) => Promise<unknown>) => {
       const start = Date.now();
       const result = await next(params);
       const duration = Date.now() - start;
