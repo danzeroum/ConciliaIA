@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime, time
 from typing import List, Optional
 from uuid import UUID
 
@@ -115,5 +116,27 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
         models = result.scalars().all()
 
         self.logger.warning("critical_divergences_found", count=len(models))
+
+        return [self.mapper.to_entity(model) for model in models]
+
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[Divergence]:
+        """Find divergences detected within a date interval."""
+        start_dt = datetime.combine(start_date, time.min)
+        end_dt = datetime.combine(end_date, time.max)
+
+        stmt = (
+            select(DivergenceModel)
+            .where(
+                DivergenceModel.tenant_id == UUID(tenant_id),
+                DivergenceModel.detected_at >= start_dt,
+                DivergenceModel.detected_at <= end_dt,
+            )
+            .order_by(DivergenceModel.detected_at)
+        )
+
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
 
         return [self.mapper.to_entity(model) for model in models]

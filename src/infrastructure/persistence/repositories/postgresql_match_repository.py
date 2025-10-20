@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime, time
 from typing import List, Optional
 from uuid import UUID
 
@@ -107,5 +108,27 @@ class PostgreSQLMatchRepository(MatchRepository):
         models = result.scalars().all()
 
         self.logger.info("matches_requiring_review", count=len(models))
+
+        return [self.mapper.to_entity(model) for model in models]
+
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[ReconciliationMatch]:
+        """Find matches created within a date range."""
+        start_dt = datetime.combine(start_date, time.min)
+        end_dt = datetime.combine(end_date, time.max)
+
+        stmt = (
+            select(MatchModel)
+            .where(
+                MatchModel.tenant_id == UUID(tenant_id),
+                MatchModel.matched_at >= start_dt,
+                MatchModel.matched_at <= end_dt,
+            )
+            .order_by(MatchModel.matched_at)
+        )
+
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
 
         return [self.mapper.to_entity(model) for model in models]

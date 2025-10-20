@@ -6,7 +6,7 @@ from datetime import date
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -59,6 +59,18 @@ class PostgreSQLTransactionRepository(TransactionRepository):
         if model:
             return self.mapper.to_entity(model)
         return None
+
+    async def delete(self, tenant_id: str, transaction_id: str) -> None:
+        """Delete a transaction by ID for a tenant."""
+        stmt = (
+            delete(TransactionModel)
+            .where(
+                TransactionModel.tenant_id == UUID(tenant_id),
+                TransactionModel.id == UUID(transaction_id),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        await self.session.execute(stmt)
 
     async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date

@@ -23,6 +23,10 @@ class TransactionRepository(ABC):
         """Retrieve a transaction by its identifier."""
 
     @abstractmethod
+    async def delete(self, tenant_id: str, transaction_id: str) -> None:
+        """Delete a transaction that belongs to the tenant."""
+
+    @abstractmethod
     async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[AcquirerTransaction]:

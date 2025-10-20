@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import date
 from typing import List, Optional
 
 from src.domain.entities import Divergence, DivergenceStatus, Severity
@@ -36,3 +37,9 @@ class DivergenceRepository(ABC):
     @abstractmethod
     async def find_critical_open(self, tenant_id: str) -> List[Divergence]:
         """Return critical divergences that remain open."""
+
+    @abstractmethod
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[Divergence]:
+        """Return divergences detected during the provided interval."""
