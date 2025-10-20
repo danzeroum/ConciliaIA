@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { compareSync } from 'bcryptjs';
 
-import { ConflictError, NotFoundError, ValidationError } from '../../../../src/modules/common/errors';
+import { ConflictError, NotFoundError, ValidationError } from '../../../../src/utils/errors';
 import { UserService } from '../../../../src/modules/users/services/user.service';
 import { UserRepository } from '../../../../src/repositories/user.repository';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 
-import { ConflictError, NotFoundError, ValidationError } from '../../../../src/modules/common/errors';
+import { ConflictError, NotFoundError, ValidationError } from '../../../../src/utils/errors';
 import { ProductService } from '../../../../src/modules/products/services/product.service';
 import { ProductRepository } from '../../../../src/repositories/product.repository';
 

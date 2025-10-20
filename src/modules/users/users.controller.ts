@@ -1,6 +1,6 @@
-import { Request, Response, Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 
-import { ApplicationError } from '../common/errors';
+import { parseWithSchema } from '../../utils/validation';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { createUserSchema } from './dtos/create-user.dto';
 import { updateUserSchema } from './dtos/update-user.dto';
@@ -20,62 +20,37 @@ export class UsersController {
     this.router.patch('/users/:id', authMiddleware, this.updateUser);
   }
 
-  private createUser = async (req: Request, res: Response): Promise<Response> => {
-    const validation = createUserSchema.safeParse(req.body);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        message: 'Invalid request body.',
-        errors: validation.error.flatten(),
-      });
-    }
-
+  private createUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = await this.userService.createUser(validation.data);
+      const payload = parseWithSchema(createUserSchema, req.body, 'Invalid request body.');
+      const user = await this.userService.createUser(payload);
       const { password, ...userWithoutPassword } = user;
-      return res.status(201).json(userWithoutPassword);
+      res.status(201).json(userWithoutPassword);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
 
-  private getUserById = async (req: Request, res: Response): Promise<Response> => {
+  private getUserById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = await this.userService.getUserById(req.params.id);
       const { password, ...userWithoutPassword } = user;
-      return res.status(200).json(userWithoutPassword);
+      res.status(200).json(userWithoutPassword);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
 
-  private updateUser = async (req: Request, res: Response): Promise<Response> => {
-    const validation = updateUserSchema.safeParse(req.body);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        message: 'Invalid request body.',
-        errors: validation.error.flatten(),
-      });
-    }
-
+  private updateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = await this.userService.updateUser(req.params.id, validation.data);
+      const payload = parseWithSchema(updateUserSchema, req.body, 'Invalid request body.');
+      const user = await this.userService.updateUser(req.params.id, payload);
       const { password, ...userWithoutPassword } = user;
-      return res.status(200).json(userWithoutPassword);
+      res.status(200).json(userWithoutPassword);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
-
-  private handleError(res: Response, error: unknown): Response {
-    if (error instanceof ApplicationError) {
-      return res.status(error.statusCode).json({ message: error.message });
-    }
-
-    console.error('Unexpected error in UsersController', error);
-    return res.status(500).json({ message: 'Internal server error.' });
-  }
 }
 
 export default UsersController;

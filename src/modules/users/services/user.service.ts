@@ -1,7 +1,7 @@
 import { hash } from 'bcryptjs';
-import { ZodError, ZodType } from 'zod';
 
-import { ConflictError, NotFoundError, ValidationError } from '../../common/errors';
+import { ConflictError, NotFoundError, ValidationError } from '../../../utils/errors';
+import { parseWithSchema } from '../../../utils/validation';
 import { CreateUserDto, createUserSchema } from '../dtos/create-user.dto';
 import { UpdateUserDto, updateUserSchema } from '../dtos/update-user.dto';
 import { UpdateUserData, UserRecord, UserRepository } from '../../../repositories/user.repository';
@@ -10,7 +10,7 @@ export class UserService {
   constructor(private readonly userRepository: UserRepository) {}
 
   async createUser(data: CreateUserDto): Promise<UserRecord> {
-    const payload = this.parseWithSchema(createUserSchema, data, 'Invalid user data.');
+    const payload = parseWithSchema(createUserSchema, data, 'Invalid user data.');
 
     const existing = await this.userRepository.findByEmail(payload.email);
     if (existing) {
@@ -45,7 +45,7 @@ export class UserService {
       throw new ValidationError('User id is required.');
     }
 
-    const payload = this.parseWithSchema(updateUserSchema, data, 'Invalid user update payload.');
+    const payload = parseWithSchema(updateUserSchema, data, 'Invalid user update payload.');
     const currentUser = await this.getUserById(id);
 
     if (payload.email && payload.email !== currentUser.email) {
@@ -74,18 +74,5 @@ export class UserService {
 
   private async hashPassword(password: string): Promise<string> {
     return hash(password, 10);
-  }
-
-  private parseWithSchema<T>(schema: ZodType<T>, data: unknown, fallbackMessage: string): T {
-    try {
-      return schema.parse(data);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const firstIssue = error.issues[0];
-        throw new ValidationError(firstIssue?.message ?? fallbackMessage);
-      }
-
-      throw error;
-    }
   }
 }

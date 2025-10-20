@@ -1,6 +1,6 @@
-import { Request, Response, Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 
-import { ApplicationError } from '../common/errors';
+import { parseWithSchema } from '../../utils/validation';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { createProductSchema } from './dtos/create-product.dto';
 import { updateProductSchema } from './dtos/update-product.dto';
@@ -22,77 +22,52 @@ export class ProductsController {
     this.router.delete('/products/:id', authMiddleware, this.deleteProduct);
   }
 
-  private createProduct = async (req: Request, res: Response): Promise<Response> => {
-    const validation = createProductSchema.safeParse(req.body);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        message: 'Invalid request body.',
-        errors: validation.error.flatten(),
-      });
-    }
-
+  private createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const product = await this.productService.createProduct(validation.data);
-      return res.status(201).json(product);
+      const payload = parseWithSchema(createProductSchema, req.body, 'Invalid request body.');
+      const product = await this.productService.createProduct(payload);
+      res.status(201).json(product);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
 
-  private getAllProducts = async (_req: Request, res: Response): Promise<Response> => {
+  private getAllProducts = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const products = await this.productService.getAllProducts();
-      return res.status(200).json(products);
+      res.status(200).json(products);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
 
-  private getProductById = async (req: Request, res: Response): Promise<Response> => {
+  private getProductById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const product = await this.productService.getProductById(req.params.id);
-      return res.status(200).json(product);
+      res.status(200).json(product);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
 
-  private updateProduct = async (req: Request, res: Response): Promise<Response> => {
-    const validation = updateProductSchema.safeParse(req.body);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        message: 'Invalid request body.',
-        errors: validation.error.flatten(),
-      });
-    }
-
+  private updateProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const product = await this.productService.updateProduct(req.params.id, validation.data);
-      return res.status(200).json(product);
+      const payload = parseWithSchema(updateProductSchema, req.body, 'Invalid request body.');
+      const product = await this.productService.updateProduct(req.params.id, payload);
+      res.status(200).json(product);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
 
-  private deleteProduct = async (req: Request, res: Response): Promise<Response> => {
+  private deleteProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const product = await this.productService.deleteProduct(req.params.id);
-      return res.status(200).json(product);
+      res.status(200).json(product);
     } catch (error) {
-      return this.handleError(res, error);
+      next(error);
     }
   };
-
-  private handleError(res: Response, error: unknown): Response {
-    if (error instanceof ApplicationError) {
-      return res.status(error.statusCode).json({ message: error.message });
-    }
-
-    console.error('Unexpected error in ProductsController', error);
-    return res.status(500).json({ message: 'Internal server error.' });
-  }
 }
 
 export default ProductsController;

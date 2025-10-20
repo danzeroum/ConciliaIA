@@ -1,6 +1,5 @@
-import { ZodError, ZodType } from 'zod';
-
-import { ConflictError, NotFoundError, ValidationError } from '../../common/errors';
+import { ConflictError, NotFoundError, ValidationError } from '../../../utils/errors';
+import { parseWithSchema } from '../../../utils/validation';
 import {
   CreateProductData,
   ProductRecord,
@@ -14,7 +13,7 @@ export class ProductService {
   constructor(private readonly productRepository: ProductRepository) {}
 
   async createProduct(data: CreateProductDto): Promise<ProductRecord> {
-    const payload = this.parseWithSchema(createProductSchema, data, 'Invalid product data.');
+    const payload = parseWithSchema(createProductSchema, data, 'Invalid product data.');
 
     const existing = await this.productRepository.findBySku(payload.sku);
     if (existing) {
@@ -54,7 +53,7 @@ export class ProductService {
       throw new ValidationError('Product id is required.');
     }
 
-    const payload = this.parseWithSchema(updateProductSchema, data, 'Invalid product update payload.');
+    const payload = parseWithSchema(updateProductSchema, data, 'Invalid product update payload.');
     const existingProduct = await this.getProductById(id);
 
     if (payload.sku && payload.sku !== existingProduct.sku) {
@@ -92,18 +91,5 @@ export class ProductService {
 
     await this.getProductById(id);
     return this.productRepository.delete(id);
-  }
-
-  private parseWithSchema<T>(schema: ZodType<T>, data: unknown, fallbackMessage: string): T {
-    try {
-      return schema.parse(data);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const firstIssue = error.issues[0];
-        throw new ValidationError(firstIssue?.message ?? fallbackMessage);
-      }
-
-      throw error;
-    }
   }
 }

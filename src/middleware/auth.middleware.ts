@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
+import { AppError, UnauthorizedError } from '../utils/errors';
 import { getJwtSecret } from '../modules/auth/services/auth.service';
-import { UnauthorizedError } from '../modules/common/errors';
 
 export interface RequestUser {
   userId: string;
@@ -15,11 +15,12 @@ declare module 'express-serve-static-core' {
   }
 }
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction): Response | void => {
+export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Unauthorized.' });
+    next(new UnauthorizedError('Unauthorized.'));
+    return;
   }
 
   const token = authHeader.slice(7);
@@ -43,19 +44,21 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     next();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
-      return res.status(error.statusCode).json({ message: error.message });
+      next(error);
+      return;
     }
 
     if (error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json({ message: 'Token expired.' });
+      next(new UnauthorizedError('Token expired.'));
+      return;
     }
 
     if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({ message: 'Invalid token.' });
+      next(new UnauthorizedError('Invalid token.'));
+      return;
     }
 
-    console.error('Failed to authenticate request', error);
-    return res.status(500).json({ message: 'Internal server error.' });
+    next(error instanceof Error ? error : new AppError('Failed to authenticate request.', 500));
   }
 };
 
