@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 
 import { ApplicationError } from '../common/errors';
+import { authMiddleware } from '../../middleware/auth.middleware';
 import { createProductSchema } from './dtos/create-product.dto';
 import { updateProductSchema } from './dtos/update-product.dto';
 import { ProductService } from './services/product.service';
@@ -14,11 +15,11 @@ export class ProductsController {
   }
 
   private registerRoutes(): void {
-    this.router.post('/products', this.createProduct);
+    this.router.post('/products', authMiddleware, this.createProduct);
     this.router.get('/products', this.getAllProducts);
     this.router.get('/products/:id', this.getProductById);
-    this.router.patch('/products/:id', this.updateProduct);
-    this.router.delete('/products/:id', this.deleteProduct);
+    this.router.patch('/products/:id', authMiddleware, this.updateProduct);
+    this.router.delete('/products/:id', authMiddleware, this.deleteProduct);
   }
 
   private createProduct = async (req: Request, res: Response): Promise<Response> => {
