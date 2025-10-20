@@ -7,7 +7,31 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import List
 
-import paramiko
+try:  # pragma: no cover - exercised indirectly via tests
+    import paramiko  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - fallback for test environment
+    class _ParamikoTransportStub:
+        """Minimal stub for :mod:`paramiko` Transport when dependency is absent."""
+
+        def __init__(self, *_: object, **__: object) -> None:
+            raise ModuleNotFoundError(
+                "paramiko is required for SFTP operations but is not installed"
+            )
+
+    class _ParamikoSFTPClientStub:
+        """Minimal stub for :mod:`paramiko` SFTPClient when dependency is absent."""
+
+        @staticmethod
+        def from_transport(*_: object, **__: object) -> "_ParamikoSFTPClientStub":
+            raise ModuleNotFoundError(
+                "paramiko is required for SFTP operations but is not installed"
+            )
+
+    class _ParamikoStub:
+        Transport = _ParamikoTransportStub
+        SFTPClient = _ParamikoSFTPClientStub
+
+    paramiko = _ParamikoStub()  # type: ignore
 import structlog
 
 logger = structlog.get_logger(__name__)
