@@ -1,10 +1,22 @@
 import '@testing-library/jest-dom';
-import { expect, afterEach, vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
 afterEach(() => {
   cleanup();
 });
+
+if (!('crypto' in globalThis)) {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: {},
+  });
+}
+
+if (!globalThis.crypto.randomUUID) {
+  Object.defineProperty(globalThis.crypto, 'randomUUID', {
+    value: () => Math.random().toString(36).substring(2, 10),
+  });
+}
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

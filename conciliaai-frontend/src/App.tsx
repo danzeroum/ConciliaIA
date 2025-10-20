@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, CssBaseline } from '@mui/material';
@@ -10,6 +9,8 @@ import { LoginPage } from './pages/Login/Login';
 import { DashboardPage } from './pages/Dashboard/Dashboard';
 import { SalesPage } from './pages/Sales/Sales';
 import { ReconciliationPage } from './pages/Reconciliation/Reconciliation';
+import { TransactionsPage } from './pages/Transactions/Transactions';
+import { NotificationSnackbar } from './components/common/Snackbar/NotificationSnackbar';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,7 +45,7 @@ export function App() {
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="sales" element={<SalesPage />} />
               <Route path="reconciliation" element={<ReconciliationPage />} />
-              <Route path="transactions" element={<div>Transações (em desenvolvimento)</div>} />
+              <Route path="transactions" element={<TransactionsPage />} />
               <Route path="divergences" element={<div>Divergências (em desenvolvimento)</div>} />
               <Route path="reports" element={<div>Relatórios (em desenvolvimento)</div>} />
               <Route path="settings" element={<div>Configurações (em desenvolvimento)</div>} />
@@ -53,6 +54,7 @@ export function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
+        <NotificationSnackbar />
       </ThemeProvider>
     </QueryClientProvider>
   );
