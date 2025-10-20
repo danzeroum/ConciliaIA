@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import date
 from typing import List, Optional
 
 from src.domain.entities import ReconciliationMatch
@@ -36,3 +37,9 @@ class MatchRepository(ABC):
     @abstractmethod
     async def find_requiring_review(self, tenant_id: str) -> List[ReconciliationMatch]:
         """Return matches that still require manual review."""
+
+    @abstractmethod
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[ReconciliationMatch]:
+        """Return matches performed in the given date interval."""

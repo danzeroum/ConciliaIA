@@ -34,6 +34,12 @@ class InMemorySaleRepository(SaleRepository):
             return sale
         return None
 
+    async def delete(self, tenant_id: str, sale_id: str) -> None:
+        sale = self._sales.get(sale_id)
+        if sale and sale.tenant_id == tenant_id:
+            self._sales.pop(sale_id, None)
+            self._matched_sales.discard(sale_id)
+
     async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[Sale]:
@@ -78,6 +84,12 @@ class InMemoryTransactionRepository(TransactionRepository):
         if transaction and transaction.tenant_id == tenant_id:
             return transaction
         return None
+
+    async def delete(self, tenant_id: str, transaction_id: str) -> None:
+        transaction = self._transactions.get(transaction_id)
+        if transaction and transaction.tenant_id == tenant_id:
+            self._transactions.pop(transaction_id, None)
+            self._matched_transactions.discard(transaction_id)
 
     async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date
@@ -166,6 +178,16 @@ class InMemoryMatchRepository(MatchRepository):
             if match.tenant_id == tenant_id and match.requires_review
         ]
 
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[ReconciliationMatch]:
+        return [
+            match
+            for match in self._matches.values()
+            if match.tenant_id == tenant_id
+            and start_date <= match.matched_at.date() <= end_date
+        ]
+
 
 class InMemoryDivergenceRepository(DivergenceRepository):
     """Store divergences for inspection."""
@@ -209,4 +231,15 @@ class InMemoryDivergenceRepository(DivergenceRepository):
             if divergence.tenant_id == tenant_id
             and divergence.severity == Severity.CRITICAL
             and divergence.status == DivergenceStatus.OPEN
+        ]
+
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[Divergence]:
+        return [
+            divergence
+            for divergence in self._divergences.values()
+            if divergence.tenant_id == tenant_id
+            and divergence.detected_at.date() >= start_date
+            and divergence.detected_at.date() <= end_date
         ]

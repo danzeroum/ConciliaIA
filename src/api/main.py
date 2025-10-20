@@ -12,7 +12,16 @@ import structlog
 from src.api import dependencies
 from src.api.middleware import AuthMiddleware, RateLimitMiddleware, TenantMiddleware
 from src.api.routes import auth
-from src.api.v1.routes import divergences, health, matches, reconciliation
+from src.api.v1.routes import (
+    divergences,
+    health,
+    matches,
+    reconciliation,
+    reports,
+    sales,
+    stats,
+    transactions,
+)
 from src.infrastructure.logging import setup_logging
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.security import JWTHandler, PasswordHasher, RateLimiter
@@ -82,6 +91,10 @@ app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(reconciliation.router, prefix="/api/v1", tags=["Reconciliation"])
 app.include_router(divergences.router, prefix="/api/v1", tags=["Divergences"])
 app.include_router(matches.router, prefix="/api/v1", tags=["Matches"])
+app.include_router(sales.router, prefix="/api/v1", tags=["Sales"])
+app.include_router(transactions.router, prefix="/api/v1", tags=["Transactions"])
+app.include_router(reports.router, prefix="/api/v1", tags=["Reports"])
+app.include_router(stats.router, prefix="/api/v1", tags=["Statistics"])
 
 
 @app.middleware("http")

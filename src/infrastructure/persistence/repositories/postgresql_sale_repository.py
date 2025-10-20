@@ -6,7 +6,7 @@ from datetime import date
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -59,6 +59,18 @@ class PostgreSQLSaleRepository(SaleRepository):
         if model:
             return self.mapper.to_entity(model)
         return None
+
+    async def delete(self, tenant_id: str, sale_id: str) -> None:
+        """Delete sale by ID for a tenant."""
+        stmt = (
+            delete(SaleModel)
+            .where(
+                SaleModel.tenant_id == UUID(tenant_id),
+                SaleModel.id == UUID(sale_id),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        await self.session.execute(stmt)
 
     async def find_by_date_range(self, tenant_id: str, start_date: date, end_date: date) -> List[Sale]:
         """Find sales in date range."""

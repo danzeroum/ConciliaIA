@@ -21,6 +21,10 @@ class SaleRepository(ABC):
         """Retrieve a sale by its identifier."""
 
     @abstractmethod
+    async def delete(self, tenant_id: str, sale_id: str) -> None:
+        """Delete a sale that belongs to the tenant."""
+
+    @abstractmethod
     async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[Sale]:
