@@ -1,8 +1,8 @@
 import { compare } from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { ZodError, ZodType } from 'zod';
 
-import { UnauthorizedError, ValidationError } from '../../common/errors';
+import { AppError, UnauthorizedError } from '../../../utils/errors';
+import { parseWithSchema } from '../../../utils/validation';
 import { LoginDto, loginSchema } from '../dtos/login.dto';
 import { UserRecord, UserRepository } from '../../../repositories/user.repository';
 
@@ -17,7 +17,7 @@ export const getJwtSecret = (): string => {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not defined.');
+    throw new AppError('JWT_SECRET environment variable is not defined.', 500);
   }
 
   return secret;
@@ -31,7 +31,7 @@ export class AuthService {
   }
 
   async login(data: LoginDto): Promise<AuthResult> {
-    const payload = this.parseWithSchema(loginSchema, data, 'Invalid login credentials.');
+    const payload = parseWithSchema(loginSchema, data, 'Invalid login credentials.');
 
     const user = await this.userRepository.findByEmail(payload.email);
     if (!user) {
@@ -58,18 +58,5 @@ export class AuthService {
       token,
       user: userWithoutPassword,
     };
-  }
-
-  private parseWithSchema<T>(schema: ZodType<T>, data: unknown, fallbackMessage: string): T {
-    try {
-      return schema.parse(data);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const firstIssue = error.issues[0];
-        throw new ValidationError(firstIssue?.message ?? fallbackMessage);
-      }
-
-      throw error;
-    }
   }
 }

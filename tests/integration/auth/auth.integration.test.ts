@@ -14,6 +14,7 @@ import UsersController from '../../../src/modules/users/users.controller';
 import { UserService } from '../../../src/modules/users/services/user.service';
 import { UserRecord, UserRepository } from '../../../src/repositories/user.repository';
 import { authMiddleware } from '../../../src/middleware/auth.middleware';
+import errorMiddleware from '../../../src/middleware/error.middleware';
 
 const buildTestApp = async () => {
   const app = express();
@@ -56,6 +57,7 @@ const buildTestApp = async () => {
   app.get('/protected', authMiddleware, (req, res) => {
     return res.status(200).json({ user: req.user });
   });
+  app.use(errorMiddleware);
 
   return { app, user, usersService, findByEmail };
 };
@@ -97,7 +99,11 @@ describe('Authentication integration', () => {
     });
 
     expect(response.status).toBe(401);
-    expect(response.body).toMatchObject({ message: 'Invalid email or password.' });
+    expect(response.body).toMatchObject({
+      error: 'Invalid email or password.',
+      statusCode: 401,
+    });
+    expect(response.body).toHaveProperty('timestamp');
   });
 
   it('blocks access to protected user update routes without a token', async () => {
@@ -106,7 +112,11 @@ describe('Authentication integration', () => {
     const response = await request(app).patch('/users/user-1').send({ name: 'New Name' });
 
     expect(response.status).toBe(401);
-    expect(response.body).toMatchObject({ message: 'Unauthorized.' });
+    expect(response.body).toMatchObject({
+      error: 'Unauthorized.',
+      statusCode: 401,
+    });
+    expect(response.body).toHaveProperty('timestamp');
   });
 
   it('allows access to protected routes when a valid token is provided', async () => {
