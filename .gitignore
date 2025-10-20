@@ -82,3 +82,10 @@ sealed-secrets.yaml
 K8s
 kubeconfig
 *.kubeconfig
+
+# Node
+node_modules/
+!src/lib/
+!src/lib/**
+!package.json
+!package-lock.json

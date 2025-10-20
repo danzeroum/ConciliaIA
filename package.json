@@ -1,0 +1,28 @@
+{
+  "name": "conciliaia",
+  "version": "1.0.0",
+  "description": "Sistema de Reconcilia\u00e7\u00e3o Financeira de Adquirentes com IA, seguindo **BuildToValue v7.0** methodology.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:db-push": "prisma db push",
+    "prisma:studio": "prisma studio",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^6.17.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.17.1"
+  }
+}
