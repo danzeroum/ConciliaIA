@@ -2246,3 +2246,634 @@ pnpm test:e2e --headed
 # All tests
 pnpm test:all
 ```
+
+---
+
+## 📱 Responsive Design
+
+### Breakpoints
+```typescript
+const breakpoints = {
+  mobile: '(max-width: 599px)',
+  tablet: '(min-width: 600px) and (max-width: 899px)',
+  desktop: '(min-width: 900px)',
+};
+```
+
+### Mobile Optimizations
+
+**Navigation:**
+- Hamburger menu on mobile
+- Bottom navigation bar (opcional)
+- Suporte a gestos de swipe para abrir o drawer
+
+**Tables:**
+- Scroll horizontal para tabelas extensas
+- Linhas colapsáveis para detalhes
+- Alternativa em formato de cards
+
+**Forms:**
+- Campos full-width
+- Alvos de toque maiores (mínimo 44x44px)
+- Uso de pickers nativos para data/hora
+
+**Charts:**
+- Dimensionamento responsivo
+- Interações touch-friendly
+- Versões simplificadas no mobile
+
+### Example Responsive Component
+```tsx
+// src/components/layout/AppBar/AppBar.tsx
+
+import React from 'react';
+import { useMediaQuery, useTheme } from '@mui/material';
+import {
+  AppBar as MuiAppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Box,
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import { useUIStore } from '../../../store/ui.store';
+
+export function AppBar() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  
+  return (
+    <MuiAppBar position="fixed">
+      <Toolbar>
+        {isMobile && (
+          <IconButton
+            edge="start"
+            color="inherit"
+            onClick={toggleSidebar}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+        
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          ConciliaAI
+        </Typography>
+        
+        <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
+          {/* Desktop-only items */}
+        </Box>
+      </Toolbar>
+    </MuiAppBar>
+  );
+}
+```
+
+---
+
+## ♿ Accessibility
+
+### WCAG 2.1 AA Compliance
+
+**Keyboard Navigation:**
+- Todos os elementos interativos devem ser focáveis
+- Ordem de tabulação lógica
+- Indicadores de foco visíveis
+- Atalhos de teclado (opcional)
+
+**Screen Reader Support:**
+- HTML semântico
+- Uso correto de ARIA labels e roles
+- Textos alternativos para imagens
+- Regiões dinâmicas com `aria-live`
+
+**Color Contrast:**
+- Texto: mínimo 4.5:1
+- Texto grande: mínimo 3:1
+- Elementos interativos: mínimo 3:1
+
+**Focus Management:**
+- Focus trap em modais
+- Restauração do foco ao fechar modais
+- Link "Ir para o conteúdo principal"
+
+### Example Accessible Components
+```tsx
+// Accessible data table
+<table role="table" aria-label="Sales data">
+  <thead>
+    <tr role="row">
+      <th role="columnheader" aria-sort="ascending">NSU</th>
+      <th role="columnheader">Valor</th>
+      <th role="columnheader">Data</th>
+    </tr>
+  </thead>
+  <tbody>
+    {data.map((row) => (
+      <tr key={row.id} role="row">
+        <td role="cell">{row.nsu}</td>
+        <td role="cell">{formatCurrency(row.amount)}</td>
+        <td role="cell">{formatDate(row.date)}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+// Accessible form
+<form onSubmit={handleSubmit} aria-label="Create sale form">
+  <TextField
+    label="NSU"
+    required
+    aria-required="true"
+    error={!!errors.nsu}
+    helperText={errors.nsu?.message}
+    aria-describedby={errors.nsu ? 'nsu-error' : undefined}
+  />
+  
+  {errors.nsu && (
+    <FormHelperText id="nsu-error" error>
+      {errors.nsu.message}
+    </FormHelperText>
+  )}
+  
+  <Button type="submit" aria-label="Submit form">
+    Salvar
+  </Button>
+</form>
+```
+
+---
+
+## 🌍 Internationalization (i18n)
+
+### Setup
+```typescript
+// src/i18n/i18n.ts
+
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+
+import enUS from './en-US.json';
+import ptBR from './pt-BR.json';
+
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources: {
+      'en-US': { translation: enUS },
+      'pt-BR': { translation: ptBR },
+    },
+    fallbackLng: 'pt-BR',
+    interpolation: {
+      escapeValue: false,
+    },
+  });
+
+export default i18n;
+```
+
+### Translation Files
+```json
+// src/i18n/pt-BR.json
+{
+  "common": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar"
+  },
+  "auth": {
+    "login": "Entrar",
+    "logout": "Sair",
+    "email": "Email",
+    "password": "Senha",
+    "loginError": "Email ou senha inválidos"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "accuracy": "Accuracy",
+    "totalMatches": "Total de Matches",
+    "pendingDivergences": "Divergências Pendentes",
+    "resolvedToday": "Resolvidas Hoje"
+  },
+  "reconciliation": {
+    "title": "Reconciliação",
+    "startDate": "Data Inicial",
+    "endDate": "Data Final",
+    "reconcile": "Reconciliar",
+    "reconciling": "Reconciliando...",
+    "completed": "Reconciliação concluída!",
+    "matches": "Matches",
+    "unmatchedSales": "Vendas não conciliadas",
+    "unmatchedTransactions": "Transações não conciliadas"
+  },
+  "divergences": {
+    "title": "Divergências",
+    "severity": "Severidade",
+    "type": "Tipo",
+    "status": "Status",
+    "resolve": "Resolver",
+    "ignore": "Ignorar",
+    "details": "Ver Detalhes",
+    "types": {
+      "missing_transaction": "Transação Faltando",
+      "missing_sale": "Venda Faltando",
+      "duplicate_transaction": "Transação Duplicada",
+      "duplicate_sale": "Venda Duplicada",
+      "mdr_variance": "Variação de MDR",
+      "settlement_delay": "Atraso na Liquidação"
+    }
+  }
+}
+```
+
+```json
+// src/i18n/en-US.json
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "loginError": "Invalid email or password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "accuracy": "Accuracy",
+    "totalMatches": "Total Matches",
+    "pendingDivergences": "Pending Divergences",
+    "resolvedToday": "Resolved Today"
+  }
+}
+```
+
+### Usage
+```tsx
+import { useTranslation } from 'react-i18next';
+
+export function LoginPage() {
+  const { t } = useTranslation();
+  
+  return (
+    <form>
+      <TextField label={t('auth.email')} />
+      <TextField label={t('auth.password')} type="password" />
+      <Button type="submit">{t('auth.login')}</Button>
+    </form>
+  );
+}
+```
+
+---
+
+## 🎨 Storybook Documentation
+
+### Setup
+```typescript
+// .storybook/main.ts
+
+import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx)'],
+  addons: [
+    '@storybook/addon-links',
+    '@storybook/addon-essentials',
+    '@storybook/addon-interactions',
+    '@storybook/addon-a11y',
+  ],
+  framework: {
+    name: '@storybook/react-vite',
+    options: {},
+  },
+};
+
+export default config;
+```
+
+### Example Story
+```tsx
+// src/components/common/Button/Button.stories.tsx
+
+import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from './Button';
+
+const meta: Meta<typeof Button> = {
+  title: 'Components/Button',
+  component: Button,
+  tags: ['autodocs'],
+  argTypes: {
+    variant: {
+      control: 'select',
+      options: ['contained', 'outlined', 'text'],
+    },
+    color: {
+      control: 'select',
+      options: ['primary', 'secondary', 'error', 'success'],
+    },
+    size: {
+      control: 'select',
+      options: ['small', 'medium', 'large'],
+    },
+  },
+};
+
+export default meta;
+type Story = StoryObj<typeof Button>;
+
+export const Primary: Story = {
+  args: {
+    children: 'Primary Button',
+    variant: 'contained',
+    color: 'primary',
+  },
+};
+
+export const Secondary: Story = {
+  args: {
+    children: 'Secondary Button',
+    variant: 'outlined',
+    color: 'primary',
+  },
+};
+
+export const Loading: Story = {
+  args: {
+    children: 'Loading...',
+    loading: true,
+  },
+};
+
+export const Disabled: Story = {
+  args: {
+    children: 'Disabled',
+    disabled: true,
+  },
+};
+```
+
+---
+
+## 📋 Package.json Scripts
+```json
+{
+  "name": "conciliaai-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
+    "type-check": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "pnpm lint && pnpm type-check && pnpm test:unit && pnpm test:e2e",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "analyze": "vite build --mode analyze"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.16.0",
+    "@mui/material": "^5.14.0",
+    "@mui/icons-material": "^5.14.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "zustand": "^4.4.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@tanstack/react-table": "^8.10.0",
+    "@tanstack/react-virtual": "^3.0.0",
+    "react-hook-form": "^7.47.0",
+    "@hookform/resolvers": "^3.3.0",
+    "zod": "^3.22.0",
+    "axios": "^1.5.0",
+    "date-fns": "^2.30.0",
+    "recharts": "^2.8.0",
+    "react-i18next": "^13.3.0",
+    "i18next": "^23.6.0",
+    "i18next-browser-languagedetector": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0",
+    "vitest": "^0.34.0",
+    "@vitest/ui": "^0.34.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "@playwright/test": "^1.39.0",
+    "eslint": "^8.50.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.0",
+    "prettier": "^3.0.0",
+    "@storybook/react": "^7.4.0",
+    "@storybook/react-vite": "^7.4.0",
+    "@storybook/addon-essentials": "^7.4.0",
+    "@storybook/addon-interactions": "^7.4.0",
+    "@storybook/addon-a11y": "^7.4.0",
+    "rollup-plugin-visualizer": "^5.9.0"
+  }
+}
+```
+
+---
+
+## 🎯 Success Criteria
+
+### Functional Requirements
+
+- ✅ Autenticação de usuários (login, logout, refresh de token)
+- ✅ Dashboard com KPIs e gráficos
+- ✅ CRUD de vendas (criar, listar, atualizar, excluir)
+- ✅ Visualização de transações
+- ✅ Execução de reconciliação
+- ✅ Visualização e resolução de divergências
+- ✅ Geração de relatórios
+- ✅ Gestão de configurações
+- ✅ Importação/Exportação de dados
+- ✅ Suporte multilíngue (PT-BR, EN-US)
+
+### Non-Functional Requirements
+
+- ✅ Performance: FCP < 1.5s, LCP < 2.5s
+- ✅ Acessibilidade: WCAG 2.1 AA compliant
+- ✅ Responsividade: Mobile, Tablet, Desktop
+- ✅ Suporte a navegadores: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+- ✅ Cobertura de testes: ≥ 80%
+- ✅ Bundle inicial < 200KB (gzip)
+- ✅ SEO friendly (meta tags, HTML semântico)
+
+### Quality Requirements
+
+- ✅ TypeScript em modo estrito
+- ✅ ESLint sem erros
+- ✅ Código formatado com Prettier
+- ✅ Todos os testes passando
+- ✅ Componentes documentados no Storybook
+- ✅ Tratamento de erros consistente
+- ✅ Estados de loading e empty states implementados
+
+---
+
+## 📞 Support & Resources
+
+### Documentação Oficial
+
+- **React:** https://react.dev
+- **TypeScript:** https://www.typescriptlang.org
+- **Material-UI:** https://mui.com
+- **React Query:** https://tanstack.com/query
+- **React Router:** https://reactrouter.com
+- **Zustand:** https://github.com/pmndrs/zustand
+- **React Hook Form:** https://react-hook-form.com
+- **Zod:** https://zod.dev
+
+### Ferramentas
+
+- **Vite:** https://vitejs.dev
+- **Vitest:** https://vitest.dev
+- **Playwright:** https://playwright.dev
+- **Storybook:** https://storybook.js.org
+
+### API Documentation
+
+- **Backend API:** https://api.conciliaai.com/docs
+- **OpenAPI Spec:** https://api.conciliaai.com/openapi.json
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+```bash
+# Node.js 20 LTS
+node -v  # v20.x.x
+
+# pnpm
+npm install -g pnpm
+pnpm -v  # 8.x.x
+```
+
+### Installation
+```bash
+# Clone repository
+git clone https://github.com/conciliaai/frontend.git
+cd conciliaai-frontend
+
+# Install dependencies
+pnpm install
+
+# Setup environment variables
+cp .env.example .env.development
+# Edit .env.development with your API URL
+
+# Start development server
+pnpm dev
+
+# Open browser
+# http://localhost:3000
+```
+
+### Available Commands
+```bash
+# Development
+pnpm dev                    # Start dev server
+pnpm build                  # Build for production
+pnpm preview                # Preview production build
+
+# Code Quality
+pnpm lint                   # Run ESLint
+pnpm lint:fix               # Fix ESLint errors
+pnpm format                 # Format with Prettier
+pnpm type-check             # TypeScript check
+
+# Testing
+pnpm test:unit              # Unit tests
+pnpm test:unit:watch        # Unit tests (watch mode)
+pnpm test:unit:coverage     # Unit tests with coverage
+pnpm test:e2e               # E2E tests
+pnpm test:e2e:headed        # E2E tests (headed)
+pnpm test:all               # All tests
+
+# Documentation
+pnpm storybook              # Start Storybook
+pnpm build-storybook        # Build Storybook
+
+# Analysis
+pnpm analyze                # Bundle analysis
+```
+
+---
+
+## 📝 Conclusion
+
+Esta especificação consolida as diretrizes de desenvolvimento do frontend do ConciliaAI v7.0. O projeto foi planejado para ser:
+
+- **Escalável** – Arquitetura modular com componentes reutilizáveis
+- **Performático** – Estratégias de otimização e orçamento de performance definido
+- **Acessível** – Aderência às recomendações WCAG 2.1 AA
+- **Testável** – Cobertura robusta com testes unitários, integração e E2E
+- **Responsivo** – Experiências otimizadas para mobile, tablet e desktop
+- **Internacional** – Suporte a múltiplos idiomas (PT-BR, EN-US)
+
+### Próximos Passos
+
+1. **Setup do Projeto** (Semanas 1-2)
+   - Criar repositório e configurar base
+   - Definir variáveis de ambiente e pipelines de CI/CD
+
+2. **Desenvolvimento Iterativo** (Semanas 3-13)
+   - Implementar features conforme roadmap
+   - Realizar testes contínuos e code reviews
+
+3. **Deploy** (Semana 14)
+   - Deploy em staging e produção
+   - Configurar monitoramento e analytics
+
+### Estimativa Final
+
+- **Esforço Total:** 360 horas
+- **Duração:** 14 semanas (~3,5 meses)
+- **Equipe:** 2 desenvolvedores frontend dedicados
+- **Timeline com equipe completa:** 8-10 semanas
+
+---
+
+**Prepared by:** BuildToValue v7.0  
+**Date:** 2025-10-19  
+**Version:** 1.0.0  
+**Status:** READY FOR DEVELOPMENT
+
+Para suporte ou dúvidas: frontend@conciliaai.com
+
