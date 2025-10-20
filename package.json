@@ -1,7 +1,7 @@
 {
   "name": "conciliaia",
   "version": "1.0.0",
-  "description": "Sistema de Reconcilia\u00e7\u00e3o Financeira de Adquirentes com IA, seguindo **BuildToValue v7.0** methodology.",
+  "description": "Sistema de Reconciliação Financeira de Adquirentes com IA, seguindo **BuildToValue v7.0** methodology.",
   "main": "index.js",
   "directories": {
     "doc": "docs",
@@ -23,13 +23,17 @@
     "@prisma/client": "^6.17.1",
     "bcryptjs": "^2.4.3",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.17.9",
+    "@types/supertest": "^6.0.3",
     "prisma": "^6.17.1",
+    "supertest": "^7.1.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3",
     "vitest": "^1.3.1"

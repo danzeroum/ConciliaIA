@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 
 import { ApplicationError } from '../common/errors';
+import { authMiddleware } from '../../middleware/auth.middleware';
 import { createUserSchema } from './dtos/create-user.dto';
 import { updateUserSchema } from './dtos/update-user.dto';
 import { UserService } from './services/user.service';
@@ -16,7 +17,7 @@ export class UsersController {
   private registerRoutes(): void {
     this.router.post('/users', this.createUser);
     this.router.get('/users/:id', this.getUserById);
-    this.router.patch('/users/:id', this.updateUser);
+    this.router.patch('/users/:id', authMiddleware, this.updateUser);
   }
 
   private createUser = async (req: Request, res: Response): Promise<Response> => {
