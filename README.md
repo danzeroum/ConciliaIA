@@ -62,8 +62,51 @@ make test           # Executar testes
 make run            # Iniciar API
 ```
 
-**API disponível em**: http://localhost:8000  
+**API disponível em**: http://localhost:8000
 **Documentação**: http://localhost:8000/docs
+
+## 🌐 Ambiente de Produção
+
+- **API (Render)**: https://conciliaia-api.onrender.com
+- **Swagger público**: https://conciliaia-api.onrender.com/api-docs
+- **Logs**: painel da Render > *Logs*
+- **Monitoring**: painel da Render > *Metrics*
+
+### Variáveis de ambiente
+
+Configure as variáveis diretamente no painel da plataforma de deploy ou em um arquivo `.env.production` local (não versionado):
+
+| Variável | Descrição |
+|----------|-----------|
+| `DATABASE_URL` | URL do PostgreSQL de produção |
+| `JWT_SECRET` | Segredo para assinatura dos tokens |
+| `PORT` | Porta exposta pelo serviço (Render utiliza `10000` por padrão) |
+| `CORS_ORIGINS` | Lista de origens permitidas separadas por vírgula |
+| `RATE_LIMIT_MAX` | Máximo de requisições a cada janela de 15 minutos |
+
+### Build e execução de produção
+
+```bash
+npm install
+npm run build
+node dist/index.js
+```
+
+### Deploy na Render
+
+1. Crie um novo **Web Service** conectado a este repositório.
+2. Defina o branch principal e o comando de build `npm run build`.
+3. Configure o comando de start `npm start`.
+4. Preencha as variáveis de ambiente listadas acima.
+5. Vincule o banco PostgreSQL (Render PostgreSQL ou externo) e atualize `DATABASE_URL`.
+6. Habilite **Auto Deploy** para novos commits na branch principal.
+
+### Validação pós-deploy
+
+- Teste os endpoints com Postman/Insomnia apontando para `https://conciliaia-api.onrender.com`.
+- Acesse `/api-docs` para validar o Swagger público.
+- Monitore logs e métricas no painel da Render após cada release.
+- Configure alertas (ex.: via Slack) para erros e degradação de performance.
 
 ## 🧪 Testes
 

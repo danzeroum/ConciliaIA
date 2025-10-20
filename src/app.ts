@@ -1,4 +1,8 @@
 import express, { Express } from 'express';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import cors, { CorsOptions } from 'cors';
 
 import { swaggerUiServe, swaggerUiSetup } from './docs/swagger';
 import errorMiddleware from './middleware/error.middleware';
@@ -14,6 +18,29 @@ import userRepository from './repositories/user.repository';
 export const createApp = (): Express => {
   const app = express();
 
+  const allowedOrigins = process.env.CORS_ORIGINS?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const corsOptions: CorsOptions | undefined = allowedOrigins?.length
+    ? { origin: allowedOrigins, credentials: true }
+    : undefined;
+
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
+  app.use(helmet());
+  app.use(corsOptions ? cors(corsOptions) : cors());
+  app.use(compression());
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: Number(process.env.RATE_LIMIT_MAX ?? 100),
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
   app.use(express.json());
 
   const authService = new AuthService(userRepository);

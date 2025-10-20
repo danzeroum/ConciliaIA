@@ -1,8 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "rootDir": ".",
     "types": ["node", "jest"],
     "isolatedModules": false
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "jest.config.js"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "jest.config.js", "vitest.config.ts"]
 }
