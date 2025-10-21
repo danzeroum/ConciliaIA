@@ -59,7 +59,16 @@ export const salesApi = {
     page?: number;
     page_size?: number;
   }): Promise<SalesListResponse> => {
-    const response = await apiClient.get('/api/v1/sales', { params });
+    const normalizedParams = params
+      ? {
+          ...params,
+          matched: params.matched ?? undefined,
+        }
+      : undefined;
+
+    const response = await apiClient.get('/api/v1/sales', {
+      params: normalizedParams,
+    });
     return response.data;
   },
 

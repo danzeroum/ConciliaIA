@@ -1,10 +1,11 @@
-import type { PaymentMethod, Acquirer } from '@/types/api.types';
+import type { Acquirer } from '@/types/api.types';
+import { PaymentMethod } from '@/types/api.types';
 
 export const PAYMENT_METHODS: ReadonlyArray<{ value: PaymentMethod; label: string }> = [
-  { value: 'credit', label: 'Crédito' },
-  { value: 'debit', label: 'Débito' },
-  { value: 'pix', label: 'PIX' },
-  { value: 'voucher', label: 'Voucher' },
+  { value: PaymentMethod.CREDIT, label: 'Crédito' },
+  { value: PaymentMethod.DEBIT, label: 'Débito' },
+  { value: PaymentMethod.PIX, label: 'PIX' },
+  { value: PaymentMethod.VOUCHER, label: 'Voucher' },
 ];
 
 export const MATCH_STATUS_OPTIONS: ReadonlyArray<{

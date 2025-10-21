@@ -6,17 +6,25 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use(
   (config) => {
     const { accessToken } = useAuthStore.getState();
+
+    if (!config.headers) {
+      config.headers = {};
+    }
+
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+
+    if (!config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -25,7 +33,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as typeof error.config & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -33,7 +41,12 @@ apiClient.interceptors.response.use(
       try {
         await useAuthStore.getState().refreshAccessToken();
         const { accessToken } = useAuthStore.getState();
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        if (!originalRequest.headers) {
+          originalRequest.headers = {};
+        }
+        if (accessToken) {
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        }
         return apiClient(originalRequest);
       } catch (refreshError) {
         useAuthStore.getState().logout();
