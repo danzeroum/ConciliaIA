@@ -1,64 +1,78 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
-  Typography,
-  Paper,
   Button,
-  TextField,
-  Grid,
-  MenuItem,
+  Card,
+  CardContent,
   Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
   IconButton,
+  MenuItem,
+  Paper,
+  TextField,
   Tooltip,
-  Stack,
+  Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import UploadIcon from '@mui/icons-material/Upload';
+import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/common/DataTable/DataTable';
-import {
-  useSales,
-  useCreateSale,
-  useUpdateSale,
-  useDeleteSale,
-  useImportSales,
-  useExportSales,
-} from '@/hooks/useSales';
 import { ImportCSVDialog } from '@/components/features/ImportCSVDialog';
-import { SaleFormDialog, type SaleFormData } from '@/components/features/SaleFormDialog';
-import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
-import { formatCurrency, formatDate, formatPaymentMethod, formatMatchStatus } from '@/utils/formatters';
-import { PAYMENT_METHODS, MATCH_STATUS_OPTIONS, DEFAULT_PAGE_SIZE } from '@/utils/constants';
-import { type Sale } from '@/api/sales.api';
+import { SaleFormDialog } from '@/components/features/SaleFormDialog';
+import {
+  useCreateSale,
+  useDeleteSale,
+  useExportSales,
+  useImportSales,
+  useSales,
+  useUpdateSale,
+} from '@/hooks/useSales';
+import type { Sale } from '@/api/sales.api';
+
+interface FiltersState {
+  start_date: string;
+  end_date: string;
+  payment_method: string;
+  matched: '' | 'true' | 'false';
+  nsu: string;
+}
 
 export function SalesPage() {
-  const [filters, setFilters] = React.useState({
-    startDate: '',
-    endDate: '',
-    paymentMethod: '',
-    matched: '' as '' | 'true' | 'false',
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [filters, setFilters] = useState<FiltersState>({
+    start_date: '',
+    end_date: '',
+    payment_method: '',
+    matched: '',
     nsu: '',
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
   });
-  const [selectedSale, setSelectedSale] = React.useState<Sale | null>(null);
-  const [saleFormOpen, setSaleFormOpen] = React.useState(false);
-  const [saleFormMode, setSaleFormMode] = React.useState<'create' | 'edit'>('create');
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
-  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
-  const { data, isLoading } = useSales({
-    start_date: filters.startDate || undefined,
-    end_date: filters.endDate || undefined,
-    payment_method: filters.paymentMethod || undefined,
-    matched:
-      filters.matched === '' ? undefined : (filters.matched === 'true' ? true : false),
+  const matchedFilter = filters.matched === '' ? undefined : filters.matched === 'true';
+
+  const { data: salesData, isLoading, error } = useSales({
+    start_date: filters.start_date || undefined,
+    end_date: filters.end_date || undefined,
+    payment_method: filters.payment_method || undefined,
+    matched: matchedFilter,
     nsu: filters.nsu || undefined,
-    page: filters.page,
-    page_size: filters.pageSize,
+    page,
+    page_size: pageSize,
   });
 
   const createSale = useCreateSale();
@@ -67,95 +81,116 @@ export function SalesPage() {
   const importSales = useImportSales();
   const exportSales = useExportSales();
 
-  const handleFilterChange = (key: keyof typeof filters, value: string | number) => {
-    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
+  const handleFilterChange = (field: keyof FiltersState, value: string) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+    setPage(1);
   };
 
-  const handlePageChange = (page: number) => {
-    setFilters((prev) => ({ ...prev, page }));
-  };
-
-  const handlePageSizeChange = (pageSize: number) => {
-    setFilters((prev) => ({ ...prev, pageSize, page: 1 }));
-  };
-
-  const handleCreateSale = () => {
+  const handleCreate = () => {
+    setFormMode('create');
     setSelectedSale(null);
-    setSaleFormMode('create');
-    setSaleFormOpen(true);
+    setFormDialogOpen(true);
   };
 
-  const handleEditSale = (sale: Sale) => {
+  const handleEdit = (sale: Sale) => {
+    setFormMode('edit');
     setSelectedSale(sale);
-    setSaleFormMode('edit');
-    setSaleFormOpen(true);
+    setFormDialogOpen(true);
   };
 
-  const handleDeleteSale = (sale: Sale) => {
-    setSelectedSale(sale);
-    setConfirmDeleteOpen(true);
-  };
+  const handleDelete = async (id: string) => {
+    const confirmed = window.confirm('Tem certeza que deseja excluir esta venda?');
+    if (!confirmed) return;
 
-  const handleConfirmDelete = () => {
-    if (!selectedSale) return;
-
-    deleteSale.mutate(selectedSale.id, {
-      onSuccess: () => setConfirmDeleteOpen(false),
-    });
-  };
-
-  const handleSubmitSale = (formData: SaleFormData) => {
-    if (saleFormMode === 'create') {
-      createSale.mutate(formData);
-    } else if (selectedSale) {
-      updateSale.mutate({ id: selectedSale.id, data: formData });
+    try {
+      await deleteSale.mutateAsync(id);
+    } catch (mutationError) {
+      console.error('Erro ao excluir venda', mutationError);
     }
   };
 
-  const handleExport = () => {
-    exportSales.mutate({
-      start_date: filters.startDate || undefined,
-      end_date: filters.endDate || undefined,
-    });
+  const handleFormSubmit = async (data: any) => {
+    try {
+      if (formMode === 'create') {
+        await createSale.mutateAsync(data);
+      } else if (selectedSale) {
+        await updateSale.mutateAsync({ id: selectedSale.id, data });
+      }
+      setFormDialogOpen(false);
+      setSelectedSale(null);
+    } catch (mutationError) {
+      console.error('Erro ao salvar venda', mutationError);
+    }
   };
 
-  const columns = React.useMemo<ColumnDef<Sale>[]>(
+  const handleViewDetails = (sale: Sale) => {
+    setSelectedSale(sale);
+    setDetailDialogOpen(true);
+  };
+
+  const handleImport = async (file: File) => {
+    await importSales.mutateAsync(file);
+  };
+
+  const handleExport = async () => {
+    try {
+      await exportSales.mutateAsync({
+        start_date: filters.start_date || undefined,
+        end_date: filters.end_date || undefined,
+      });
+    } catch (mutationError) {
+      console.error('Erro ao exportar vendas', mutationError);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ start_date: '', end_date: '', payment_method: '', matched: '', nsu: '' });
+    setPage(1);
+  };
+
+  const columns: ColumnDef<Sale>[] = useMemo(
     () => [
       {
         accessorKey: 'nsu',
         header: 'NSU',
-        cell: (info) => info.getValue<string>(),
-      },
-      {
-        accessorKey: 'sale_date',
-        header: 'Data',
-        cell: (info) => formatDate(info.getValue<string>()),
+        cell: (info) => (
+          <Typography variant="body2" fontWeight="medium">
+            {info.getValue<string>()}
+          </Typography>
+        ),
       },
       {
         accessorKey: 'amount',
         header: 'Valor',
-        cell: (info) => formatCurrency(info.getValue<number>()),
+        cell: (info) =>
+          new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+          }).format(info.getValue<number>()),
+      },
+      {
+        accessorKey: 'sale_date',
+        header: 'Data',
+        cell: (info) => new Date(info.getValue<string>()).toLocaleDateString('pt-BR'),
       },
       {
         accessorKey: 'payment_method',
         header: 'Método',
-        cell: (info) => formatPaymentMethod(info.getValue<string>()),
+        cell: (info) => {
+          const value = info.getValue<string>();
+          const methods: Record<string, string> = {
+            credit: 'Crédito',
+            debit: 'Débito',
+            pix: 'PIX',
+            voucher: 'Voucher',
+          };
+          return methods[value] ?? value;
+        },
       },
       {
         accessorKey: 'installments',
         header: 'Parcelas',
-        cell: (info) => info.getValue<number>() ?? '-',
-      },
-      {
-        accessorKey: 'matched',
-        header: 'Status',
-        cell: (info) => (
-          <Chip
-            label={formatMatchStatus(info.getValue<boolean>())}
-            color={info.getValue<boolean>() ? 'success' : 'warning'}
-            size="small"
-          />
-        ),
+        cell: (info) => `${info.getValue<number>()}x`,
       },
       {
         accessorKey: 'card_brand',
@@ -163,183 +198,266 @@ export function SalesPage() {
         cell: (info) => info.getValue<string>() || '-',
       },
       {
-        id: 'actions',
-        header: 'Ações',
+        accessorKey: 'matched',
+        header: 'Status',
         cell: (info) => {
-          const sale = info.row.original;
+          const matched = info.getValue<boolean>();
           return (
-            <Stack direction="row" spacing={1}>
-              <Tooltip title="Editar">
-                <IconButton size="small" onClick={() => handleEditSale(sale)}>
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Excluir">
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={() => handleDeleteSale(sale)}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+            <Chip
+              label={matched ? 'Reconciliado' : 'Pendente'}
+              color={matched ? 'success' : 'warning'}
+              size="small"
+              variant={matched ? 'filled' : 'outlined'}
+            />
           );
         },
+      },
+      {
+        id: 'actions',
+        header: 'Ações',
+        cell: ({ row }) => (
+          <Box display="flex" gap={0.5}>
+            <Tooltip title="Ver Detalhes">
+              <IconButton size="small" onClick={() => handleViewDetails(row.original)}>
+                <VisibilityIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Editar">
+              <IconButton size="small" onClick={() => handleEdit(row.original)}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Excluir">
+              <IconButton size="small" color="error" onClick={() => handleDelete(row.original.id)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ),
       },
     ],
     []
   );
 
-  const rows = data?.items ?? [];
-  const totalRows = data?.total ?? 0;
-
-  const selectedSaleInitialData = selectedSale
-    ? {
-        nsu: selectedSale.nsu,
-        amount: selectedSale.amount,
-        sale_date: selectedSale.sale_date?.split('T')[0] ?? selectedSale.sale_date,
-        payment_method: selectedSale.payment_method,
-        installments: selectedSale.installments ?? 1,
-        card_brand: selectedSale.card_brand ?? '',
-        authorization_code: selectedSale.authorization_code ?? '',
-      }
-    : undefined;
+  const activeFiltersCount = Object.values(filters).filter((value) => value !== '').length;
 
   return (
-    <Box display="flex" flexDirection="column" gap={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center">
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Vendas</Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button
-            variant="outlined"
-            startIcon={<CloudUploadIcon />}
-            onClick={() => setImportDialogOpen(true)}
-          >
+        <Box display="flex" gap={1}>
+          <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => setImportDialogOpen(true)}>
             Importar CSV
           </Button>
           <Button
             variant="outlined"
-            startIcon={<FileDownloadIcon />}
+            startIcon={<DownloadIcon />}
             onClick={handleExport}
             disabled={exportSales.isPending}
           >
-            Exportar
+            {exportSales.isPending ? <CircularProgress size={20} /> : 'Exportar CSV'}
           </Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateSale}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
             Nova Venda
           </Button>
-        </Stack>
+        </Box>
       </Box>
 
-      <Paper sx={{ p: 2 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Erro ao carregar vendas: {error instanceof Error ? error.message : 'Erro desconhecido'}
+        </Alert>
+      )}
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box display="flex" gap={2} alignItems="flex-end" flexWrap="wrap">
             <TextField
-              fullWidth
-              label="Data inicial"
+              label="Data Inicial"
               type="date"
+              value={filters.start_date}
+              onChange={(event) => handleFilterChange('start_date', event.target.value)}
               InputLabelProps={{ shrink: true }}
-              value={filters.startDate}
-              onChange={(event) => handleFilterChange('startDate', event.target.value)}
-              size="small"
+              sx={{ minWidth: 150 }}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
             <TextField
-              fullWidth
-              label="Data final"
+              label="Data Final"
               type="date"
+              value={filters.end_date}
+              onChange={(event) => handleFilterChange('end_date', event.target.value)}
               InputLabelProps={{ shrink: true }}
-              value={filters.endDate}
-              onChange={(event) => handleFilterChange('endDate', event.target.value)}
-              size="small"
+              sx={{ minWidth: 150 }}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
             <TextField
-              fullWidth
               select
-              label="Método de pagamento"
-              value={filters.paymentMethod}
-              onChange={(event) => handleFilterChange('paymentMethod', event.target.value)}
-              size="small"
+              label="Método Pagamento"
+              value={filters.payment_method}
+              onChange={(event) => handleFilterChange('payment_method', event.target.value)}
+              sx={{ minWidth: 150 }}
             >
               <MenuItem value="">Todos</MenuItem>
-              {PAYMENT_METHODS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+              <MenuItem value="credit">Crédito</MenuItem>
+              <MenuItem value="debit">Débito</MenuItem>
+              <MenuItem value="pix">PIX</MenuItem>
+              <MenuItem value="voucher">Voucher</MenuItem>
             </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
             <TextField
-              fullWidth
               select
               label="Status"
               value={filters.matched}
               onChange={(event) => handleFilterChange('matched', event.target.value)}
-              size="small"
+              sx={{ minWidth: 150 }}
             >
-              {MATCH_STATUS_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+              <MenuItem value="">Todos</MenuItem>
+              <MenuItem value="true">Reconciliados</MenuItem>
+              <MenuItem value="false">Pendentes</MenuItem>
             </TextField>
-          </Grid>
-          <Grid item xs={12} md={3}>
             <TextField
-              fullWidth
-              label="Buscar por NSU"
+              label="Filtrar por NSU"
               value={filters.nsu}
               onChange={(event) => handleFilterChange('nsu', event.target.value)}
-              size="small"
+              placeholder="Digite o NSU..."
+              sx={{ minWidth: 200 }}
             />
-          </Grid>
-        </Grid>
-      </Paper>
+            {activeFiltersCount > 0 && (
+              <Button variant="text" onClick={handleClearFilters} color="inherit">
+                Limpar ({activeFiltersCount})
+              </Button>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
 
-      <DataTable<Sale>
-        data={rows}
+      <DataTable
         columns={columns}
+        data={salesData?.items || []}
         loading={isLoading}
         pagination
         searchable={false}
-        totalRows={totalRows}
-        pageSize={filters.pageSize}
-        currentPage={filters.page}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
+        totalRows={salesData?.total || 0}
+        pageSize={pageSize}
+        currentPage={page}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
         emptyMessage="Nenhuma venda encontrada"
-      />
-
-      <SaleFormDialog
-        open={saleFormOpen}
-        onClose={() => setSaleFormOpen(false)}
-        onSubmit={handleSubmitSale}
-        initialData={selectedSaleInitialData}
-        mode={saleFormMode}
-      />
-
-      <ConfirmDialog
-        open={confirmDeleteOpen}
-        onCancel={() => setConfirmDeleteOpen(false)}
-        title="Excluir venda"
-        message={`Deseja realmente excluir a venda ${selectedSale?.nsu ?? ''}?`}
-        onConfirm={handleConfirmDelete}
-        cancelLabel="Cancelar"
-        confirmLabel="Excluir"
-        loading={deleteSale.isPending}
       />
 
       <ImportCSVDialog
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
-        onImport={(file) => importSales.mutateAsync(file)}
+        onImport={handleImport}
         title="Importar Vendas"
       />
+
+      <SaleFormDialog
+        open={formDialogOpen}
+        onClose={() => {
+          setFormDialogOpen(false);
+          setSelectedSale(null);
+        }}
+        onSubmit={handleFormSubmit}
+        initialData={selectedSale || undefined}
+        mode={formMode}
+      />
+
+      <Dialog open={detailDialogOpen} onClose={() => setDetailDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Detalhes da Venda
+          {selectedSale?.matched && <Chip label="Reconciliado" color="success" size="small" sx={{ ml: 2 }} />}
+        </DialogTitle>
+        <DialogContent>
+          {selectedSale && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  NSU
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {selectedSale.nsu}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Valor
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(selectedSale.amount)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Data da Venda
+                </Typography>
+                <Typography variant="body1">
+                  {new Date(selectedSale.sale_date).toLocaleDateString('pt-BR')}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Método de Pagamento
+                </Typography>
+                <Typography variant="body1">
+                  {selectedSale.payment_method === 'credit'
+                    ? 'Crédito'
+                    : selectedSale.payment_method === 'debit'
+                    ? 'Débito'
+                    : selectedSale.payment_method === 'pix'
+                    ? 'PIX'
+                    : selectedSale.payment_method}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Parcelas
+                </Typography>
+                <Typography variant="body1">{selectedSale.installments}x</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Bandeira
+                </Typography>
+                <Typography variant="body1">{selectedSale.card_brand || 'N/A'}</Typography>
+              </Grid>
+              {selectedSale.authorization_code && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Código de Autorização
+                  </Typography>
+                  <Typography variant="body1">{selectedSale.authorization_code}</Typography>
+                </Grid>
+              )}
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Criado em
+                </Typography>
+                <Typography variant="body1">
+                  {new Date(selectedSale.created_at).toLocaleString('pt-BR')}
+                </Typography>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailDialogOpen(false)}>Fechar</Button>
+          {selectedSale && (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDetailDialogOpen(false);
+                handleEdit(selectedSale);
+              }}
+            >
+              Editar
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

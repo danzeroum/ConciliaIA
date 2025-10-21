@@ -58,6 +58,7 @@ Database
 *.sqlite
 *.sqlite3
 Reports
+!conciliaai-frontend/src/pages/Reports/
 reports/
 *.html
 *.json
