@@ -1,69 +1,118 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transactionsApi, TransactionsFilters } from '@/api/transactions.api';
-import { useNotifications } from './useNotifications';
-import type {
-  Transaction,
-  PaginatedResponse,
+import {
+  transactionsApi,
+  CreateTransactionRequest,
   ImportTransactionsResponse,
-} from '@/types/api.types';
+} from '@/api/transactions.api';
+import { useUIStore } from '@/store/ui.store';
 
-export function useTransactions(filters?: TransactionsFilters) {
-  const queryClient = useQueryClient();
-  const { showSuccess, showError } = useNotifications();
-
-  const transactionsQuery = useQuery<
-    PaginatedResponse<Transaction>,
-    Error,
-    PaginatedResponse<Transaction>
-  >({
-    queryKey: ['transactions', filters],
-    queryFn: () => transactionsApi.getTransactions(filters ?? {}),
-    staleTime: 5 * 60 * 1000,
+export function useTransactions(params?: {
+  start_date?: string;
+  end_date?: string;
+  acquirer?: string;
+  matched?: boolean;
+  nsu?: string;
+  page?: number;
+  page_size?: number;
+}) {
+  return useQuery({
+    queryKey: ['transactions', params],
+    queryFn: () => transactionsApi.list(params),
   });
+}
 
-  const useTransactionById = (id: string) =>
-    useQuery<Transaction, Error>({
-      queryKey: ['transactions', id],
-      queryFn: () => transactionsApi.getTransactionById(id),
-      enabled: Boolean(id),
-      staleTime: 5 * 60 * 1000,
-    });
+export function useTransaction(id: string) {
+  return useQuery({
+    queryKey: ['transactions', id],
+    queryFn: () => transactionsApi.getById(id),
+    enabled: !!id,
+  });
+}
 
-  const importMutation = useMutation<
-    ImportTransactionsResponse,
-    any,
-    { acquirer: string; startDate: string; endDate: string }
-  >({
-    mutationFn: ({ acquirer, startDate, endDate }) =>
-      transactionsApi.importFromAcquirer(acquirer, startDate, endDate),
-    onSuccess: (data) => {
-      showSuccess(`${data.imported} transações importadas com sucesso!`);
-      if (data.errors > 0) {
-        showError(`${data.errors} transações com erro.`);
-      }
+export function useCreateTransaction() {
+  const queryClient = useQueryClient();
+  const showNotification = useUIStore((state) => state.showNotification);
+
+  return useMutation({
+    mutationFn: (data: CreateTransactionRequest) => transactionsApi.create(data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      showNotification('Transação criada com sucesso', 'success');
     },
     onError: (error: any) => {
-      showError(error?.response?.data?.message || 'Erro ao importar transações.');
+      showNotification(
+        error.response?.data?.detail || 'Erro ao criar transação',
+        'error'
+      );
     },
   });
+}
 
-  return {
-    transactions: transactionsQuery.data?.results ?? [],
-    totalTransactions: transactionsQuery.data?.total ?? 0,
-    totalPages: transactionsQuery.data?.total_pages ?? 0,
-    currentPage: transactionsQuery.data?.page ?? filters?.page ?? 1,
-    pageSize: transactionsQuery.data?.page_size ?? filters?.pageSize ?? 50,
+export function useDeleteTransaction() {
+  const queryClient = useQueryClient();
+  const showNotification = useUIStore((state) => state.showNotification);
 
-    isLoading: transactionsQuery.isLoading,
-    isFetching: transactionsQuery.isFetching,
-    isError: transactionsQuery.isError,
-    error: transactionsQuery.error,
+  return useMutation({
+    mutationFn: (id: string) => transactionsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      showNotification('Transação excluída com sucesso', 'success');
+    },
+    onError: (error: any) => {
+      showNotification(
+        error.response?.data?.detail || 'Erro ao excluir transação',
+        'error'
+      );
+    },
+  });
+}
 
-    importFromAcquirer: importMutation.mutate,
-    isImporting: importMutation.isPending,
+export function useImportTransactions() {
+  const queryClient = useQueryClient();
+  const showNotification = useUIStore((state) => state.showNotification);
 
-    refetch: transactionsQuery.refetch,
-    useTransactionById,
-  };
+  return useMutation({
+    mutationFn: (file: File): Promise<ImportTransactionsResponse> =>
+      transactionsApi.importCSV(file),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      showNotification(
+        `${data.imported} transações importadas. ${data.failed} falharam.`,
+        data.failed > 0 ? 'warning' : 'success'
+      );
+    },
+    onError: (error: any) => {
+      showNotification(
+        error.response?.data?.detail || 'Erro ao importar transações',
+        'error'
+      );
+    },
+  });
+}
+
+export function useExportTransactions() {
+  const showNotification = useUIStore((state) => state.showNotification);
+
+  return useMutation({
+    mutationFn: (params?: { start_date?: string; end_date?: string }) =>
+      transactionsApi.exportCSV(params),
+    onSuccess: (blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transactions_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      showNotification('Transações exportadas com sucesso', 'success');
+    },
+    onError: (error: any) => {
+      showNotification(
+        error.response?.data?.detail || 'Erro ao exportar transações',
+        'error'
+      );
+    },
+  });
 }

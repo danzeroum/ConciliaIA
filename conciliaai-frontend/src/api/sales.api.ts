@@ -1,81 +1,108 @@
 import { apiClient } from './axios-config';
-import type {
-  Sale,
-  CreateSaleRequest,
-  UpdateSaleRequest,
-  PaginatedResponse,
-  SalesFilters,
-  ImportSalesResponse,
-} from '@/types/api.types';
 
-const sanitizeParams = (params: Record<string, unknown>) =>
-  Object.fromEntries(
-    Object.entries(params).filter(([, value]) =>
-      value !== undefined && value !== null && value !== ''
-    )
-  );
+export interface Sale {
+  id: string;
+  tenant_id: string;
+  nsu: string;
+  amount: number;
+  sale_date: string;
+  payment_method: string;
+  installments: number;
+  card_brand: string | null;
+  authorization_code: string | null;
+  pos_terminal_id: string | null;
+  merchant_id: string | null;
+  matched: boolean;
+  match_id: string | null;
+  customer_document: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSaleRequest {
+  nsu: string;
+  amount: number;
+  sale_date: string;
+  payment_method: string;
+  installments?: number;
+  card_brand?: string;
+  authorization_code?: string;
+  pos_terminal_id?: string;
+  merchant_id?: string;
+  customer_document?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface SalesListResponse {
+  items: Sale[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface ImportSalesResponse {
+  imported: number;
+  failed: number;
+  errors: Array<{ row: number; error: string; data: any }>;
+}
 
 export const salesApi = {
-  async getSales(filters: SalesFilters = {}): Promise<PaginatedResponse<Sale>> {
-    const params = sanitizeParams({
-      start_date: filters.startDate,
-      end_date: filters.endDate,
-      status: filters.status,
-      search: filters.search,
-      page: filters.page ?? 1,
-      page_size: filters.pageSize ?? 50,
-    });
-
-    const response = await apiClient.get<PaginatedResponse<Sale>>('/api/sales', {
-      params,
-    });
+  // List sales
+  list: async (params?: {
+    start_date?: string;
+    end_date?: string;
+    payment_method?: string;
+    matched?: boolean;
+    nsu?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<SalesListResponse> => {
+    const response = await apiClient.get('/api/v1/sales', { params });
     return response.data;
   },
 
-  async getSaleById(id: string): Promise<Sale> {
-    const response = await apiClient.get<Sale>(`/api/sales/${id}`);
+  // Get sale by ID
+  getById: async (id: string): Promise<Sale> => {
+    const response = await apiClient.get(`/api/v1/sales/${id}`);
     return response.data;
   },
 
-  async createSale(data: CreateSaleRequest): Promise<Sale> {
-    const response = await apiClient.post<Sale>('/api/sales', data);
+  // Create sale
+  create: async (data: CreateSaleRequest): Promise<Sale> => {
+    const response = await apiClient.post('/api/v1/sales', data);
     return response.data;
   },
 
-  async updateSale(id: string, data: UpdateSaleRequest): Promise<Sale> {
-    const response = await apiClient.put<Sale>(`/api/sales/${id}`, data);
+  // Update sale
+  update: async (id: string, data: Partial<CreateSaleRequest>): Promise<Sale> => {
+    const response = await apiClient.put(`/api/v1/sales/${id}`, data);
     return response.data;
   },
 
-  async deleteSale(id: string): Promise<void> {
-    await apiClient.delete(`/api/sales/${id}`);
+  // Delete sale
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/sales/${id}`);
   },
 
-  async importSales(file: File): Promise<ImportSalesResponse> {
+  // Import from CSV
+  importCSV: async (file: File): Promise<ImportSalesResponse> => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await apiClient.post<ImportSalesResponse>(
-      '/api/sales/import',
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    );
+    const response = await apiClient.post('/api/v1/sales/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 
-  async exportSales(filters: SalesFilters = {}): Promise<Blob> {
-    const params = sanitizeParams({
-      start_date: filters.startDate,
-      end_date: filters.endDate,
-      status: filters.status,
-    });
-
-    const response = await apiClient.get<BlobPart>('/api/sales/export', {
+  // Export to CSV
+  exportCSV: async (params?: { start_date?: string; end_date?: string }): Promise<Blob> => {
+    const response = await apiClient.get('/api/v1/sales/export/csv', {
       params,
       responseType: 'blob',
     });
-    return response.data as Blob;
+    return response.data;
   },
 };

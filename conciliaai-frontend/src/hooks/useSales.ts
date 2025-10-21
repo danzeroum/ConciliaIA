@@ -1,130 +1,133 @@
-import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { salesApi } from '@/api/sales.api';
-import { useNotifications } from './useNotifications';
-import type {
-  SalesFilters,
-  CreateSaleRequest,
-  UpdateSaleRequest,
-  Sale,
-  PaginatedResponse,
-  ImportSalesResponse,
-} from '@/types/api.types';
+import { salesApi, CreateSaleRequest } from '@/api/sales.api';
+import { useUIStore } from '@/store/ui.store';
 
-export function useSales(filters?: SalesFilters) {
+export function useSales(params?: {
+  start_date?: string;
+  end_date?: string;
+  payment_method?: string;
+  matched?: boolean;
+  nsu?: string;
+  page?: number;
+  page_size?: number;
+}) {
+  return useQuery({
+    queryKey: ['sales', params],
+    queryFn: () => salesApi.list(params),
+  });
+}
+
+export function useSale(id: string) {
+  return useQuery({
+    queryKey: ['sales', id],
+    queryFn: () => salesApi.getById(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateSale() {
   const queryClient = useQueryClient();
-  const { showSuccess, showError } = useNotifications();
+  const showNotification = useUIStore((state) => state.showNotification);
 
-  const salesQuery = useQuery<
-    PaginatedResponse<Sale>,
-    Error,
-    PaginatedResponse<Sale>
-  >({
-    queryKey: ['sales', filters],
-    queryFn: () => salesApi.getSales(filters ?? {}),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const useSaleById = (id: string) =>
-    useQuery<Sale, Error>({
-      queryKey: ['sales', id],
-      queryFn: () => salesApi.getSaleById(id),
-      enabled: Boolean(id),
-      staleTime: 5 * 60 * 1000,
-    });
-
-  const createSaleMutation = useMutation<Sale, any, CreateSaleRequest>({
-    mutationFn: (data) => salesApi.createSale(data),
+  return useMutation({
+    mutationFn: (data: CreateSaleRequest) => salesApi.create(data),
     onSuccess: () => {
-      showSuccess('Venda criada com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      showNotification('Venda criada com sucesso', 'success');
     },
     onError: (error: any) => {
-      showError(error?.response?.data?.message || 'Erro ao criar venda.');
+      showNotification(
+        error.response?.data?.detail || 'Erro ao criar venda',
+        'error'
+      );
     },
   });
+}
 
-  const updateSaleMutation = useMutation<
-    Sale,
-    any,
-    { id: string; data: UpdateSaleRequest }
-  >({
-    mutationFn: ({ id, data }) => salesApi.updateSale(id, data),
+export function useUpdateSale() {
+  const queryClient = useQueryClient();
+  const showNotification = useUIStore((state) => state.showNotification);
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateSaleRequest> }) =>
+      salesApi.update(id, data),
     onSuccess: () => {
-      showSuccess('Venda atualizada com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      showNotification('Venda atualizada com sucesso', 'success');
     },
     onError: (error: any) => {
-      showError(error?.response?.data?.message || 'Erro ao atualizar venda.');
+      showNotification(
+        error.response?.data?.detail || 'Erro ao atualizar venda',
+        'error'
+      );
     },
   });
+}
 
-  const deleteSaleMutation = useMutation<void, any, string>({
-    mutationFn: (id) => salesApi.deleteSale(id),
+export function useDeleteSale() {
+  const queryClient = useQueryClient();
+  const showNotification = useUIStore((state) => state.showNotification);
+
+  return useMutation({
+    mutationFn: (id: string) => salesApi.delete(id),
     onSuccess: () => {
-      showSuccess('Venda excluída com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      showNotification('Venda excluída com sucesso', 'success');
     },
     onError: (error: any) => {
-      showError(error?.response?.data?.message || 'Erro ao excluir venda.');
+      showNotification(
+        error.response?.data?.detail || 'Erro ao excluir venda',
+        'error'
+      );
     },
   });
+}
 
-  const importSalesMutation = useMutation<ImportSalesResponse, any, File>({
-    mutationFn: (file) => salesApi.importSales(file),
+export function useImportSales() {
+  const queryClient = useQueryClient();
+  const showNotification = useUIStore((state) => state.showNotification);
+
+  return useMutation({
+    mutationFn: (file: File) => salesApi.importCSV(file),
     onSuccess: (data) => {
-      showSuccess(`${data.imported} vendas importadas com sucesso!`);
-      if (data.errors > 0) {
-        showError(`${data.errors} vendas com erro.`);
-      }
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      showNotification(
+        `${data.imported} vendas importadas com sucesso. ${data.failed} falharam.`,
+        data.failed > 0 ? 'warning' : 'success'
+      );
     },
     onError: (error: any) => {
-      showError(error?.response?.data?.message || 'Erro ao importar vendas.');
+      showNotification(
+        error.response?.data?.detail || 'Erro ao importar vendas',
+        'error'
+      );
     },
   });
+}
 
-  const exportSales = useCallback(async () => {
-    try {
-      const blob = await salesApi.exportSales(filters);
+export function useExportSales() {
+  const showNotification = useUIStore((state) => state.showNotification);
+
+  return useMutation({
+    mutationFn: (params?: { start_date?: string; end_date?: string }) =>
+      salesApi.exportCSV(params),
+    onSuccess: (blob) => {
       const url = window.URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `vendas_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(anchor);
-      anchor.click();
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sales_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(anchor);
-      showSuccess('Vendas exportadas com sucesso!');
-    } catch (error: any) {
-      showError(error?.response?.data?.message || 'Erro ao exportar vendas.');
-    }
-  }, [filters, showError, showSuccess]);
+      document.body.removeChild(a);
 
-  return {
-    sales: salesQuery.data?.results ?? [],
-    totalSales: salesQuery.data?.total ?? 0,
-    totalPages: salesQuery.data?.total_pages ?? 0,
-    currentPage: salesQuery.data?.page ?? filters?.page ?? 1,
-    pageSize: salesQuery.data?.page_size ?? filters?.pageSize ?? 50,
-
-    isLoading: salesQuery.isLoading,
-    isFetching: salesQuery.isFetching,
-    isError: salesQuery.isError,
-    error: salesQuery.error,
-
-    createSale: createSaleMutation.mutate,
-    updateSale: updateSaleMutation.mutate,
-    deleteSale: deleteSaleMutation.mutate,
-    importSales: importSalesMutation.mutate,
-    exportSales,
-
-    isCreating: createSaleMutation.isPending,
-    isUpdating: updateSaleMutation.isPending,
-    isDeleting: deleteSaleMutation.isPending,
-    isImporting: importSalesMutation.isPending,
-
-    refetch: salesQuery.refetch,
-    useSaleById,
-  };
+      showNotification('Vendas exportadas com sucesso', 'success');
+    },
+    onError: (error: any) => {
+      showNotification(
+        error.response?.data?.detail || 'Erro ao exportar vendas',
+        'error'
+      );
+    },
+  });
 }

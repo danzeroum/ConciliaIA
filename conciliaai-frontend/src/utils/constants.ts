@@ -1,20 +1,19 @@
-import type { PaymentMethod, SaleStatus, Acquirer } from '@/types/api.types';
+import type { PaymentMethod, Acquirer } from '@/types/api.types';
 
 export const PAYMENT_METHODS: ReadonlyArray<{ value: PaymentMethod; label: string }> = [
-  { value: 'credit_card', label: 'Cartão de Crédito' },
-  { value: 'debit_card', label: 'Cartão de Débito' },
+  { value: 'credit', label: 'Crédito' },
+  { value: 'debit', label: 'Débito' },
   { value: 'pix', label: 'PIX' },
-  { value: 'boleto', label: 'Boleto' },
+  { value: 'voucher', label: 'Voucher' },
 ];
 
-export const STATUS_OPTIONS: ReadonlyArray<{
-  value: SaleStatus;
+export const MATCH_STATUS_OPTIONS: ReadonlyArray<{
+  value: '' | 'true' | 'false';
   label: string;
-  color: 'success' | 'error' | 'warning';
 }> = [
-  { value: 'matched', label: 'Conciliado', color: 'success' },
-  { value: 'unmatched', label: 'Não Conciliado', color: 'error' },
-  { value: 'pending', label: 'Pendente', color: 'warning' },
+  { value: '', label: 'Todos' },
+  { value: 'true', label: 'Conciliados' },
+  { value: 'false', label: 'Não conciliados' },
 ];
 
 export const ACQUIRERS: ReadonlyArray<{ value: Acquirer; label: string }> = [
