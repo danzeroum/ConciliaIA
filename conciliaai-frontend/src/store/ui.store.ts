@@ -17,6 +17,11 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   setLanguage: (lang: 'pt-BR' | 'en-US') => void;
+  showNotification: (
+    message: string,
+    type: Notification['type'],
+    duration?: number
+  ) => void;
   addNotification: (notification: Omit<Notification, 'id'>) => void;
   removeNotification: (id: string) => void;
 }
@@ -36,6 +41,19 @@ export const useUIStore = create<UIState>()(
       setTheme: (theme) => set({ theme }),
 
       setLanguage: (language) => set({ language }),
+
+      showNotification: (message, type, duration) =>
+        set((state) => ({
+          notifications: [
+            ...state.notifications,
+            {
+              id: crypto.randomUUID(),
+              message,
+              type,
+              duration: duration ?? (type === 'error' ? 7000 : 5000),
+            },
+          ],
+        })),
 
       addNotification: (notification) =>
         set((state) => ({

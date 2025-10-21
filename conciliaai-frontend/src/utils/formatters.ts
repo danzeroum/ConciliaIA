@@ -1,4 +1,4 @@
-import type { PaymentMethod, SaleStatus, Acquirer } from '@/types/api.types';
+import type { PaymentMethod, MatchStatus, Acquirer } from '@/types/api.types';
 
 export function formatCurrency(value: string | number): string {
   const numValue = Number(value);
@@ -45,22 +45,26 @@ export function formatNSU(nsu: string): string {
   return nsu;
 }
 
-export function formatStatus(status: string): string {
-  const statusMap: Record<SaleStatus | string, string> = {
+export function formatMatchStatus(status: MatchStatus | boolean | string): string {
+  if (typeof status === 'boolean') {
+    return status ? 'Conciliado' : 'Não Conciliado';
+  }
+
+  const normalized = status as MatchStatus;
+  const statusMap: Record<MatchStatus, string> = {
     matched: 'Conciliado',
     unmatched: 'Não Conciliado',
-    pending: 'Pendente',
   };
 
-  return statusMap[status] ?? status;
+  return statusMap[normalized] ?? String(status);
 }
 
 export function formatPaymentMethod(method: string): string {
   const methodMap: Record<PaymentMethod | string, string> = {
-    credit_card: 'Cartão de Crédito',
-    debit_card: 'Cartão de Débito',
+    credit: 'Crédito',
+    debit: 'Débito',
     pix: 'PIX',
-    boleto: 'Boleto',
+    voucher: 'Voucher',
   };
 
   return methodMap[method] ?? method;

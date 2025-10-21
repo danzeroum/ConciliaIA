@@ -3,54 +3,95 @@ import {
   Box,
   Typography,
   Paper,
-  Grid,
-  TextField,
-  MenuItem,
   Button,
-  InputAdornment,
+  TextField,
+  Grid,
+  MenuItem,
+  Chip,
+  IconButton,
+  Tooltip,
+  Stack,
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import DeleteIcon from '@mui/icons-material/Delete';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/common/DataTable/DataTable';
-import { ImportTransactionsModal } from '@/components/features/ImportModal/ImportTransactionsModal';
-import { useTransactions } from '@/hooks/useTransactions';
-import { formatCurrency, formatDateTime, formatAcquirer } from '@/utils/formatters';
-import { ACQUIRERS, DEFAULT_PAGE_SIZE } from '@/utils/constants';
-import type { Transaction } from '@/types/api.types';
+import {
+  useTransactions,
+  useDeleteTransaction,
+  useImportTransactions,
+  useExportTransactions,
+} from '@/hooks/useTransactions';
+import { ImportCSVDialog } from '@/components/features/ImportCSVDialog';
+import { TransactionDetail } from '@/components/features/TransactionDetail';
+import { formatCurrency, formatDate, formatMatchStatus } from '@/utils/formatters';
+import { ACQUIRERS, MATCH_STATUS_OPTIONS, DEFAULT_PAGE_SIZE } from '@/utils/constants';
+import { type Transaction } from '@/api/transactions.api';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
 
 export function TransactionsPage() {
   const [filters, setFilters] = React.useState({
     startDate: '',
     endDate: '',
     acquirer: '',
-    search: '',
+    matched: '' as '' | 'true' | 'false',
+    nsu: '',
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
   });
-  const [searchInput, setSearchInput] = React.useState('');
-  const [importModalOpen, setImportModalOpen] = React.useState(false);
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
+  const [detailOpen, setDetailOpen] = React.useState(false);
+  const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    const handler = window.setTimeout(() => {
-      setFilters((prev) => ({ ...prev, search: searchInput, page: 1 }));
-    }, 300);
+  const { data, isLoading } = useTransactions({
+    start_date: filters.startDate || undefined,
+    end_date: filters.endDate || undefined,
+    acquirer: filters.acquirer || undefined,
+    matched:
+      filters.matched === '' ? undefined : (filters.matched === 'true' ? true : false),
+    nsu: filters.nsu || undefined,
+    page: filters.page,
+    page_size: filters.pageSize,
+  });
 
-    return () => window.clearTimeout(handler);
-  }, [searchInput]);
+  const deleteTransaction = useDeleteTransaction();
+  const importTransactions = useImportTransactions();
+  const exportTransactions = useExportTransactions();
 
-  const { transactions, totalTransactions, currentPage, pageSize, isLoading } = useTransactions(filters);
-
-  const handleFilterChange = (key: 'startDate' | 'endDate' | 'acquirer', value: string) => {
+  const handleFilterChange = (key: keyof typeof filters, value: string | number) => {
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
 
-  const handlePageChange = (page: number) => {
-    setFilters((prev) => ({ ...prev, page }));
+  const handlePageChange = (page: number) => setFilters((prev) => ({ ...prev, page }));
+  const handlePageSizeChange = (pageSize: number) =>
+    setFilters((prev) => ({ ...prev, pageSize, page: 1 }));
+
+  const handleViewTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setDetailOpen(true);
   };
 
-  const handlePageSizeChange = (size: number) => {
-    setFilters((prev) => ({ ...prev, pageSize: size, page: 1 }));
+  const handleDelete = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!selectedTransaction) return;
+
+    deleteTransaction.mutate(selectedTransaction.id, {
+      onSuccess: () => setConfirmDeleteOpen(false),
+    });
+  };
+
+  const handleExport = () => {
+    exportTransactions.mutate({
+      start_date: filters.startDate || undefined,
+      end_date: filters.endDate || undefined,
+    });
   };
 
   const columns = React.useMemo<ColumnDef<Transaction>[]>(
@@ -58,63 +99,109 @@ export function TransactionsPage() {
       {
         accessorKey: 'nsu',
         header: 'NSU',
-        cell: (info) => info.getValue<string>(),
-      },
-      {
-        accessorKey: 'transaction_date',
-        header: 'Data da Transação',
-        cell: (info) => formatDateTime(info.getValue<string>()),
       },
       {
         accessorKey: 'acquirer',
         header: 'Adquirente',
-        cell: (info) => formatAcquirer(info.getValue<string>()),
+        cell: (info) => info.getValue<string>().toUpperCase(),
+      },
+      {
+        accessorKey: 'transaction_date',
+        header: 'Data Transação',
+        cell: (info) => formatDate(info.getValue<string>()),
+      },
+      {
+        accessorKey: 'settlement_date',
+        header: 'Data Liquidação',
+        cell: (info) => {
+          const value = info.getValue<string | null>();
+          return value ? formatDate(value) : '-';
+        },
       },
       {
         accessorKey: 'amount',
-        header: 'Valor Bruto',
-        cell: (info) => formatCurrency(info.getValue<string>()),
+        header: 'Valor',
+        cell: (info) => formatCurrency(info.getValue<number>()),
       },
       {
-        accessorKey: 'net_amount',
-        header: 'Valor Líquido',
-        cell: (info) => formatCurrency(info.getValue<string>()),
+        accessorKey: 'matched',
+        header: 'Status',
+        cell: (info) => (
+          <Chip
+            label={formatMatchStatus(info.getValue<boolean>())}
+            color={info.getValue<boolean>() ? 'success' : 'warning'}
+            size="small"
+          />
+        ),
+      },
+      {
+        accessorKey: 'installments',
+        header: 'Parcelas',
+        cell: (info) => info.getValue<number>() ?? '-',
       },
       {
         accessorKey: 'card_brand',
         header: 'Bandeira',
-        cell: (info) => info.getValue<string>(),
+        cell: (info) => info.getValue<string>() || '-',
       },
       {
-        accessorKey: 'card_last_4',
-        header: 'Final Cartão',
-        cell: (info) => `•••• ${info.getValue<string>()}`,
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: (info) => info.getValue<string>(),
+        id: 'actions',
+        header: 'Ações',
+        cell: (info) => {
+          const transaction = info.row.original;
+          return (
+            <Stack direction="row" spacing={1}>
+              <Tooltip title="Visualizar">
+                <IconButton size="small" onClick={() => handleViewTransaction(transaction)}>
+                  <VisibilityIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Excluir">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleDelete(transaction)}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          );
+        },
       },
     ],
     []
   );
 
+  const rows = data?.items ?? [];
+  const totalRows = data?.total ?? 0;
+
   return (
     <Box display="flex" flexDirection="column" gap={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Typography variant="h4">Transações</Typography>
-        <Button
-          variant="contained"
-          startIcon={<CloudDownloadIcon />}
-          onClick={() => setImportModalOpen(true)}
-        >
-          Importar da Adquirente
-        </Button>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<CloudUploadIcon />}
+            onClick={() => setImportDialogOpen(true)}
+          >
+            Importar CSV
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<FileDownloadIcon />}
+            onClick={handleExport}
+            disabled={exportTransactions.isPending}
+          >
+            Exportar
+          </Button>
+        </Stack>
       </Box>
 
       <Paper sx={{ p: 2 }}>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               label="Data inicial"
@@ -125,7 +212,7 @@ export function TransactionsPage() {
               size="small"
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               label="Data final"
@@ -136,7 +223,7 @@ export function TransactionsPage() {
               size="small"
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               select
@@ -153,39 +240,77 @@ export function TransactionsPage() {
               ))}
             </TextField>
           </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              fullWidth
+              select
+              label="Status"
+              value={filters.matched}
+              onChange={(event) => handleFilterChange('matched', event.target.value)}
+              size="small"
+            >
+              {MATCH_STATUS_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
           <Grid item xs={12} md={3}>
             <TextField
               fullWidth
-              placeholder="Buscar por NSU, bandeira..."
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
+              label="Buscar por NSU"
+              value={filters.nsu}
+              onChange={(event) => handleFilterChange('nsu', event.target.value)}
               size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
             />
           </Grid>
         </Grid>
       </Paper>
 
       <DataTable<Transaction>
-        data={transactions}
+        data={rows}
         columns={columns}
         loading={isLoading}
         pagination
-        totalRows={totalTransactions}
-        currentPage={currentPage}
-        pageSize={pageSize}
+        searchable={false}
+        totalRows={totalRows}
+        pageSize={filters.pageSize}
+        currentPage={filters.page}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
-        searchable={false}
+        emptyMessage="Nenhuma transação encontrada"
       />
 
-      <ImportTransactionsModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />
+      <TransactionDetail
+        open={detailOpen}
+        transaction={selectedTransaction}
+        onClose={() => setDetailOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onCancel={() => setConfirmDeleteOpen(false)}
+        title="Excluir transação"
+        message={`Deseja realmente excluir a transação ${selectedTransaction?.nsu ?? ''}?`}
+        onConfirm={handleConfirmDelete}
+        cancelLabel="Cancelar"
+        confirmLabel="Excluir"
+        loading={deleteTransaction.isPending}
+      />
+
+      <ImportCSVDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImport={(file) => importTransactions.mutateAsync(file)}
+        title="Importar Transações"
+        helperText={
+          <Typography variant="body2" color="text.secondary">
+            Faça o upload de um arquivo CSV contendo as colunas: nsu, acquirer, amount,
+            transaction_date, settlement_date, card_brand, installments.
+          </Typography>
+        }
+      />
     </Box>
   );
 }

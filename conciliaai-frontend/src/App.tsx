@@ -10,6 +10,9 @@ import { DashboardPage } from './pages/Dashboard/Dashboard';
 import { SalesPage } from './pages/Sales/Sales';
 import { ReconciliationPage } from './pages/Reconciliation/Reconciliation';
 import { TransactionsPage } from './pages/Transactions/Transactions';
+import { DivergencesPage } from './pages/Divergences/Divergences';
+import { ReportsPage } from './pages/Reports/Reports';
+import { SettingsPage } from './pages/Settings/Settings';
 import { NotificationSnackbar } from './components/common/Snackbar/NotificationSnackbar';
 
 const queryClient = new QueryClient({
@@ -46,9 +49,9 @@ export function App() {
               <Route path="sales" element={<SalesPage />} />
               <Route path="reconciliation" element={<ReconciliationPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
-              <Route path="divergences" element={<div>Divergências (em desenvolvimento)</div>} />
-              <Route path="reports" element={<div>Relatórios (em desenvolvimento)</div>} />
-              <Route path="settings" element={<div>Configurações (em desenvolvimento)</div>} />
+              <Route path="divergences" element={<DivergencesPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

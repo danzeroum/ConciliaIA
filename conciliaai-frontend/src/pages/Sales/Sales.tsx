@@ -8,55 +8,66 @@ import {
   Grid,
   MenuItem,
   Chip,
-  InputAdornment,
   IconButton,
   Tooltip,
+  Stack,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import SearchIcon from '@mui/icons-material/Search';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import FileUploadIcon from '@mui/icons-material/FileUpload';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/common/DataTable/DataTable';
-import { CreateSaleModal } from '@/components/features/SaleModal/CreateSaleModal';
-import { EditSaleModal } from '@/components/features/SaleModal/EditSaleModal';
+import {
+  useSales,
+  useCreateSale,
+  useUpdateSale,
+  useDeleteSale,
+  useImportSales,
+  useExportSales,
+} from '@/hooks/useSales';
+import { ImportCSVDialog } from '@/components/features/ImportCSVDialog';
+import { SaleFormDialog, type SaleFormData } from '@/components/features/SaleFormDialog';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
-import { ImportSalesModal } from '@/components/features/ImportModal/ImportSalesModal';
-import { useSales } from '@/hooks/useSales';
-import { formatCurrency, formatDate, formatPaymentMethod, formatStatus } from '@/utils/formatters';
-import { STATUS_OPTIONS, DEFAULT_PAGE_SIZE } from '@/utils/constants';
-import type { Sale } from '@/types/api.types';
+import { formatCurrency, formatDate, formatPaymentMethod, formatMatchStatus } from '@/utils/formatters';
+import { PAYMENT_METHODS, MATCH_STATUS_OPTIONS, DEFAULT_PAGE_SIZE } from '@/utils/constants';
+import { type Sale } from '@/api/sales.api';
 
 export function SalesPage() {
   const [filters, setFilters] = React.useState({
     startDate: '',
     endDate: '',
-    status: '' as '' | Sale['status'],
-    search: '',
+    paymentMethod: '',
+    matched: '' as '' | 'true' | 'false',
+    nsu: '',
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
   });
-  const [searchInput, setSearchInput] = React.useState('');
-  const [createModalOpen, setCreateModalOpen] = React.useState(false);
-  const [editModalOpen, setEditModalOpen] = React.useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [importModalOpen, setImportModalOpen] = React.useState(false);
   const [selectedSale, setSelectedSale] = React.useState<Sale | null>(null);
+  const [saleFormOpen, setSaleFormOpen] = React.useState(false);
+  const [saleFormMode, setSaleFormMode] = React.useState<'create' | 'edit'>('create');
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    const handler = window.setTimeout(() => {
-      setFilters((prev) => ({ ...prev, search: searchInput, page: 1 }));
-    }, 300);
+  const { data, isLoading } = useSales({
+    start_date: filters.startDate || undefined,
+    end_date: filters.endDate || undefined,
+    payment_method: filters.paymentMethod || undefined,
+    matched:
+      filters.matched === '' ? undefined : (filters.matched === 'true' ? true : false),
+    nsu: filters.nsu || undefined,
+    page: filters.page,
+    page_size: filters.pageSize,
+  });
 
-    return () => window.clearTimeout(handler);
-  }, [searchInput]);
+  const createSale = useCreateSale();
+  const updateSale = useUpdateSale();
+  const deleteSale = useDeleteSale();
+  const importSales = useImportSales();
+  const exportSales = useExportSales();
 
-  const { sales, totalSales, currentPage, pageSize, isLoading, deleteSale, isDeleting, exportSales } =
-    useSales(filters);
-
-  const handleFilterChange = (key: 'startDate' | 'endDate' | 'status', value: string) => {
+  const handleFilterChange = (key: keyof typeof filters, value: string | number) => {
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
 
@@ -64,28 +75,47 @@ export function SalesPage() {
     setFilters((prev) => ({ ...prev, page }));
   };
 
-  const handlePageSizeChange = (size: number) => {
-    setFilters((prev) => ({ ...prev, pageSize: size, page: 1 }));
+  const handlePageSizeChange = (pageSize: number) => {
+    setFilters((prev) => ({ ...prev, pageSize, page: 1 }));
   };
 
-  const handleEdit = (sale: Sale) => {
-    setSelectedSale(sale);
-    setEditModalOpen(true);
+  const handleCreateSale = () => {
+    setSelectedSale(null);
+    setSaleFormMode('create');
+    setSaleFormOpen(true);
   };
 
-  const handleDelete = (sale: Sale) => {
+  const handleEditSale = (sale: Sale) => {
     setSelectedSale(sale);
-    setDeleteDialogOpen(true);
+    setSaleFormMode('edit');
+    setSaleFormOpen(true);
+  };
+
+  const handleDeleteSale = (sale: Sale) => {
+    setSelectedSale(sale);
+    setConfirmDeleteOpen(true);
   };
 
   const handleConfirmDelete = () => {
     if (!selectedSale) return;
 
-    deleteSale(selectedSale.id, {
-      onSuccess: () => {
-        setDeleteDialogOpen(false);
-        setSelectedSale(null);
-      },
+    deleteSale.mutate(selectedSale.id, {
+      onSuccess: () => setConfirmDeleteOpen(false),
+    });
+  };
+
+  const handleSubmitSale = (formData: SaleFormData) => {
+    if (saleFormMode === 'create') {
+      createSale.mutate(formData);
+    } else if (selectedSale) {
+      updateSale.mutate({ id: selectedSale.id, data: formData });
+    }
+  };
+
+  const handleExport = () => {
+    exportSales.mutate({
+      start_date: filters.startDate || undefined,
+      end_date: filters.endDate || undefined,
     });
   };
 
@@ -97,14 +127,14 @@ export function SalesPage() {
         cell: (info) => info.getValue<string>(),
       },
       {
-        accessorKey: 'amount',
-        header: 'Valor',
-        cell: (info) => formatCurrency(info.getValue<string>()),
-      },
-      {
-        accessorKey: 'date',
+        accessorKey: 'sale_date',
         header: 'Data',
         cell: (info) => formatDate(info.getValue<string>()),
+      },
+      {
+        accessorKey: 'amount',
+        header: 'Valor',
+        cell: (info) => formatCurrency(info.getValue<number>()),
       },
       {
         accessorKey: 'payment_method',
@@ -112,18 +142,25 @@ export function SalesPage() {
         cell: (info) => formatPaymentMethod(info.getValue<string>()),
       },
       {
-        accessorKey: 'status',
+        accessorKey: 'installments',
+        header: 'Parcelas',
+        cell: (info) => info.getValue<number>() ?? '-',
+      },
+      {
+        accessorKey: 'matched',
         header: 'Status',
-        cell: (info) => {
-          const statusValue = info.getValue<Sale['status']>();
-          const statusOption = STATUS_OPTIONS.find((option) => option.value === statusValue);
-
-          return statusOption ? (
-            <Chip label={statusOption.label} color={statusOption.color} size="small" />
-          ) : (
-            <Chip label={formatStatus(statusValue)} size="small" />
-          );
-        },
+        cell: (info) => (
+          <Chip
+            label={formatMatchStatus(info.getValue<boolean>())}
+            color={info.getValue<boolean>() ? 'success' : 'warning'}
+            size="small"
+          />
+        ),
+      },
+      {
+        accessorKey: 'card_brand',
+        header: 'Bandeira',
+        cell: (info) => info.getValue<string>() || '-',
       },
       {
         id: 'actions',
@@ -131,18 +168,22 @@ export function SalesPage() {
         cell: (info) => {
           const sale = info.row.original;
           return (
-            <Box display="flex" gap={1}>
+            <Stack direction="row" spacing={1}>
               <Tooltip title="Editar">
-                <IconButton size="small" onClick={() => handleEdit(sale)}>
+                <IconButton size="small" onClick={() => handleEditSale(sale)}>
                   <EditIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Excluir">
-                <IconButton size="small" color="error" onClick={() => handleDelete(sale)}>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleDeleteSale(sale)}
+                >
                   <DeleteIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            </Box>
+            </Stack>
           );
         },
       },
@@ -150,26 +191,50 @@ export function SalesPage() {
     []
   );
 
+  const rows = data?.items ?? [];
+  const totalRows = data?.total ?? 0;
+
+  const selectedSaleInitialData = selectedSale
+    ? {
+        nsu: selectedSale.nsu,
+        amount: selectedSale.amount,
+        sale_date: selectedSale.sale_date?.split('T')[0] ?? selectedSale.sale_date,
+        payment_method: selectedSale.payment_method,
+        installments: selectedSale.installments ?? 1,
+        card_brand: selectedSale.card_brand ?? '',
+        authorization_code: selectedSale.authorization_code ?? '',
+      }
+    : undefined;
+
   return (
     <Box display="flex" flexDirection="column" gap={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Typography variant="h4">Vendas</Typography>
-        <Box display="flex" gap={1}>
-          <Button variant="outlined" startIcon={<FileUploadIcon />} onClick={() => setImportModalOpen(true)}>
-            Importar
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<CloudUploadIcon />}
+            onClick={() => setImportDialogOpen(true)}
+          >
+            Importar CSV
           </Button>
-          <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={exportSales}>
+          <Button
+            variant="outlined"
+            startIcon={<FileDownloadIcon />}
+            onClick={handleExport}
+            disabled={exportSales.isPending}
+          >
             Exportar
           </Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateModalOpen(true)}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateSale}>
             Nova Venda
           </Button>
-        </Box>
+        </Stack>
       </Box>
 
       <Paper sx={{ p: 2 }}>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               label="Data inicial"
@@ -180,7 +245,7 @@ export function SalesPage() {
               size="small"
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               label="Data final"
@@ -191,17 +256,33 @@ export function SalesPage() {
               size="small"
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              fullWidth
+              select
+              label="Método de pagamento"
+              value={filters.paymentMethod}
+              onChange={(event) => handleFilterChange('paymentMethod', event.target.value)}
+              size="small"
+            >
+              <MenuItem value="">Todos</MenuItem>
+              {PAYMENT_METHODS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               select
               label="Status"
-              value={filters.status}
-              onChange={(event) => handleFilterChange('status', event.target.value)}
+              value={filters.matched}
+              onChange={(event) => handleFilterChange('matched', event.target.value)}
               size="small"
             >
-              <MenuItem value="">Todos</MenuItem>
-              {STATUS_OPTIONS.map((option) => (
+              {MATCH_STATUS_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
                 </MenuItem>
@@ -211,57 +292,54 @@ export function SalesPage() {
           <Grid item xs={12} md={3}>
             <TextField
               fullWidth
-              placeholder="Buscar por NSU..."
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
+              label="Buscar por NSU"
+              value={filters.nsu}
+              onChange={(event) => handleFilterChange('nsu', event.target.value)}
               size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
             />
           </Grid>
         </Grid>
       </Paper>
 
       <DataTable<Sale>
-        data={sales}
+        data={rows}
         columns={columns}
         loading={isLoading}
         pagination
-        totalRows={totalSales}
-        currentPage={currentPage}
-        pageSize={pageSize}
+        searchable={false}
+        totalRows={totalRows}
+        pageSize={filters.pageSize}
+        currentPage={filters.page}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
-        searchable={false}
+        emptyMessage="Nenhuma venda encontrada"
       />
 
-      <CreateSaleModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
-      <EditSaleModal
-        open={editModalOpen}
-        sale={selectedSale}
-        onClose={() => {
-          setEditModalOpen(false);
-          setSelectedSale(null);
-        }}
+      <SaleFormDialog
+        open={saleFormOpen}
+        onClose={() => setSaleFormOpen(false)}
+        onSubmit={handleSubmitSale}
+        initialData={selectedSaleInitialData}
+        mode={saleFormMode}
       />
+
       <ConfirmDialog
-        open={deleteDialogOpen}
+        open={confirmDeleteOpen}
+        onCancel={() => setConfirmDeleteOpen(false)}
         title="Excluir venda"
-        message={selectedSale ? `Tem certeza que deseja excluir a venda ${selectedSale.nsu}?` : ''}
+        message={`Deseja realmente excluir a venda ${selectedSale?.nsu ?? ''}?`}
         onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setDeleteDialogOpen(false);
-          setSelectedSale(null);
-        }}
-        loading={isDeleting}
+        cancelLabel="Cancelar"
         confirmLabel="Excluir"
+        loading={deleteSale.isPending}
       />
-      <ImportSalesModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />
+
+      <ImportCSVDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImport={(file) => importSales.mutateAsync(file)}
+        title="Importar Vendas"
+      />
     </Box>
   );
 }
