@@ -2,6 +2,7 @@
 
 from . import (
     divergences,
+    export,
     health,
     matches,
     reconciliation,
@@ -13,6 +14,7 @@ from . import (
 
 __all__ = [
     "divergences",
+    "export",
     "health",
     "matches",
     "reconciliation",

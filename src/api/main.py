@@ -14,6 +14,7 @@ from src.api.middleware import AuthMiddleware, RateLimitMiddleware, TenantMiddle
 from src.api.routes import auth
 from src.api.v1.routes import (
     divergences,
+    export,
     health,
     matches,
     reconciliation,
@@ -94,6 +95,7 @@ app.include_router(matches.router, prefix="/api/v1", tags=["Matches"])
 app.include_router(sales.router, prefix="/api/v1", tags=["Sales"])
 app.include_router(transactions.router, prefix="/api/v1", tags=["Transactions"])
 app.include_router(reports.router, prefix="/api/v1", tags=["Reports"])
+app.include_router(export.router, prefix="/api/v1", tags=["Exports"])
 app.include_router(stats.router, prefix="/api/v1", tags=["Statistics"])
 
 

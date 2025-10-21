@@ -15,7 +15,6 @@ import {
   Typography,
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -23,11 +22,17 @@ import { ptBR } from 'date-fns/locale';
 import { AccuracyTrendChart } from '@/components/charts/AccuracyTrendChart';
 import { DivergencesPieChart } from '@/components/charts/DivergencesPieChart';
 import { AcquirerBarChart } from '@/components/charts/AcquirerBarChart';
+import { PDFExport } from '@/components/features/PDFExport';
 import {
   useAccuracyReport,
   useAcquirerPerformanceReport,
   useDivergenceAnalysisReport,
 } from '@/hooks/useReports';
+import {
+  useExportAccuracyReportExcel,
+  useExportDivergenceReportExcel,
+} from '@/hooks/useExport';
+import { useUIStore } from '@/store/ui.store';
 import type { TrendDataPoint } from '@/api/stats.api';
 
 interface TabPanelProps {
@@ -72,17 +77,38 @@ export function ReportsPage() {
   const divergenceReport = useDivergenceAnalysisReport(startDateParam, endDateParam);
   const acquirerReport = useAcquirerPerformanceReport(startDateParam, endDateParam);
 
+  const showNotification = useUIStore((state) => state.showNotification);
+  const exportAccuracyExcel = useExportAccuracyReportExcel();
+  const exportDivergenceExcel = useExportDivergenceReportExcel();
+
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleExportPDF = () => {
-    console.info('Exporting PDF...');
+  const handleExportExcel = () => {
+    if (!startDate || !endDate) {
+      showNotification('Selecione o período para exportar o relatório', 'warning');
+      return;
+    }
+
+    const payload = {
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+    };
+
+    switch (tabValue) {
+      case 0:
+        exportAccuracyExcel.mutate(payload);
+        break;
+      case 1:
+        exportDivergenceExcel.mutate(payload);
+        break;
+      default:
+        showNotification('Exportação para este relatório ainda não está disponível', 'info');
+    }
   };
 
-  const handleExportExcel = () => {
-    console.info('Exporting Excel...');
-  };
+  const excelExporting = exportAccuracyExcel.isPending || exportDivergenceExcel.isPending;
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', {
@@ -394,13 +420,16 @@ export function ReportsPage() {
       <Box>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Typography variant="h4">Relatórios</Typography>
-          <Box display="flex" gap={1}>
-            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExportExcel}>
-              Excel
+          <Box display="flex" gap={1} alignItems="center">
+            <Button
+              variant="outlined"
+              startIcon={excelExporting ? <CircularProgress size={20} /> : <DownloadIcon />}
+              onClick={handleExportExcel}
+              disabled={excelExporting}
+            >
+              {excelExporting ? 'Exportando...' : 'Excel'}
             </Button>
-            <Button variant="contained" startIcon={<PictureAsPdfIcon />} onClick={handleExportPDF}>
-              PDF
-            </Button>
+            <PDFExport targetElementId="report-content" filename={`relatorio_${reportTypes[tabValue].value}`} />
           </Box>
         </Box>
 
@@ -458,25 +487,27 @@ export function ReportsPage() {
             <Tab label="MDR" disabled />
           </Tabs>
 
-          <TabPanel value={tabValue} index={0}>
-            {renderAccuracyReport()}
-          </TabPanel>
+          <Box id="report-content">
+            <TabPanel value={tabValue} index={0}>
+              {renderAccuracyReport()}
+            </TabPanel>
 
-          <TabPanel value={tabValue} index={1}>
-            {renderDivergenceReport()}
-          </TabPanel>
+            <TabPanel value={tabValue} index={1}>
+              {renderDivergenceReport()}
+            </TabPanel>
 
-          <TabPanel value={tabValue} index={2}>
-            {renderAcquirerReport()}
-          </TabPanel>
+            <TabPanel value={tabValue} index={2}>
+              {renderAcquirerReport()}
+            </TabPanel>
 
-          <TabPanel value={tabValue} index={3}>
-            <Alert severity="info">Relatório de Análise de Liquidação em desenvolvimento.</Alert>
-          </TabPanel>
+            <TabPanel value={tabValue} index={3}>
+              <Alert severity="info">Relatório de Análise de Liquidação em desenvolvimento.</Alert>
+            </TabPanel>
 
-          <TabPanel value={tabValue} index={4}>
-            <Alert severity="info">Relatório de Variação de MDR em desenvolvimento.</Alert>
-          </TabPanel>
+            <TabPanel value={tabValue} index={4}>
+              <Alert severity="info">Relatório de Variação de MDR em desenvolvimento.</Alert>
+            </TabPanel>
+          </Box>
         </Paper>
       </Box>
     </LocalizationProvider>
