@@ -14,6 +14,8 @@ export function useSales(params?: {
   return useQuery({
     queryKey: ['sales', params],
     queryFn: () => salesApi.list(params),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -33,13 +35,12 @@ export function useCreateSale() {
     mutationFn: (data: CreateSaleRequest) => salesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
       showNotification('Venda criada com sucesso', 'success');
     },
     onError: (error: any) => {
-      showNotification(
-        error.response?.data?.detail || 'Erro ao criar venda',
-        'error'
-      );
+      const message = error.response?.data?.detail || error.message || 'Erro ao criar venda';
+      showNotification(message, 'error');
     },
   });
 }
@@ -51,15 +52,17 @@ export function useUpdateSale() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateSaleRequest> }) =>
       salesApi.update(id, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      if (variables?.id) {
+        queryClient.invalidateQueries({ queryKey: ['sales', variables.id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
       showNotification('Venda atualizada com sucesso', 'success');
     },
     onError: (error: any) => {
-      showNotification(
-        error.response?.data?.detail || 'Erro ao atualizar venda',
-        'error'
-      );
+      const message = error.response?.data?.detail || error.message || 'Erro ao atualizar venda';
+      showNotification(message, 'error');
     },
   });
 }
@@ -72,13 +75,12 @@ export function useDeleteSale() {
     mutationFn: (id: string) => salesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
       showNotification('Venda excluída com sucesso', 'success');
     },
     onError: (error: any) => {
-      showNotification(
-        error.response?.data?.detail || 'Erro ao excluir venda',
-        'error'
-      );
+      const message = error.response?.data?.detail || error.message || 'Erro ao excluir venda';
+      showNotification(message, 'error');
     },
   });
 }
@@ -91,16 +93,20 @@ export function useImportSales() {
     mutationFn: (file: File) => salesApi.importCSV(file),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
-      showNotification(
-        `${data.imported} vendas importadas com sucesso. ${data.failed} falharam.`,
-        data.failed > 0 ? 'warning' : 'success'
-      );
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+
+      if (data.failed > 0) {
+        showNotification(
+          `${data.imported} vendas importadas, ${data.failed} falhas. Verifique os erros.`,
+          'warning'
+        );
+      } else {
+        showNotification(`${data.imported} vendas importadas com sucesso`, 'success');
+      }
     },
     onError: (error: any) => {
-      showNotification(
-        error.response?.data?.detail || 'Erro ao importar vendas',
-        'error'
-      );
+      const message = error.response?.data?.detail || error.message || 'Erro ao importar vendas';
+      showNotification(message, 'error');
     },
   });
 }
@@ -115,19 +121,17 @@ export function useExportSales() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sales_export_${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `vendas_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      showNotification('Vendas exportadas com sucesso', 'success');
+      showNotification('Exportação de vendas concluída', 'success');
     },
     onError: (error: any) => {
-      showNotification(
-        error.response?.data?.detail || 'Erro ao exportar vendas',
-        'error'
-      );
+      const message = error.response?.data?.detail || error.message || 'Erro ao exportar vendas';
+      showNotification(message, 'error');
     },
   });
 }

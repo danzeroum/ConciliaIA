@@ -1,4 +1,5 @@
-import type { PaymentMethod, MatchStatus, Acquirer } from '@/types/api.types';
+import type { MatchStatus, Acquirer } from '@/types/api.types';
+import { PaymentMethod } from '@/types/api.types';
 
 export function formatCurrency(value: string | number): string {
   const numValue = Number(value);
@@ -60,14 +61,14 @@ export function formatMatchStatus(status: MatchStatus | boolean | string): strin
 }
 
 export function formatPaymentMethod(method: string): string {
-  const methodMap: Record<PaymentMethod | string, string> = {
-    credit: 'Crédito',
-    debit: 'Débito',
-    pix: 'PIX',
-    voucher: 'Voucher',
+  const methodMap: Record<PaymentMethod, string> = {
+    [PaymentMethod.CREDIT]: 'Crédito',
+    [PaymentMethod.DEBIT]: 'Débito',
+    [PaymentMethod.PIX]: 'PIX',
+    [PaymentMethod.VOUCHER]: 'Voucher',
   };
 
-  return methodMap[method] ?? method;
+  return methodMap[method as PaymentMethod] ?? method;
 }
 
 export function formatAcquirer(acquirer: string): string {

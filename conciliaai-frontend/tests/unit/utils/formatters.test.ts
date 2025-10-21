@@ -4,7 +4,7 @@ import {
   formatDate,
   formatDateTime,
   formatPercentage,
-  formatStatus,
+  formatMatchStatus,
   formatPaymentMethod,
   formatAcquirer,
   formatFileSize,
@@ -35,8 +35,8 @@ describe('formatters', () => {
   });
 
   it('formats sale status', () => {
-    expect(formatStatus('matched')).toBe('Conciliado');
-    expect(formatStatus('other')).toBe('other');
+    expect(formatMatchStatus('matched')).toBe('Conciliado');
+    expect(formatMatchStatus('other')).toBe('other');
   });
 
   it('formats payment method', () => {
