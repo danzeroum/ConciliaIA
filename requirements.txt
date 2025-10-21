@@ -27,3 +27,8 @@ structlog==23.2.0
 # Utils
 python-dateutil==2.8.2
 python-multipart==0.0.6
+
+# Export
+pandas==2.2.3
+openpyxl==3.1.5
+xlsxwriter==3.2.0

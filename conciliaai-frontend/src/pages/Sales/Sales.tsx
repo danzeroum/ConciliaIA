@@ -28,7 +28,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ImportCSVDialog } from '@/components/features/ImportCSVDialog';
+import { PDFExport } from '@/components/features/PDFExport';
 import { SaleFormDialog } from '@/components/features/SaleFormDialog';
+import { useExportSalesExcel } from '@/hooks/useExport';
 import {
   useCreateSale,
   useDeleteSale,
@@ -80,6 +82,7 @@ export function SalesPage() {
   const deleteSale = useDeleteSale();
   const importSales = useImportSales();
   const exportSales = useExportSales();
+  const exportSalesExcel = useExportSalesExcel();
 
   const handleFilterChange = (field: keyof FiltersState, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -245,7 +248,7 @@ export function SalesPage() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Vendas</Typography>
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={1} alignItems="center">
           <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => setImportDialogOpen(true)}>
             Importar CSV
           </Button>
@@ -257,6 +260,20 @@ export function SalesPage() {
           >
             {exportSales.isPending ? <CircularProgress size={20} /> : 'Exportar CSV'}
           </Button>
+          <Button
+            variant="outlined"
+            startIcon={exportSalesExcel.isPending ? <CircularProgress size={20} /> : <DownloadIcon />}
+            onClick={() =>
+              exportSalesExcel.mutate({
+                start_date: filters.start_date || undefined,
+                end_date: filters.end_date || undefined,
+              })
+            }
+            disabled={exportSalesExcel.isPending}
+          >
+            {exportSalesExcel.isPending ? 'Exportando...' : 'Excel'}
+          </Button>
+          <PDFExport targetElementId="sales-export-table" filename="vendas" />
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
             Nova Venda
           </Button>
@@ -328,22 +345,24 @@ export function SalesPage() {
         </CardContent>
       </Card>
 
-      <DataTable
-        columns={columns}
-        data={salesData?.items || []}
-        loading={isLoading}
-        pagination
-        searchable={false}
-        totalRows={salesData?.total || 0}
-        pageSize={pageSize}
-        currentPage={page}
-        onPageChange={setPage}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setPage(1);
-        }}
-        emptyMessage="Nenhuma venda encontrada"
-      />
+      <Box id="sales-export-table">
+        <DataTable
+          columns={columns}
+          data={salesData?.items || []}
+          loading={isLoading}
+          pagination
+          searchable={false}
+          totalRows={salesData?.total || 0}
+          pageSize={pageSize}
+          currentPage={page}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          emptyMessage="Nenhuma venda encontrada"
+        />
+      </Box>
 
       <ImportCSVDialog
         open={importDialogOpen}
