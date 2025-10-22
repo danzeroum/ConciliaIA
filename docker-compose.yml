@@ -52,6 +52,9 @@ services:
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
+      - ./alembic.ini:/app/alembic.ini # <--- NOVO
+      - ./alembic:/app/alembic
+      - ./scripts:/app/scripts
 
 volumes:
   postgres_data:
