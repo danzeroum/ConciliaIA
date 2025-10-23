@@ -17,7 +17,7 @@ from src.api.main import app  # noqa: E402  pylint: disable=wrong-import-positio
 class TestAuthEndpoints:
     """Test authentication endpoints."""
 
-    async def test_login_success(self) -> None:
+    async def test_login_success(self, test_user) -> None:
         """Test successful login."""
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
@@ -49,7 +49,7 @@ class TestAuthEndpoints:
 
         assert response.status_code == 422  # Validation error
 
-    async def test_refresh_token(self) -> None:
+    async def test_refresh_token(self, test_user) -> None:
         """Test token refresh."""
         async with AsyncClient(app=app, base_url="http://test") as client:
             login_response = await client.post(

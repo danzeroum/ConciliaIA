@@ -42,6 +42,7 @@ class TenantModel(Base):
     transactions = relationship("TransactionModel", back_populates="tenant", cascade="all, delete-orphan")
     matches = relationship("MatchModel", back_populates="tenant", cascade="all, delete-orphan")
     divergences = relationship("DivergenceModel", back_populates="tenant", cascade="all, delete-orphan")
+    users = relationship("UserModel", back_populates="tenant", cascade="all, delete-orphan")
 
     __table_args__ = (Index("idx_tenants_active_tier", "active", "tier"),)
 
@@ -183,4 +184,25 @@ class SettlementModel(Base):
     __table_args__ = (
         Index("idx_settlements_tenant_status", "tenant_id", "status"),
         Index("idx_settlements_expected_date", "expected_date"),
+    )
+
+
+class UserModel(Base):
+    """Application user model."""
+
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="user", index=True)
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tenant = relationship("TenantModel", back_populates="users")
+
+    __table_args__ = (
+        Index("idx_users_tenant_email", "tenant_id", "email"),
     )

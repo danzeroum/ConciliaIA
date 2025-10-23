@@ -60,15 +60,15 @@ class TestProtectedEndpoints:
 
         assert response.status_code == 403
 
-    async def test_access_protected_endpoint_with_valid_token(self) -> None:
+    async def test_access_protected_endpoint_with_valid_token(self, test_user) -> None:
         """Test accessing protected endpoint with valid token succeeds."""
         app.dependency_overrides[get_reconciliation_use_case] = lambda: _StubReconcileUseCase()
         jwt_handler = JWTHandler(secret_key=os.environ["SECRET_KEY"])
         token = jwt_handler.create_access_token(
-            user_id="user-123",
-            tenant_id="tenant-123",
-            email="test@example.com",
-            roles=["user"],
+            user_id=str(test_user.id),
+            tenant_id=str(test_user.tenant_id),
+            email=test_user.email,
+            roles=[test_user.role],
             jti="jti-123",
         )
 

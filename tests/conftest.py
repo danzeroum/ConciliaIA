@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 from typing import AsyncGenerator
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -26,6 +27,12 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["REDIS_HOST"] = "redis"
 
 from src.infrastructure.persistence.database import Base
+from src.infrastructure.persistence.models import TenantModel, UserModel
+from src.infrastructure.security.password_hasher import PasswordHasher
+
+TENANT_TEST_ID = "00000000-0000-0000-0000-000000000001"
+USER_TEST_ID = "00000000-0000-0000-0000-000000000002"
+TEST_PASSWORD = "SecurePassword123!"
 
 
 @pytest.fixture(scope="session")
@@ -63,3 +70,64 @@ async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, Non
             yield session
 
         await connection.rollback()
+
+
+@pytest_asyncio.fixture
+async def test_tenant(db_session: AsyncSession) -> AsyncGenerator[TenantModel, None]:
+    """Ensure a deterministic tenant exists for tests requiring foreign keys."""
+
+    tenant = await db_session.get(TenantModel, UUID(TENANT_TEST_ID))
+
+    if tenant is None:
+        tenant = TenantModel(
+            id=UUID(TENANT_TEST_ID),
+            org_name="Test Tenant Org",
+            cnpj="00000000000100",
+            tier="alpha",
+            active=True,
+        )
+        db_session.add(tenant)
+    else:
+        tenant.org_name = "Test Tenant Org"
+        tenant.cnpj = "00000000000100"
+        tenant.tier = "alpha"
+        tenant.active = True
+
+    await db_session.flush()
+    await db_session.refresh(tenant)
+
+    yield tenant
+
+
+@pytest_asyncio.fixture
+async def test_user(
+    db_session: AsyncSession, test_tenant: TenantModel
+) -> AsyncGenerator[UserModel, None]:
+    """Ensure a deterministic user exists for authentication-related tests."""
+
+    hasher = PasswordHasher()
+    hashed_password = hasher.hash_password(TEST_PASSWORD)
+
+    user = await db_session.get(UserModel, UUID(USER_TEST_ID))
+
+    if user is None:
+        user = UserModel(
+            id=UUID(USER_TEST_ID),
+            tenant_id=test_tenant.id,
+            email="test@example.com",
+            password=hashed_password,
+            role="user",
+            is_active=True,
+        )
+        db_session.add(user)
+    else:
+        user.tenant_id = test_tenant.id
+        user.email = "test@example.com"
+        user.password = hashed_password
+        user.role = "user"
+        user.is_active = True
+
+    await db_session.flush()
+    await db_session.refresh(user)
+
+    yield user
