@@ -2,28 +2,48 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 
 from src.infrastructure.acquirers.cielo_client import CieloEDIClient
+
+
+class _AsyncContextManager:
+    """Utility context manager that yields a predefined value."""
+
+    def __init__(self, value: object) -> None:
+        self._value = value
+
+    async def __aenter__(self) -> object:
+        return self._value
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> bool:
+        return False
 
 
 @pytest.mark.integration
 class TestCieloIntegration:
     """Integration tests para Cielo EDI."""
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     def cielo_client(self) -> CieloEDIClient:
-        return CieloEDIClient(
-            host="sftp.cielo.com.br",
-            port=22,
-            username="test_user",
-            password="test_pass",
-            ec_number="1234567890",
-        )
+        os.environ.setdefault("CIELO_SFTP_HOST", "sftp.cielo.com.br")
+        os.environ.setdefault("CIELO_SFTP_PORT", "22")
+        os.environ.setdefault("CIELO_SFTP_USER", "test_user")
+        os.environ.setdefault("CIELO_SFTP_PASSWORD", "test_pass")
+        os.environ.setdefault("CIELO_EC_NUMBER", "1234567890")
+        os.environ.setdefault("CIELO_API_HOST", "https://api.cielo.com.br")
+        return CieloEDIClient()
 
     @pytest.fixture
     def sample_edi_content(self) -> str:
@@ -126,14 +146,13 @@ class TestCieloIntegration:
             mock_edi_response.status = 200
             mock_edi_response.text.return_value = sample_edi_content
 
-            mock_context = AsyncMock()
-            mock_context.__aenter__.return_value.post.return_value.__aenter__.return_value = (
-                mock_auth_response
-            )
-            mock_context.__aenter__.return_value.get.return_value.__aenter__.return_value = (
-                mock_edi_response
-            )
-            mock_session.return_value = mock_context
+            session_mock = MagicMock()
+            session_mock.post.return_value = _AsyncContextManager(mock_auth_response)
+            session_mock.get.return_value = _AsyncContextManager(mock_edi_response)
+
+            session_context = AsyncMock()
+            session_context.__aenter__.return_value = session_mock
+            mock_session.return_value = session_context
 
             transactions = await cielo_client.fetch_transactions(
                 tenant_id="tenant-123",
@@ -153,11 +172,12 @@ class TestCieloIntegration:
             mock_auth_response.status = 401
             mock_auth_response.text.return_value = "Invalid credentials"
 
-            mock_context = AsyncMock()
-            mock_context.__aenter__.return_value.post.return_value.__aenter__.return_value = (
-                mock_auth_response
-            )
-            mock_session.return_value = mock_context
+            session_mock = MagicMock()
+            session_mock.post.return_value = _AsyncContextManager(mock_auth_response)
+
+            session_context = AsyncMock()
+            session_context.__aenter__.return_value = session_mock
+            mock_session.return_value = session_context
 
             with pytest.raises(RuntimeError) as exc_info:
                 await cielo_client.fetch_transactions(

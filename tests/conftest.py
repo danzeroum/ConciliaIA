@@ -24,12 +24,9 @@ TEST_DATABASE_URL = os.getenv(
 )
 
 # Ensure critical security variables are available for the test environment
-os.environ.setdefault(
-    "SECRET_KEY",
-    "chave_secreta_deve_ser_longa_e_unica_para_o_teste",
-)
-os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
-os.environ.setdefault("REDIS_HOST", "redis")
+os.environ["SECRET_KEY"] = "chave_secreta_deve_ser_longa_e_unica_para_o_teste_dev"
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai"
+os.environ["REDIS_HOST"] = "redis"
 
 
 @pytest.fixture(scope="session")
@@ -58,18 +55,9 @@ async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
 
 @pytest_asyncio.fixture
 async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    """Provide an async database session wrapped in a transactional context."""
+    """Provide an active async database session for each test."""
 
     async with db_engine.connect() as connection:
-        transaction = await connection.begin()
-        async with AsyncSession(
-            bind=connection, expire_on_commit=False
-        ) as session:
-            await session.begin_nested()
-            try:
-                yield session
-            finally:
-                if session.in_transaction():
-                    await session.rollback()
-        if transaction.is_active:
-            await transaction.rollback()
+        async with AsyncSession(connection, expire_on_commit=False) as session:
+            yield session
+            await session.rollback()

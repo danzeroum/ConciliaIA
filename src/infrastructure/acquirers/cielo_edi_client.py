@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import date, timedelta
 from pathlib import Path
 from typing import List
@@ -47,23 +48,62 @@ class CieloEDIClient:
 
     def __init__(
         self,
-        host: str,
-        port: int,
-        username: str,
-        password: str,
-        ec_number: str,
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        ec_number: str | None = None,
         remote_path: str = "/extrato/",
         parser: CieloEDIParser | None = None,
+        api_host: str | None = None,
     ) -> None:
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-        self.ec_number = ec_number
+        env_host = host or os.getenv("CIELO_SFTP_HOST", "sftp.cielo.com.br")
+        env_port = port
+        if env_port is None:
+            port_value = os.getenv("CIELO_SFTP_PORT")
+            if port_value is not None:
+                try:
+                    env_port = int(port_value)
+                except ValueError as exc:  # pragma: no cover - defensive guard
+                    raise ValueError("CIELO_SFTP_PORT must be an integer") from exc
+            else:
+                env_port = 22
+
+        env_username = username or os.getenv("CIELO_SFTP_USER")
+        env_password = password or os.getenv("CIELO_SFTP_PASSWORD")
+        env_ec_number = ec_number or os.getenv("CIELO_EC_NUMBER")
+
+        missing = [
+            name
+            for name, value in (
+                ("CIELO_SFTP_USER", env_username),
+                ("CIELO_SFTP_PASSWORD", env_password),
+                ("CIELO_EC_NUMBER", env_ec_number),
+            )
+            if value is None
+        ]
+        if missing:
+            missing_str = ", ".join(missing)
+            raise ValueError(
+                "Missing Cielo credentials. Provide them explicitly or set the "
+                f"following environment variables: {missing_str}"
+            )
+
+        env_api_host = api_host or os.getenv("CIELO_API_HOST") or env_host
+
+        self.host = env_host
+        self.port = env_port
+        self.username = env_username
+        self.password = env_password
+        self.ec_number = env_ec_number
         self.remote_path = remote_path
-        self.logger = logger.bind(client="CieloEDIClient", ec_number=ec_number)
+        self.logger = logger.bind(client="CieloEDIClient", ec_number=env_ec_number)
         self._parser = parser or CieloEDIParser()
-        self._api_host = host if host.startswith("http") else f"https://{host}"
+        self._api_host = (
+            env_api_host
+            if env_api_host.startswith("http")
+            else f"https://{env_api_host}"
+        )
 
     async def download_file(self, target_date: date, local_path: Path) -> Path | None:
         """Download a single EDI file for the provided date."""
