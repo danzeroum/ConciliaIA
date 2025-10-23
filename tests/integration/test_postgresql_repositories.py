@@ -40,10 +40,11 @@ class TestPostgreSQLSaleRepository:
         """Test saving and retrieving a sale."""
         async with db_session as session:
             repo = PostgreSQLSaleRepository(session)
+            tenant_id = str(test_tenant.id)
 
             sale = Sale(
                 id=str(uuid4()),
-                tenant_id=test_tenant.id,
+                tenant_id=tenant_id,
                 nsu="123456789",
                 amount=Money(Decimal("100.00")),
                 date=date.today(),
@@ -63,7 +64,7 @@ class TestPostgreSQLSaleRepository:
         """Test finding sales by date range."""
         async with db_session as session:
             repo = PostgreSQLSaleRepository(session)
-            tenant_id = test_tenant.id
+            tenant_id = str(test_tenant.id)
 
             for i in range(3):
                 sale = Sale(
@@ -88,7 +89,7 @@ class TestPostgreSQLSaleRepository:
         """Test finding unmatched sales."""
         async with db_session as session:
             repo = PostgreSQLSaleRepository(session)
-            tenant_id = test_tenant.id
+            tenant_id = str(test_tenant.id)
 
             sale = Sale(
                 id=str(uuid4()),
@@ -117,13 +118,14 @@ class TestPostgreSQLMatchRepository:
             sale_repo = PostgreSQLSaleRepository(session)
             transaction_repo = PostgreSQLTransactionRepository(session)
             repo = PostgreSQLMatchRepository(session)
+            tenant_id = str(test_tenant.id)
 
             sale_id = str(uuid4())
             transaction_id = str(uuid4())
 
             sale = Sale(
                 id=sale_id,
-                tenant_id=test_tenant.id,
+                tenant_id=tenant_id,
                 nsu="MATCHSALE1",
                 amount=Money(Decimal("150.00")),
                 date=date.today(),
@@ -133,7 +135,7 @@ class TestPostgreSQLMatchRepository:
 
             transaction = AcquirerTransaction(
                 id=transaction_id,
-                tenant_id=test_tenant.id,
+                tenant_id=tenant_id,
                 acquirer="stone",
                 nsu="MATCHTRX1",
                 amount=Money(Decimal("150.00")),
@@ -143,7 +145,7 @@ class TestPostgreSQLMatchRepository:
 
             match = ReconciliationMatch(
                 id=str(uuid4()),
-                tenant_id=test_tenant.id,
+                tenant_id=tenant_id,
                 sale_id=sale_id,
                 transaction_id=transaction_id,
                 match_type=MatchType.EXACT,
@@ -165,7 +167,7 @@ class TestPostgreSQLMatchRepository:
             sale_repo = PostgreSQLSaleRepository(session)
             transaction_repo = PostgreSQLTransactionRepository(session)
             repo = PostgreSQLMatchRepository(session)
-            tenant_id = test_tenant.id
+            tenant_id = str(test_tenant.id)
 
             sale_id = str(uuid4())
             transaction_id = str(uuid4())
@@ -216,10 +218,11 @@ class TestPostgreSQLDivergenceRepository:
         """Test saving and retrieving a divergence."""
         async with db_session as session:
             repo = PostgreSQLDivergenceRepository(session)
+            tenant_id = str(test_tenant.id)
 
             divergence = Divergence(
                 id=str(uuid4()),
-                tenant_id=test_tenant.id,
+                tenant_id=tenant_id,
                 divergence_type=DivergenceType.MISSING_TRANSACTION,
                 severity=Severity.CRITICAL,
                 expected_value=Money(Decimal("1000.00")),
@@ -239,7 +242,7 @@ class TestPostgreSQLDivergenceRepository:
         """Test finding critical open divergences."""
         async with db_session as session:
             repo = PostgreSQLDivergenceRepository(session)
-            tenant_id = test_tenant.id
+            tenant_id = str(test_tenant.id)
 
             divergence = Divergence(
                 id=str(uuid4()),
