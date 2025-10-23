@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 from typing import List, Optional
-from uuid import UUID
 
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +28,7 @@ class PostgreSQLSaleRepository(SaleRepository):
     async def save(self, sale: Sale) -> None:
         """Save a sale."""
         try:
-            stmt = select(SaleModel).where(SaleModel.id == UUID(sale.id))
+            stmt = select(SaleModel).where(SaleModel.id == sale.id)
             result = await self.session.execute(stmt)
             existing = result.scalar_one_or_none()
 
@@ -50,8 +49,8 @@ class PostgreSQLSaleRepository(SaleRepository):
     async def find_by_id(self, tenant_id: str, sale_id: str) -> Optional[Sale]:
         """Find sale by ID."""
         stmt = select(SaleModel).where(
-            SaleModel.tenant_id == UUID(tenant_id),
-            SaleModel.id == UUID(sale_id),
+            SaleModel.tenant_id == tenant_id,
+            SaleModel.id == sale_id,
         )
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -65,8 +64,8 @@ class PostgreSQLSaleRepository(SaleRepository):
         stmt = (
             delete(SaleModel)
             .where(
-                SaleModel.tenant_id == UUID(tenant_id),
-                SaleModel.id == UUID(sale_id),
+                SaleModel.tenant_id == tenant_id,
+                SaleModel.id == sale_id,
             )
             .execution_options(synchronize_session=False)
         )
@@ -77,7 +76,7 @@ class PostgreSQLSaleRepository(SaleRepository):
         stmt = (
             select(SaleModel)
             .where(
-                SaleModel.tenant_id == UUID(tenant_id),
+                SaleModel.tenant_id == tenant_id,
                 SaleModel.date >= start_date,
                 SaleModel.date <= end_date,
             )
@@ -104,7 +103,7 @@ class PostgreSQLSaleRepository(SaleRepository):
         stmt = (
             select(SaleModel)
             .where(
-                SaleModel.tenant_id == UUID(tenant_id),
+                SaleModel.tenant_id == tenant_id,
                 ~SaleModel.matches.any(),
             )
             .order_by(SaleModel.date.desc())
@@ -118,7 +117,7 @@ class PostgreSQLSaleRepository(SaleRepository):
     async def find_by_nsu(self, tenant_id: str, nsu: str) -> List[Sale]:
         """Find sales by NSU."""
         stmt = select(SaleModel).where(
-            SaleModel.tenant_id == UUID(tenant_id),
+            SaleModel.tenant_id == tenant_id,
             SaleModel.nsu.ilike(f"%{nsu}%"),
         )
 

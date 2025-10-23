@@ -6,7 +6,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Iterator
 from uuid import UUID
 
 import pytest
@@ -26,13 +26,50 @@ os.environ["SECRET_KEY"] = "sua_chave_secreta_deve_ser_longa_e_unica_para_o_test
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["REDIS_HOST"] = "redis"
 
+from src.api import dependencies
+from src.api.main import app
+from src.api.middleware import AuthMiddleware, RateLimitMiddleware
 from src.infrastructure.persistence.database import Base
 from src.infrastructure.persistence.models import TenantModel, UserModel
+from src.infrastructure.security import JWTHandler, RateLimiter
 from src.infrastructure.security.password_hasher import PasswordHasher
 
 TENANT_TEST_ID = "00000000-0000-0000-0000-000000000001"
 USER_TEST_ID = "00000000-0000-0000-0000-000000000002"
 TEST_PASSWORD = "SecurePassword123!"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_api_dependencies() -> Iterator[None]:
+    """Ensure API dependencies are initialised for integration tests."""
+
+    secret_key = os.environ.get("SECRET_KEY", "test-secret")
+
+    dependencies.jwt_handler = JWTHandler(secret_key=secret_key)
+    dependencies.password_hasher = PasswordHasher()
+    dependencies.rate_limiter = RateLimiter(
+        requests_per_minute=int(
+            os.getenv(
+                "RATE_LIMIT_REQUESTS_PER_MINUTE",
+                os.getenv("RATE_LIMIT_PER_MINUTE", "100"),
+            )
+        )
+    )
+    dependencies.auth_middleware = AuthMiddleware(dependencies.jwt_handler)
+
+    if not getattr(app.state, "rate_limit_middleware_installed", False):
+        app.add_middleware(
+            RateLimitMiddleware, rate_limiter=dependencies.rate_limiter
+        )
+        app.state.rate_limit_middleware_installed = True
+
+    try:
+        yield
+    finally:
+        dependencies.jwt_handler = None
+        dependencies.password_hasher = None
+        dependencies.rate_limiter = None
+        dependencies.auth_middleware = None
 
 
 @pytest.fixture(scope="session")
