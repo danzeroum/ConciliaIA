@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 from typing import List, Optional
-from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +28,7 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
     async def save(self, divergence: Divergence) -> None:
         """Save a divergence."""
         try:
-            stmt = select(DivergenceModel).where(DivergenceModel.id == UUID(divergence.id))
+            stmt = select(DivergenceModel).where(DivergenceModel.id == divergence.id)
             result = await self.session.execute(stmt)
             existing = result.scalar_one_or_none()
 
@@ -54,8 +53,8 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
     async def find_by_id(self, tenant_id: str, divergence_id: str) -> Optional[Divergence]:
         """Find divergence by ID."""
         stmt = select(DivergenceModel).where(
-            DivergenceModel.tenant_id == UUID(tenant_id),
-            DivergenceModel.id == UUID(divergence_id),
+            DivergenceModel.tenant_id == tenant_id,
+            DivergenceModel.id == divergence_id,
         )
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -71,7 +70,7 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
         stmt = (
             select(DivergenceModel)
             .where(
-                DivergenceModel.tenant_id == UUID(tenant_id),
+                DivergenceModel.tenant_id == tenant_id,
                 DivergenceModel.status == status_value,
             )
             .order_by(DivergenceModel.severity.desc(), DivergenceModel.detected_at.desc())
@@ -89,7 +88,7 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
         stmt = (
             select(DivergenceModel)
             .where(
-                DivergenceModel.tenant_id == UUID(tenant_id),
+                DivergenceModel.tenant_id == tenant_id,
                 DivergenceModel.severity == severity_value,
             )
             .order_by(DivergenceModel.detected_at.desc())
@@ -105,7 +104,7 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
         stmt = (
             select(DivergenceModel)
             .where(
-                DivergenceModel.tenant_id == UUID(tenant_id),
+                DivergenceModel.tenant_id == tenant_id,
                 DivergenceModel.severity == "critical",
                 DivergenceModel.status == "open",
             )
@@ -129,7 +128,7 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
         stmt = (
             select(DivergenceModel)
             .where(
-                DivergenceModel.tenant_id == UUID(tenant_id),
+                DivergenceModel.tenant_id == tenant_id,
                 DivergenceModel.detected_at >= start_dt,
                 DivergenceModel.detected_at <= end_dt,
             )

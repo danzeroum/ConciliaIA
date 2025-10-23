@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 from typing import List, Optional
-from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +28,7 @@ class PostgreSQLMatchRepository(MatchRepository):
     async def save(self, match: ReconciliationMatch) -> None:
         """Save a match."""
         try:
-            stmt = select(MatchModel).where(MatchModel.id == UUID(match.id))
+            stmt = select(MatchModel).where(MatchModel.id == match.id)
             result = await self.session.execute(stmt)
             existing = result.scalar_one_or_none()
 
@@ -50,8 +49,8 @@ class PostgreSQLMatchRepository(MatchRepository):
     async def find_by_id(self, tenant_id: str, match_id: str) -> Optional[ReconciliationMatch]:
         """Find match by ID."""
         stmt = select(MatchModel).where(
-            MatchModel.tenant_id == UUID(tenant_id),
-            MatchModel.id == UUID(match_id),
+            MatchModel.tenant_id == tenant_id,
+            MatchModel.id == match_id,
         )
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -65,8 +64,8 @@ class PostgreSQLMatchRepository(MatchRepository):
         stmt = (
             select(MatchModel)
             .where(
-                MatchModel.tenant_id == UUID(tenant_id),
-                MatchModel.sale_id == UUID(sale_id),
+                MatchModel.tenant_id == tenant_id,
+                MatchModel.sale_id == sale_id,
             )
             .order_by(MatchModel.matched_at.desc())
         )
@@ -81,8 +80,8 @@ class PostgreSQLMatchRepository(MatchRepository):
         stmt = (
             select(MatchModel)
             .where(
-                MatchModel.tenant_id == UUID(tenant_id),
-                MatchModel.transaction_id == UUID(transaction_id),
+                MatchModel.tenant_id == tenant_id,
+                MatchModel.transaction_id == transaction_id,
             )
             .order_by(MatchModel.matched_at.desc())
         )
@@ -97,7 +96,7 @@ class PostgreSQLMatchRepository(MatchRepository):
         stmt = (
             select(MatchModel)
             .where(
-                MatchModel.tenant_id == UUID(tenant_id),
+                MatchModel.tenant_id == tenant_id,
                 MatchModel.validated.is_(False),
                 MatchModel.confidence < 0.95,
             )
@@ -121,7 +120,7 @@ class PostgreSQLMatchRepository(MatchRepository):
         stmt = (
             select(MatchModel)
             .where(
-                MatchModel.tenant_id == UUID(tenant_id),
+                MatchModel.tenant_id == tenant_id,
                 MatchModel.matched_at >= start_dt,
                 MatchModel.matched_at <= end_dt,
             )
