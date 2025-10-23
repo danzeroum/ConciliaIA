@@ -9,19 +9,23 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+EXCLUDED_PATHS = (
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/api/v1/health",
+    "/api/v1/docs",
+    "/api/v1/openapi.json",
+    "/api/v1/auth/",
+    "/auth/login",
+    "/auth/refresh",
+    "/auth/logout",
+    "/favicon.ico",
+)
+
 
 class TenantMiddleware(BaseHTTPMiddleware):
     """Ensure that requests are scoped to the authenticated tenant."""
-
-    PUBLIC_PATHS = {
-        "/health",
-        "/docs",
-        "/openapi.json",
-        "/auth/login",
-        "/auth/refresh",
-        "/auth/logout",
-        "/favicon.ico",
-    }
 
     def __init__(self, app) -> None:  # type: ignore[override]
         super().__init__(app)
@@ -30,21 +34,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
 
-        excluded_prefixes = (
-            "/api/v1/health",
-            "/api/v1/docs",
-            "/api/v1/openapi.json",
-            "/api/v1/auth/",
-            "/auth/login",
-            "/auth/refresh",
-            "/auth/logout",
-            "/favicon.ico",
-        )
-
-        if any(path.startswith(prefix) for prefix in excluded_prefixes):
-            return await call_next(request)
-
-        if path in self.PUBLIC_PATHS:
+        if any(path.startswith(prefix) for prefix in EXCLUDED_PATHS):
             return await call_next(request)
 
         tenant_id = getattr(request.state, "tenant_id", None)
