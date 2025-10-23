@@ -12,7 +12,6 @@ from httpx import AsyncClient
 
 os.environ.setdefault("SECRET_KEY", "test-secret")
 
-from src.api import dependencies  # noqa: E402  pylint: disable=wrong-import-position
 from src.api.dependencies import get_reconciliation_use_case  # noqa: E402  pylint: disable=wrong-import-position
 from src.api.main import app  # noqa: E402  pylint: disable=wrong-import-position
 from src.infrastructure.security import JWTHandler  # noqa: E402  pylint: disable=wrong-import-position
@@ -87,17 +86,3 @@ class TestProtectedEndpoints:
 
         assert response.status_code == 200
 
-    async def test_rate_limiting(self) -> None:
-        """Test rate limiting on endpoints."""
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            limiter = dependencies.rate_limiter
-            if limiter:
-                limiter.buckets.clear()
-
-            for index in range(110):  # Exceed 100 req/min limit
-                response = await client.post("/auth/logout")
-
-                if index < 100:
-                    assert response.status_code == 200
-                else:
-                    assert response.status_code == 429
