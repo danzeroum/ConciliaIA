@@ -9,19 +9,16 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-EXCLUDED_PATHS = (
-    "/health",
-    "/docs",
-    "/openapi.json",
+# --- CORREÇÃO: LISTA DE EXCLUSÃO ROBUSTA ---
+EXCLUDED_PATHS = [
     "/api/v1/health",
-    "/api/v1/docs",
-    "/api/v1/openapi.json",
-    "/api/v1/auth/",
+    "/openapi.json",
+    "/docs",
     "/auth/login",
     "/auth/refresh",
     "/auth/logout",
     "/favicon.ico",
-)
+]
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -34,7 +31,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
 
-        if any(path.startswith(prefix) for prefix in EXCLUDED_PATHS):
+        if any(path.startswith(prefix) for prefix in EXCLUDED_PATHS) or path.endswith("/docs"):
             return await call_next(request)
 
         tenant_id = getattr(request.state, "tenant_id", None)
