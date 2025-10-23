@@ -19,6 +19,7 @@ from src.infrastructure.persistence.repositories.postgresql_sale_repository impo
 from src.infrastructure.persistence.repositories.postgresql_transaction_repository import (
     PostgreSQLTransactionRepository,
 )
+from src.infrastructure.repositories.postgresql_user_repository import PostgreSQLUserRepository
 from src.infrastructure.security import JWTHandler, PasswordHasher, RateLimiter
 from src.api.middleware import AuthMiddleware
 
@@ -55,6 +56,14 @@ def get_rate_limiter() -> RateLimiter:
     if rate_limiter is None:
         raise HTTPException(status_code=500, detail="Rate limiter not initialized")
     return rate_limiter
+
+
+async def get_user_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> PostgreSQLUserRepository:
+    """Provide a PostgreSQL-backed user repository."""
+
+    return PostgreSQLUserRepository(session)
 
 
 async def get_db_session() -> AsyncSession:
@@ -132,6 +141,7 @@ __all__ = [
     "get_jwt_handler",
     "get_password_hasher",
     "get_rate_limiter",
+    "get_user_repository",
     "require_roles",
     "database",
     "jwt_handler",

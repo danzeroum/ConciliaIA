@@ -29,6 +29,7 @@ COPY --from=builder /root/.local /home/appuser/.local
 
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser migrations/ ./migrations/
+COPY --chown=appuser:appuser scripts/ ./scripts/
 COPY --chown=appuser:appuser requirements.txt ./requirements.txt
 
 USER appuser
@@ -44,4 +45,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD [
+    "sh",
+    "-c",
+    "python -m scripts.run_migrations && uvicorn src.api.main:app --host 0.0.0.0 --port 8000",
+]
