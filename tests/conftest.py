@@ -16,17 +16,16 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.infrastructure.persistence.database import Base
+DEFAULT_TEST_DATABASE_URL = "postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai"
 
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai",
-)
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", DEFAULT_TEST_DATABASE_URL)
 
 # Ensure critical security variables are available for the test environment
-os.environ["SECRET_KEY"] = "chave_secreta_deve_ser_longa_e_unica_para_o_teste_dev"
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai"
+os.environ["SECRET_KEY"] = "sua_chave_secreta_deve_ser_longa_e_unica_para_o_teste_dev"
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["REDIS_HOST"] = "redis"
+
+from src.infrastructure.persistence.database import Base
 
 
 @pytest.fixture(scope="session")
@@ -58,6 +57,9 @@ async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, Non
     """Provide an active async database session for each test."""
 
     async with db_engine.connect() as connection:
+        await connection.begin()
+
         async with AsyncSession(connection, expire_on_commit=False) as session:
             yield session
-            await session.rollback()
+
+        await connection.rollback()
