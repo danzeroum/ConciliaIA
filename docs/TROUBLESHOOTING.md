@@ -143,6 +143,48 @@ docker network inspect buildtovalue-network
 
 ---
 
+### Issue: "Swagger docs returning 404"
+
+**Symptoms:**
+- Acessar `http://localhost:8000/api/v1/docs` retorna `404 Not Found`.
+- A aba de *Network* do navegador mostra falhas ao carregar `/docs` ou `/docs/static/...`.
+- A documentação fica em branco após corrigir o `TenantMiddleware`.
+
+**Diagnosis:**
+```bash
+# Verifique quais rotas de documentação estão sendo chamadas
+docker-compose logs app | grep -E "GET /api/v1/docs|GET /docs"
+
+# Confirme manualmente o endpoint raiz
+curl -I http://localhost:8000/docs
+```
+
+**Solutions:**
+
+**Solution 1: Usar a URL raiz da documentação**
+```bash
+# Endpoints expostos pelo FastAPI
+curl -I http://localhost:8000/docs          # Swagger UI
+curl -I http://localhost:8000/openapi.json  # Esquema OpenAPI
+```
+
+**Solution 2: Validar a lista de exclusão do TenantMiddleware**
+```bash
+# Confirme que os prefixos dos assets do Swagger estão excluídos
+sed -n '1,120p' src/api/middleware/tenant_middleware.py | grep -n "EXCLUDED_"
+```
+
+**Resultado esperado:**
+```python
+EXCLUDED_PREFIXES = (
+    "/docs",
+    "/redoc",
+    "/openapi",
+)
+```
+
+---
+
 ### Issue: "Connection refused" errors
 
 **Symptoms:**

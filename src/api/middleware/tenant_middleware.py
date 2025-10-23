@@ -10,15 +10,28 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # --- CORREÇÃO: LISTA DE EXCLUSÃO ROBUSTA ---
-EXCLUDED_PATHS = [
+#
+# O Swagger/UI expõe múltiplos ativos estáticos sob os prefixos `/docs` e
+# `/redoc`. Esses recursos (HTML inicial, arquivos estáticos e callback de
+# OAuth) precisam ignorar a validação de tenant para permitir o carregamento
+# completo da documentação pública. Além disso, mantemos os endpoints de
+# autenticação e de saúde acessíveis sem cabeçalhos de tenant, já que são
+# utilizados antes do login.
+EXCLUDED_EXACT_PATHS = {
+    "/",
+    "/health",
     "/api/v1/health",
-    "/openapi.json",
-    "/docs",
+    "/favicon.ico",
     "/auth/login",
     "/auth/refresh",
     "/auth/logout",
-    "/favicon.ico",
-]
+}
+
+EXCLUDED_PREFIXES = (
+    "/docs",
+    "/redoc",
+    "/openapi",
+)
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -31,7 +44,9 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
 
-        if any(path.startswith(prefix) for prefix in EXCLUDED_PATHS) or path.endswith("/docs"):
+        if path in EXCLUDED_EXACT_PATHS or any(
+            path.startswith(prefix) for prefix in EXCLUDED_PREFIXES
+        ):
             return await call_next(request)
 
         tenant_id = getattr(request.state, "tenant_id", None)
