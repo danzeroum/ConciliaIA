@@ -300,6 +300,7 @@ async def update_sale(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete sale",
     tags=["Sales"],
+    response_model=None,
 )
 async def delete_sale(
     sale_id: UUID,

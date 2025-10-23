@@ -55,6 +55,7 @@ services:
       - ./alembic.ini:/app/alembic.ini # <--- NOVO
       - ./alembic:/app/alembic
       - ./scripts:/app/scripts
+      - ./requirements-dev.txt:/app/requirements-dev.txt
 
 volumes:
   postgres_data:

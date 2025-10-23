@@ -266,6 +266,8 @@ async def get_transaction(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete transaction",
     tags=["Transactions"],
+    response_model=None,
+    
 )
 async def delete_transaction(
     transaction_id: UUID,
