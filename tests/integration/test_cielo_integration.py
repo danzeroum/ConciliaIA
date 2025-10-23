@@ -38,14 +38,61 @@ class TestCieloIntegration:
 
     @pytest.fixture
     def sample_edi_content(self) -> str:
-        return (
-            "0CIELO     EXTRATO EDI          20250115" + " " * 180
-            + "\n312345678900000001234567890000001502025011520250215000000000015000000000000045000000000014550001"
-            + " " * 150
-            + "\n312345678900000002345678900000002002025011520250215000000000020000000000000060000000000019400001"
-            + " " * 150
-            + "\n9CIELO     000000002" + " " * 200
-        )
+        def detail_line(
+            ro_number: int,
+            nsu: str,
+            authorization: str,
+            gross_cents: int,
+            commission_cents: int,
+            net_cents: int,
+            card_number: str,
+            product_code: str,
+        ) -> str:
+            return (
+                "3"
+                + f"{1234567890:0>10}"
+                + f"{ro_number:0>7}"
+                + f"{nsu:0>9}"
+                + f"{authorization:<6}"[:6]
+                + "20250115"
+                + "20250215"
+                + f"{gross_cents:0>13}"
+                + "+"
+                + "01"
+                + "01"
+                + "0150"
+                + f"{commission_cents:0>13}"
+                + f"{net_cents:0>13}"
+                + f"{card_number:<19}"[:19]
+                + f"{product_code:<3}"[:3]
+                + "1"
+            )
+
+        lines = [
+            "0CIELO     EXTRATO EDI          20250115".ljust(200),
+            detail_line(
+                ro_number=1,
+                nsu="123456789",
+                authorization="ABC123",
+                gross_cents=15000,
+                commission_cents=450,
+                net_cents=14550,
+                card_number="1234567890123456789",
+                product_code="001",
+            ),
+            detail_line(
+                ro_number=2,
+                nsu="987654321",
+                authorization="XYZ789",
+                gross_cents=20000,
+                commission_cents=600,
+                net_cents=19400,
+                card_number="9876543210987654321",
+                product_code="002",
+            ),
+            "9CIELO     000000002".ljust(200),
+        ]
+        return "\n".join(lines)
 
     @pytest.mark.asyncio
     async def test_parse_edi_success(
@@ -61,16 +108,17 @@ class TestCieloIntegration:
         txn1 = transactions[0]
         assert txn1.tenant_id == "tenant-123"
         assert txn1.acquirer == "cielo"
-        assert txn1.nsu == "1234567890000"
-        assert txn1.gross_amount.amount == Decimal("150.00")
-        assert txn1.mdr_fee.amount == Decimal("4.50")
+        assert txn1.nsu.value == "123456789"
+        assert txn1.amount.amount == Decimal("150.00")
+        assert txn1.mdr_amount is not None
+        assert txn1.mdr_amount.amount == Decimal("4.50")
         assert txn1.net_amount.amount == Decimal("145.50")
         assert txn1.transaction_date == date(2025, 1, 15)
-        assert txn1.settlement_date == date(2025, 2, 15)
+        assert txn1.card_last_4 == "6789"
 
         txn2 = transactions[1]
-        assert txn2.nsu == "2345678900000"
-        assert txn2.gross_amount.amount == Decimal("200.00")
+        assert txn2.nsu.value == "987654321"
+        assert txn2.amount.amount == Decimal("200.00")
 
     @pytest.mark.asyncio
     async def test_fetch_transactions_e2e(
