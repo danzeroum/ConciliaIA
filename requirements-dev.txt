@@ -5,6 +5,7 @@ pytest-cov==4.1.0
 pytest-benchmark==4.0.0
 httpx==0.25.1
 aiohttp==3.9.1
+argon2-cffi==25.1.0
 
 # Load Testing
 locust==2.17.0

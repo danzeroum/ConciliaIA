@@ -16,6 +16,19 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(tags=["authentication"])
 
 
+# Temporary test user for MVP
+TEST_USER = {
+    "user_id": "test-user-001",
+    "tenant_id": "test-tenant-001",
+    "email": "test@example.com",
+    "password_hash": (
+        "$argon2id$v=19$m=65536,t=3,p=4$VOVrn54a+GS8dOngLF0QQg$VksnxcG5q2UuH1n3TFAnCcDF18CFRhJUMHWQ8ETHW9Y"
+    ),  # Hash gerado pelo script de senha de teste
+    "roles": ["user", "admin"],
+    "name": "Test User",
+}
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -38,38 +51,78 @@ async def login(
     jwt_handler: JWTHandler = Depends(dependencies.get_jwt_handler),
     password_hasher: PasswordHasher = Depends(dependencies.get_password_hasher),
 ) -> LoginResponse:
-    # Placeholder user lookup logic
-    user_id = "user-123"
-    tenant_id = "tenant-123"
-    email = request.email
-    roles = ["user"]
+    """
+    Temporary login endpoint with hardcoded test user.
+    TODO: Replace with real database lookup and password verification.
+    """
 
-    # TODO: Replace with real password verification
-    # password_valid = password_hasher.verify_password(request.password, stored_hash)
-    # if not password_valid:
-    #     raise HTTPException(status_code=401, detail="Invalid credentials")
-    _ = password_hasher
+    # Validate email
+    if request.email != TEST_USER["email"]:
+        logger.warning(
+            "login_failed_invalid_email",
+            email=request.email,
+            reason="user_not_found",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
 
+    # Validate password
+    try:
+        password_valid = password_hasher.verify_password(
+            request.password,
+            TEST_USER["password_hash"],
+        )
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning(
+            "login_failed_invalid_password",
+            email=request.email,
+            reason="password_mismatch",
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    if not password_valid:
+        logger.warning(
+            "login_failed_invalid_password",
+            email=request.email,
+            reason="password_mismatch",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    # Generate tokens
     jti_access = str(uuid4())
     jti_refresh = str(uuid4())
 
     access_token = jwt_handler.create_access_token(
-        user_id=user_id,
-        tenant_id=tenant_id,
-        email=email,
-        roles=roles,
+        user_id=TEST_USER["user_id"],
+        tenant_id=TEST_USER["tenant_id"],
+        email=TEST_USER["email"],
+        roles=TEST_USER["roles"],
         jti=jti_access,
     )
 
     refresh_token = jwt_handler.create_refresh_token(
-        user_id=user_id,
-        tenant_id=tenant_id,
+        user_id=TEST_USER["user_id"],
+        tenant_id=TEST_USER["tenant_id"],
         jti=jti_refresh,
-        email=email,
-        roles=roles,
+        email=TEST_USER["email"],
+        roles=TEST_USER["roles"],
     )
 
-    logger.info("user_login_successful", user_id=user_id, tenant_id=tenant_id)
+    logger.info(
+        "user_login_successful",
+        user_id=TEST_USER["user_id"],
+        tenant_id=TEST_USER["tenant_id"],
+        email=TEST_USER["email"],
+    )
 
     return LoginResponse(
         access_token=access_token,
