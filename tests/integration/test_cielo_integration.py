@@ -8,7 +8,6 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
 from src.infrastructure.acquirers.cielo_client import CieloEDIClient
 
@@ -35,7 +34,7 @@ class _AsyncContextManager:
 class TestCieloIntegration:
     """Integration tests para Cielo EDI."""
 
-    @pytest_asyncio.fixture
+    @pytest.fixture
     def cielo_client(self) -> CieloEDIClient:
         os.environ.setdefault("CIELO_SFTP_HOST", "sftp.cielo.com.br")
         os.environ.setdefault("CIELO_SFTP_PORT", "22")
