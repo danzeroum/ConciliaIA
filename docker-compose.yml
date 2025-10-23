@@ -46,6 +46,11 @@ services:
       DATABASE_URL: postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai
       LOG_LEVEL: INFO
       ENVIRONMENT: development
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: btv_user
+      POSTGRES_PASSWORD: btv_password
+      POSTGRES_DB: conciliaai
     depends_on:
       postgres:
         condition: service_healthy  # Ensure database is ready before the API starts
