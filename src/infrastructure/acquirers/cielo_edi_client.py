@@ -7,6 +7,8 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import List
 
+import aiohttp
+
 try:  # pragma: no cover - exercised indirectly via tests
     import paramiko  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover - fallback for test environment
@@ -34,6 +36,9 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for test environment
     paramiko = _ParamikoStub()  # type: ignore
 import structlog
 
+from src.domain.entities import AcquirerTransaction
+from .cielo_edi_parser import CieloEDIParser
+
 logger = structlog.get_logger(__name__)
 
 
@@ -48,6 +53,7 @@ class CieloEDIClient:
         password: str,
         ec_number: str,
         remote_path: str = "/extrato/",
+        parser: CieloEDIParser | None = None,
     ) -> None:
         self.host = host
         self.port = port
@@ -56,6 +62,8 @@ class CieloEDIClient:
         self.ec_number = ec_number
         self.remote_path = remote_path
         self.logger = logger.bind(client="CieloEDIClient", ec_number=ec_number)
+        self._parser = parser or CieloEDIParser()
+        self._api_host = host if host.startswith("http") else f"https://{host}"
 
     async def download_file(self, target_date: date, local_path: Path) -> Path | None:
         """Download a single EDI file for the provided date."""
@@ -122,6 +130,85 @@ class CieloEDIClient:
     def _generate_filename(self, target_date: date) -> str:
         date_str = target_date.strftime("%Y%m%d")
         return f"EC{self.ec_number}_{date_str}.txt"
+
+    def _parse_edi(self, edi_content: str, tenant_id: str) -> List[AcquirerTransaction]:
+        """Parse raw EDI content into :class:`AcquirerTransaction` instances."""
+
+        return self._parser.parse(edi_content, tenant_id)
+
+    async def fetch_transactions(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[AcquirerTransaction]:
+        """Fetch and parse EDI transactions directly from the HTTP API."""
+
+        auth_url = f"{self._api_host.rstrip('/')}/oauth/token"
+        transactions_url = f"{self._api_host.rstrip('/')}/edi/transactions"
+
+        timeout = aiohttp.ClientTimeout(total=60)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            self.logger.info("cielo_authentication_started", url=auth_url)
+            async with session.post(
+                auth_url,
+                json={
+                    "grant_type": "client_credentials",
+                    "client_id": self.username,
+                    "client_secret": self.password,
+                },
+            ) as auth_response:
+                if auth_response.status != 200:
+                    detail = await auth_response.text()
+                    self.logger.error(
+                        "cielo_authentication_failed",
+                        status=auth_response.status,
+                        detail=detail,
+                    )
+                    raise RuntimeError(
+                        f"Cielo authentication failed: {auth_response.status}"
+                    )
+
+                payload = await auth_response.json()
+                access_token = payload.get("access_token")
+                if not access_token:
+                    self.logger.error("cielo_missing_access_token")
+                    raise RuntimeError("Cielo authentication did not return an access token")
+
+            headers = {"Authorization": f"Bearer {access_token}", "Accept": "text/plain"}
+            params = {
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+                "ec": self.ec_number,
+            }
+
+            self.logger.info(
+                "cielo_edi_download_started",
+                url=transactions_url,
+                tenant_id=tenant_id,
+                start=params["start_date"],
+                end=params["end_date"],
+            )
+            async with session.get(
+                transactions_url, headers=headers, params=params
+            ) as edi_response:
+                if edi_response.status != 200:
+                    detail = await edi_response.text()
+                    self.logger.error(
+                        "cielo_edi_download_failed",
+                        status=edi_response.status,
+                        detail=detail,
+                    )
+                    raise RuntimeError(
+                        f"Cielo EDI download failed: {edi_response.status}"
+                    )
+
+                edi_content = await edi_response.text()
+
+        transactions = self._parse_edi(edi_content, tenant_id)
+        self.logger.info(
+            "cielo_edi_download_completed",
+            tenant_id=tenant_id,
+            transactions=len(transactions),
+        )
+        return transactions
 
 
 __all__ = ["CieloEDIClient"]

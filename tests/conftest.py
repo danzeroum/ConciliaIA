@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,13 @@ TEST_DATABASE_URL = os.getenv(
     "postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai_test",
 )
 
+os.environ.setdefault(
+    "SECRET_KEY",
+    "test_super_secret_key_that_is_sufficiently_long_for_integration",
+)
+os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
+os.environ.setdefault("REDIS_HOST", "redis")
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -31,7 +39,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def engine():
     """Create test database engine."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
@@ -47,7 +55,7 @@ async def engine():
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
     """Create database session for tests."""
     session_factory = async_sessionmaker(
@@ -55,13 +63,11 @@ async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-
-    async with session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
+    session = session_factory()
+    try:
+        yield session
+    finally:
+        if session.in_transaction():
             await session.rollback()
-            raise
-        finally:
+        if not session.closed:
             await session.close()
