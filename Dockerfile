@@ -40,13 +40,10 @@ ENV PATH=/home/appuser/.local/bin:$PATH \
     ENVIRONMENT=production \
     LOG_LEVEL=INFO
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
-
 EXPOSE 8000
 
-CMD [
-    "sh",
-    "-c",
-    "python -m scripts.run_migrations && uvicorn src.api.main:app --host 0.0.0.0 --port 8000",
-]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run migrations then start server
+CMD ["sh", "-c", "python -m scripts.run_migrations && uvicorn src.api.main:app --host 0.0.0.0 --port 8000"]
