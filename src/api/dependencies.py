@@ -58,19 +58,19 @@ def get_rate_limiter() -> RateLimiter:
     return rate_limiter
 
 
+async def get_db_session() -> AsyncSession:
+    if database is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+    async for session in database.get_session():
+        yield session
+
+
 async def get_user_repository(
     session: AsyncSession = Depends(get_db_session),
 ) -> PostgreSQLUserRepository:
     """Provide a PostgreSQL-backed user repository."""
 
     return PostgreSQLUserRepository(session)
-
-
-async def get_db_session() -> AsyncSession:
-    if database is None:
-        raise HTTPException(status_code=500, detail="Database not initialized")
-    async for session in database.get_session():
-        yield session
 
 
 async def get_current_user(
