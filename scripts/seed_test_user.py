@@ -1,31 +1,29 @@
 #!/usr/bin/env python3
-"""Seed a default test user for authentication flows."""
-
-from __future__ import annotations
+"""Seed test user for MVP authentication."""
 
 import asyncio
 import json
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
-# Ensure project root is on sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Add project root to path BEFORE imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-from src.infrastructure.database import Database  # noqa: E402
-from src.infrastructure.security import PasswordHasher  # noqa: E402
+# NOW import project modules
+from src.infrastructure.database import Database
+from src.infrastructure.security import PasswordHasher
 
 
-async def seed_test_user() -> None:
-    """Create a known admin user for manual testing."""
+async def seed_test_user():
+    """Create test user in database."""
 
     database = Database(
         host=os.getenv("POSTGRES_HOST", "postgres"),
         port=int(os.getenv("POSTGRES_PORT", "5432")),
-        user=os.getenv("POSTGRES_USER", "btv_user"),
-        password=os.getenv("POSTGRES_PASSWORD", "btv_password"),
+        user=os.getenv("POSTGRES_USER", "conciliaai"),
+        password=os.getenv("POSTGRES_PASSWORD", "dev_password_2025"),
         database=os.getenv("POSTGRES_DB", "conciliaai"),
     )
 

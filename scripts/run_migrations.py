@@ -1,45 +1,61 @@
 #!/usr/bin/env python3
-"""Run database migrations sequentially."""
-
-from __future__ import annotations
+"""Run database migrations."""
 
 import asyncio
 import os
+import sys
 from pathlib import Path
 
+# Add project root to path BEFORE imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# NOW import project modules
 from src.infrastructure.database import Database
 
 
-async def run_migrations() -> None:
-    """Execute all SQL migration files in order."""
+async def run_migrations():
+    """Execute all SQL migration files."""
 
     database = Database(
         host=os.getenv("POSTGRES_HOST", "postgres"),
         port=int(os.getenv("POSTGRES_PORT", "5432")),
-        user=os.getenv("POSTGRES_USER", "btv_user"),
-        password=os.getenv("POSTGRES_PASSWORD", "btv_password"),
+        user=os.getenv("POSTGRES_USER", "conciliaai"),
+        password=os.getenv("POSTGRES_PASSWORD", "dev_password_2025"),
         database=os.getenv("POSTGRES_DB", "conciliaai"),
     )
-
-    migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
-    migration_files = sorted(migrations_dir.glob("*.sql"))
-
-    if not migration_files:
-        print("⚠️  No migration files found, skipping execution.")
-        return
 
     try:
         await database.connect()
         print("✅ Connected to database")
 
-        for path in migration_files:
-            print(f"🔄 Running migration: {path.name}")
-            sql = path.read_text(encoding="utf-8")
-            if sql.strip():
-                await database.execute(sql)
-            print(f"✅ Completed migration: {path.name}")
+        migrations_dir = project_root / "migrations"
+        migration_files = sorted(migrations_dir.glob("*.sql"))
 
-        print(f"\n✅ All {len(migration_files)} migrations executed successfully")
+        if not migration_files:
+            print("⚠️  No migration files found")
+            return
+
+        for migration_file in migration_files:
+            print(f"🔄 Running: {migration_file.name}")
+
+            with open(migration_file, "r", encoding="utf-8") as f:
+                sql = f.read()
+
+            # Execute migration
+            try:
+                await database.execute(sql)
+                print(f"✅ Completed: {migration_file.name}")
+            except Exception as e:
+                print(f"❌ Failed: {migration_file.name}")
+                print(f"   Error: {e}")
+                raise
+
+        print(f"\n✅ All {len(migration_files)} migrations completed successfully")
+
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
+        raise
     finally:
         await database.close()
         print("🔚 Database connection closed")
