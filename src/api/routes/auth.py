@@ -1,4 +1,4 @@
-"""Authentication routes."""
+"""Authentication routes with database-backed validation."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr
 import structlog
 
 from src.api import dependencies
+from src.infrastructure.repositories.postgresql_user_repository import PostgreSQLUserRepository
 from src.infrastructure.security import JWTHandler, PasswordHasher
 
 logger = structlog.get_logger(__name__)
@@ -16,25 +17,16 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(tags=["authentication"])
 
 
-# Temporary test user for MVP
-TEST_USER = {
-    "user_id": "test-user-001",
-    "tenant_id": "test-tenant-001",
-    "email": "test@example.com",
-    "password_hash": (
-        "$argon2id$v=19$m=65536,t=3,p=4$VOVrn54a+GS8dOngLF0QQg$VksnxcG5q2UuH1n3TFAnCcDF18CFRhJUMHWQ8ETHW9Y"
-    ),  # Hash gerado pelo script de senha de teste
-    "roles": ["user", "admin"],
-    "name": "Test User",
-}
-
-
 class LoginRequest(BaseModel):
+    """Payload received when a user attempts to login."""
+
     email: EmailStr
     password: str
 
 
 class LoginResponse(BaseModel):
+    """Response returned after a successful authentication."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -42,6 +34,8 @@ class LoginResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
+    """Payload for requesting token refresh."""
+
     refresh_token: str
 
 
@@ -50,78 +44,57 @@ async def login(
     request: LoginRequest,
     jwt_handler: JWTHandler = Depends(dependencies.get_jwt_handler),
     password_hasher: PasswordHasher = Depends(dependencies.get_password_hasher),
+    user_repository: PostgreSQLUserRepository = Depends(dependencies.get_user_repository),
 ) -> LoginResponse:
-    """
-    Temporary login endpoint with hardcoded test user.
-    TODO: Replace with real database lookup and password verification.
-    """
+    """Authenticate a user using email and password."""
 
-    # Validate email
-    if request.email != TEST_USER["email"]:
-        logger.warning(
-            "login_failed_invalid_email",
-            email=request.email,
-            reason="user_not_found",
-        )
+    user = await user_repository.find_by_email(request.email)
+    if user is None:
+        logger.warning("login_failed_user_not_found", email=request.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
-    # Validate password
-    try:
-        password_valid = password_hasher.verify_password(
-            request.password,
-            TEST_USER["password_hash"],
-        )
-    except Exception as e:  # pragma: no cover - defensive
-        logger.warning(
-            "login_failed_invalid_password",
-            email=request.email,
-            reason="password_mismatch",
-            error=str(e),
-        )
+    if not user.is_active:
+        logger.warning("login_failed_inactive_user", user_id=str(user.id))
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive",
         )
 
+    password_valid = password_hasher.verify_password(request.password, user.password_hash)
     if not password_valid:
-        logger.warning(
-            "login_failed_invalid_password",
-            email=request.email,
-            reason="password_mismatch",
-        )
+        logger.warning("login_failed_invalid_password", user_id=str(user.id), email=user.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
-    # Generate tokens
     jti_access = str(uuid4())
     jti_refresh = str(uuid4())
 
     access_token = jwt_handler.create_access_token(
-        user_id=TEST_USER["user_id"],
-        tenant_id=TEST_USER["tenant_id"],
-        email=TEST_USER["email"],
-        roles=TEST_USER["roles"],
+        user_id=str(user.id),
+        tenant_id=str(user.tenant_id),
+        email=user.email,
+        roles=user.roles,
         jti=jti_access,
     )
 
     refresh_token = jwt_handler.create_refresh_token(
-        user_id=TEST_USER["user_id"],
-        tenant_id=TEST_USER["tenant_id"],
+        user_id=str(user.id),
+        tenant_id=str(user.tenant_id),
         jti=jti_refresh,
-        email=TEST_USER["email"],
-        roles=TEST_USER["roles"],
+        email=user.email,
+        roles=user.roles,
     )
 
     logger.info(
         "user_login_successful",
-        user_id=TEST_USER["user_id"],
-        tenant_id=TEST_USER["tenant_id"],
-        email=TEST_USER["email"],
+        user_id=str(user.id),
+        tenant_id=str(user.tenant_id),
+        email=user.email,
     )
 
     return LoginResponse(
@@ -136,8 +109,11 @@ async def refresh_token(
     request: RefreshRequest,
     jwt_handler: JWTHandler = Depends(dependencies.get_jwt_handler),
 ) -> LoginResponse:
+    """Refresh an access token using a valid refresh token."""
+
     token_data = jwt_handler.verify_token(request.refresh_token)
-    if not token_data or token_data.token_type != "refresh":
+    if token_data is None or token_data.token_type != "refresh":
+        logger.warning("token_refresh_failed", reason="invalid_token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
@@ -153,7 +129,8 @@ async def refresh_token(
         roles=token_data.roles,
         jti=jti_access,
     )
-    refresh_token = jwt_handler.create_refresh_token(
+
+    new_refresh_token = jwt_handler.create_refresh_token(
         user_id=token_data.sub,
         tenant_id=token_data.tenant_id,
         jti=jti_refresh,
@@ -165,12 +142,14 @@ async def refresh_token(
 
     return LoginResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
+        refresh_token=new_refresh_token,
         expires_in=900,
     )
 
 
 @router.post("/logout")
-async def logout() -> dict:
+async def logout() -> dict[str, str]:
+    """Logout endpoint placeholder (token invalidation is client-managed)."""
+
     logger.info("user_logout")
     return {"message": "Logged out successfully"}
