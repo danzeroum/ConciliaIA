@@ -27,7 +27,14 @@ class TestCieloIntegration:
 
     @pytest.fixture
     def cielo_client(self, mock_secrets_manager: AsyncMock) -> CieloEDIClient:
-        return CieloEDIClient(secrets_manager=mock_secrets_manager)
+        _ = mock_secrets_manager  # Fixture retained for future configuration hooks
+        return CieloEDIClient(
+            host="sftp.cielo.com.br",
+            port=22,
+            username="test_user",
+            password="test_pass",
+            ec_number="1234567890",
+        )
 
     @pytest.fixture
     def sample_edi_content(self) -> str:
