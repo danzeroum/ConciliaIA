@@ -20,6 +20,7 @@ paramiko==3.4.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.1.1
+argon2-cffi==25.1.0
 
 # Logging
 structlog==23.2.0

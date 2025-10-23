@@ -65,6 +65,16 @@ make run            # Iniciar API
 **API disponível em**: http://localhost:8000
 **Documentação**: http://localhost:8000/docs
 
+## 🔐 Credenciais de Teste (MVP)
+
+Para fazer login no frontend durante desenvolvimento:
+
+- **Email:** test@example.com
+- **Senha:** SecurePassword123!
+
+> ⚠️ **Atenção:** Estas são credenciais temporárias para desenvolvimento. 
+> Não usar em produção.
+
 ## 🌐 Ambiente de Produção
 
 - **API (Render)**: https://conciliaia-api.onrender.com
