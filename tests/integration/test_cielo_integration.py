@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.infrastructure.acquirers.cielo_client import CieloEDIClient
-from src.infrastructure.security import SecretsManager
 
 
 @pytest.mark.integration
@@ -17,17 +16,7 @@ class TestCieloIntegration:
     """Integration tests para Cielo EDI."""
 
     @pytest.fixture
-    def mock_secrets_manager(self) -> AsyncMock:
-        secrets = AsyncMock(spec=SecretsManager)
-        secrets.get_acquirer_credentials.return_value = {
-            "merchant_id": "MERCHANT123",
-            "api_key": "fake-api-key-for-testing",
-        }
-        return secrets
-
-    @pytest.fixture
-    def cielo_client(self, mock_secrets_manager: AsyncMock) -> CieloEDIClient:
-        _ = mock_secrets_manager  # Fixture retained for future configuration hooks
+    def cielo_client(self) -> CieloEDIClient:
         return CieloEDIClient(
             host="sftp.cielo.com.br",
             port=22,
@@ -98,7 +87,7 @@ class TestCieloIntegration:
     async def test_parse_edi_success(
         self, cielo_client: CieloEDIClient, sample_edi_content: str
     ) -> None:
-        transactions = cielo_client._parse_edi(
+        transactions = cielo_client.parse_edi(
             edi_content=sample_edi_content,
             tenant_id="tenant-123",
         )
@@ -126,7 +115,9 @@ class TestCieloIntegration:
         cielo_client: CieloEDIClient,
         sample_edi_content: str,
     ) -> None:
-        with patch("aiohttp.ClientSession") as mock_session:
+        with patch(
+            "src.infrastructure.acquirers.cielo_edi_client.aiohttp.ClientSession"
+        ) as mock_session:
             mock_auth_response = AsyncMock()
             mock_auth_response.status = 200
             mock_auth_response.json.return_value = {"access_token": "fake-token-123"}
@@ -155,7 +146,9 @@ class TestCieloIntegration:
 
     @pytest.mark.asyncio
     async def test_handle_authentication_failure(self, cielo_client: CieloEDIClient) -> None:
-        with patch("aiohttp.ClientSession") as mock_session:
+        with patch(
+            "src.infrastructure.acquirers.cielo_edi_client.aiohttp.ClientSession"
+        ) as mock_session:
             mock_auth_response = AsyncMock()
             mock_auth_response.status = 401
             mock_auth_response.text.return_value = "Invalid credentials"

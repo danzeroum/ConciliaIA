@@ -136,6 +136,11 @@ class CieloEDIClient:
 
         return self._parser.parse(edi_content, tenant_id)
 
+    def parse_edi(self, edi_content: str, tenant_id: str) -> List[AcquirerTransaction]:
+        """Public wrapper around :meth:`_parse_edi` for external callers."""
+
+        return self._parse_edi(edi_content, tenant_id)
+
     async def fetch_transactions(
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[AcquirerTransaction]:
@@ -202,7 +207,7 @@ class CieloEDIClient:
 
                 edi_content = await edi_response.text()
 
-        transactions = self._parse_edi(edi_content, tenant_id)
+        transactions = self.parse_edi(edi_content, tenant_id)
         self.logger.info(
             "cielo_edi_download_completed",
             tenant_id=tenant_id,

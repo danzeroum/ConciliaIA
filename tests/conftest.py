@@ -10,7 +10,7 @@ from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -20,12 +20,13 @@ from src.infrastructure.persistence.database import Base
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai_test",
+    "postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai",
 )
 
+# Ensure critical security variables are available for the test environment
 os.environ.setdefault(
     "SECRET_KEY",
-    "test_super_secret_key_that_is_sufficiently_long_for_integration",
+    "chave_secreta_deve_ser_longa_e_unica_para_o_teste",
 )
 os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
 os.environ.setdefault("REDIS_HOST", "redis")
@@ -40,34 +41,35 @@ def event_loop():
 
 
 @pytest_asyncio.fixture(scope="session")
-async def engine():
+async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
     """Create test database engine."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
 
     yield engine
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 
 
 @pytest_asyncio.fixture
-async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create database session for tests."""
-    session_factory = async_sessionmaker(
-        engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    session = session_factory()
-    try:
-        yield session
-    finally:
-        if session.in_transaction():
-            await session.rollback()
-        if not session.closed:
-            await session.close()
+async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+    """Provide an async database session wrapped in a transactional context."""
+
+    async with db_engine.connect() as connection:
+        transaction = await connection.begin()
+        async with AsyncSession(
+            bind=connection, expire_on_commit=False
+        ) as session:
+            await session.begin_nested()
+            try:
+                yield session
+            finally:
+                if session.in_transaction():
+                    await session.rollback()
+        if transaction.is_active:
+            await transaction.rollback()
