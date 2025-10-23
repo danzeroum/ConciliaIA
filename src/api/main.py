@@ -31,6 +31,29 @@ setup_logging(environment=os.getenv("ENVIRONMENT", "development"))
 logger = structlog.get_logger(__name__)
 
 
+def _configure_security_components() -> None:
+    """Initialise security-related dependencies used across the API."""
+
+    secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
+    dependencies.jwt_handler = JWTHandler(secret_key=secret_key)
+    dependencies.password_hasher = PasswordHasher(rounds=12)
+
+    limiter_rate = int(
+        os.getenv(
+            "RATE_LIMIT_REQUESTS_PER_MINUTE",
+            os.getenv("RATE_LIMIT_PER_MINUTE", "100"),
+        )
+    )
+    dependencies.rate_limiter = RateLimiter(requests_per_minute=limiter_rate)
+
+    if dependencies.jwt_handler is None:
+        raise RuntimeError("JWT handler failed to initialise")
+    dependencies.auth_middleware = AuthMiddleware(dependencies.jwt_handler)
+
+
+_configure_security_components()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("application_startup_started")
@@ -40,28 +63,6 @@ async def lifespan(app: FastAPI):
         "postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai",
     )
     dependencies.database = Database(database_url)
-
-    secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
-    dependencies.jwt_handler = JWTHandler(secret_key=secret_key)
-    dependencies.password_hasher = PasswordHasher(rounds=12)
-    limiter_rate = int(
-        os.getenv(
-            "RATE_LIMIT_REQUESTS_PER_MINUTE",
-            os.getenv("RATE_LIMIT_PER_MINUTE", "100"),
-        )
-    )
-    dependencies.rate_limiter = RateLimiter(requests_per_minute=limiter_rate)
-    dependencies.auth_middleware = AuthMiddleware(dependencies.jwt_handler)
-
-    # Register middlewares that depend on initialised components
-    if not getattr(app.state, "tenant_middleware_installed", False):
-        app.add_middleware(TenantMiddleware)
-        app.state.tenant_middleware_installed = True
-    if not getattr(app.state, "rate_limit_middleware_installed", False):
-        app.add_middleware(
-            RateLimitMiddleware, rate_limiter=dependencies.rate_limiter
-        )
-        app.state.rate_limit_middleware_installed = True
 
     logger.info("application_started", environment=os.getenv("ENVIRONMENT"))
 
@@ -79,6 +80,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+if dependencies.rate_limiter is None:
+    raise RuntimeError("Rate limiter failed to initialise")
+
+app.add_middleware(TenantMiddleware)
+app.add_middleware(
+    RateLimitMiddleware,
+    rate_limiter=dependencies.rate_limiter,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
