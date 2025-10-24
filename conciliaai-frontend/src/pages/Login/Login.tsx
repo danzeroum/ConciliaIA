@@ -25,7 +25,6 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Login direto com fetch (workaround)
       const response = await fetch('http://localhost:8000/auth/login', {
         method: 'POST',
         headers: {
@@ -41,17 +40,17 @@ export default function Login() {
 
       const data = await response.json();
       
-      // Salvar tokens no localStorage
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('refresh_token', data.refresh_token);
       
-      console.log('✅ Login bem-sucedido!');
+      console.log('✅ Login bem-sucedido!', data);
       
-      // Redirecionar para dashboard
-      navigate('/dashboard');
-    } catch (err: any) {
+      // CORREÇÃO: Navegar para dashboard
+      navigate('/dashboard', { replace: true });
+      
+    } catch (err) {
       console.error('❌ Erro no login:', err);
-      setError(err.message || 'Email ou senha inválidos');
+      setError(err instanceof Error ? err.message : 'Erro ao fazer login');
     } finally {
       setLoading(false);
     }
