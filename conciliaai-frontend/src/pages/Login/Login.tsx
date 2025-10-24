@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -10,14 +10,23 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function Login() {
   const navigate = useNavigate();
-  
+  const login = useAuthStore((state) => state.login);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   const [email, setEmail] = useState('test@example.com');
   const [password, setPassword] = useState('SecurePassword123!');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -25,29 +34,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      await login(email, password);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login falhou');
-      }
-
-      const data = await response.json();
-      
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('refresh_token', data.refresh_token);
-      
-      console.log('✅ Login bem-sucedido!', data);
-      
-      // CORREÇÃO: Navegar para dashboard
       navigate('/dashboard', { replace: true });
-      
+
     } catch (err) {
       console.error('❌ Erro no login:', err);
       setError(err instanceof Error ? err.message : 'Erro ao fazer login');
