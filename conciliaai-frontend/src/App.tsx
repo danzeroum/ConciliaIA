@@ -1,42 +1,64 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { AppLayout } from './components/layout/AppLayout';
+import { lightTheme, darkTheme } from './theme/theme';
+import { useUIStore } from './store/ui.store';
 import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
+import { SalesPage } from './pages/Sales/Sales';
+import { ReconciliationPage } from './pages/Reconciliation/Reconciliation';
+import { TransactionsPage } from './pages/Transactions/Transactions';
+import { DivergencesPage } from './pages/Divergences/Divergences';
+import { ReportsPage } from './pages/Reports/Reports';
+import { SettingsPage } from './pages/Settings/Settings';
+import { NotificationSnackbar } from './components/common/Snackbar/NotificationSnackbar';
 
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#1976d2',
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000,
     },
   },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('access_token');
-  return token ? <>{children}</> : <Navigate to="/login" replace />;
-}
+export function App() {
+  const theme = useUIStore((state) => state.theme);
 
-function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme === 'light' ? lightTheme : darkTheme}>
+        <CssBaseline />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="sales" element={<SalesPage />} />
+              <Route path="reconciliation" element={<ReconciliationPage />} />
+              <Route path="transactions" element={<TransactionsPage />} />
+              <Route path="divergences" element={<DivergencesPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </BrowserRouter>
+        <NotificationSnackbar />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
-
-export default App;
