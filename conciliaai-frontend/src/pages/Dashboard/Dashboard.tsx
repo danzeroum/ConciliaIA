@@ -94,7 +94,7 @@ function KPICard({ title, value, subtitle, icon, color = 'primary', trend }: KPI
   );
 }
 
-export function DashboardPage() {
+export default function Dashboard() {
   const { data: stats, isLoading, error } = useDashboardStats(30);
 
   if (isLoading) {
