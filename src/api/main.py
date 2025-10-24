@@ -88,12 +88,38 @@ app.add_middleware(
     RateLimitMiddleware,
     rate_limiter=dependencies.rate_limiter,
 )
+# =========================================================================
+# CORS configuration
+# =========================================================================
+# When credentials are included in requests, the wildcard origin "*" cannot be
+# used. Explicit origins are required for the preflight request to succeed.
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+
+if os.getenv("ENVIRONMENT") == "production":
+    prod_origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    if prod_origins:
+        allowed_origins = prod_origins
+        logger.info("cors_production_origins", origins=allowed_origins)
+
+logger.info("cors_configuration", allowed_origins=allowed_origins, credentials=True)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,
 )
 
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
