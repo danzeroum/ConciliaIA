@@ -41,6 +41,12 @@ class TenantModel(Base):
 
     sales = relationship("SaleModel", back_populates="tenant", cascade="all, delete-orphan")
     transactions = relationship("TransactionModel", back_populates="tenant", cascade="all, delete-orphan")
+    bank_transactions = relationship(
+        "BankTransactionModel", back_populates="tenant", cascade="all, delete-orphan"
+    )
+    bank_reconciliations = relationship(
+        "BankReconciliationModel", back_populates="tenant", cascade="all, delete-orphan"
+    )
     matches = relationship("MatchModel", back_populates="tenant", cascade="all, delete-orphan")
     divergences = relationship("DivergenceModel", back_populates="tenant", cascade="all, delete-orphan")
     users = relationship("UserModel", back_populates="tenant", cascade="all, delete-orphan")
@@ -86,7 +92,7 @@ class TransactionModel(Base):
     authorization_code = Column(String(50))
     amount = Column(Numeric(15, 2), nullable=False)
     currency = Column(String(3), default="BRL")
-    transaction_date = Column(Date, nullable=False, index=True)
+    transaction_date = Column(DateTime, nullable=False, index=True)
     settlement_date = Column(Date, index=True)
     transaction_time = Column(String(8))
     card_brand = Column(String(20))
@@ -102,6 +108,9 @@ class TransactionModel(Base):
 
     tenant = relationship("TenantModel", back_populates="transactions")
     matches = relationship("MatchModel", back_populates="transaction")
+    bank_reconciliations = relationship(
+        "BankReconciliationModel", back_populates="acquirer_transaction"
+    )
     settlement = relationship("SettlementModel", back_populates="transaction", uselist=False)
 
     __table_args__ = (
@@ -141,6 +150,77 @@ class MatchModel(Base):
     __table_args__ = (
         Index("idx_matches_tenant_validated", "tenant_id", "validated"),
         Index("idx_matches_confidence", "confidence"),
+    )
+
+
+class BankTransactionModel(Base):
+    """Bank statement transactions imported from OFX."""
+
+    __tablename__ = "bank_transactions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    bank_account_id = Column(String(64), nullable=False, index=True)
+    bank_transaction_id = Column(String(120), index=True)
+    transaction_date = Column(Date, nullable=False, index=True)
+    amount = Column(Numeric(15, 2), nullable=False)
+    type = Column(String(20), nullable=False)
+    memo = Column(Text)
+    description_user_friendly = Column(Text)
+    check_number = Column(String(50))
+    is_reconciled = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    tenant = relationship("TenantModel", back_populates="bank_transactions")
+    reconciliations = relationship(
+        "BankReconciliationModel", back_populates="bank_transaction", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_bank_transactions_fitid",
+            "tenant_id",
+            "bank_account_id",
+            "bank_transaction_id",
+            unique=True,
+        ),
+    )
+
+
+class BankReconciliationModel(Base):
+    """Matches between bank transactions and acquirer transactions."""
+
+    __tablename__ = "bank_reconciliations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    bank_transaction_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("bank_transactions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    acquirer_transaction_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("acquirer_transactions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    match_confidence = Column(Numeric(3, 2), nullable=False)
+    matched_at = Column(DateTime, default=datetime.utcnow)
+
+    tenant = relationship("TenantModel", back_populates="bank_reconciliations")
+    bank_transaction = relationship("BankTransactionModel", back_populates="reconciliations")
+    acquirer_transaction = relationship(
+        "TransactionModel", back_populates="bank_reconciliations"
+    )
+
+    __table_args__ = (
+        Index("idx_bank_reconciliations_tenant", "tenant_id", "matched_at"),
     )
 
 

@@ -56,3 +56,29 @@ class AcquirerTransactionRepository(IAcquirerTransactionRepository):
         )
 
         return entities
+
+    async def find_by_date_range(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[AcquirerTransaction]:
+        stmt: Select[TransactionModel] = (
+            select(TransactionModel)
+            .where(
+                TransactionModel.tenant_id == UUID(tenant_id),
+                TransactionModel.transaction_date >= start_date,
+                TransactionModel.transaction_date <= end_date,
+            )
+            .order_by(TransactionModel.transaction_date, TransactionModel.created_at)
+        )
+
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        entities = [self._mapper.to_entity(model) for model in models]
+
+        self._logger.debug(
+            "transactions_found_by_date_range",
+            count=len(entities),
+            start=str(start_date),
+            end=str(end_date),
+        )
+
+        return entities

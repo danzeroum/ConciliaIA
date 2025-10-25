@@ -7,11 +7,13 @@ from typing import Optional
 
 from src.domain.entities import (
     AcquirerTransaction,
+    BankReconciliation,
+    BankTransaction,
     Divergence,
     DivergenceStatus,
     DivergenceType,
-    MatchType,
     ImportSchedule,
+    MatchType,
     ReconciliationMatch,
     Sale,
     Settlement,
@@ -22,6 +24,8 @@ from src.domain.entities import (
 )
 from src.domain.value_objects import Money, Percentage
 from .models import (
+    BankReconciliationModel,
+    BankTransactionModel,
     DivergenceModel,
     ImportScheduleModel,
     MatchModel,
@@ -199,6 +203,81 @@ class MatchMapper:
         model.validated = entity.validated
         model.validated_by = entity.validated_by
         model.validated_at = entity.validated_at
+        model.matched_at = entity.matched_at
+
+        return model
+
+
+class BankTransactionMapper:
+    """Map bank transactions between domain and persistence models."""
+
+    @staticmethod
+    def to_entity(model: BankTransactionModel) -> BankTransaction:
+        return BankTransaction(
+            id=model.id,
+            tenant_id=str(model.tenant_id),
+            bank_account_id=model.bank_account_id,
+            bank_transaction_id=model.bank_transaction_id or "",
+            transaction_date=model.transaction_date,
+            amount=Decimal(model.amount),
+            type=model.type,
+            memo=model.memo or "",
+            description_user_friendly=model.description_user_friendly or "",
+            check_number=model.check_number or "",
+            is_reconciled=model.is_reconciled,
+            created_at=model.created_at,
+        )
+
+    @staticmethod
+    def to_model(
+        entity: BankTransaction, model: BankTransactionModel | None = None
+    ) -> BankTransactionModel:
+        if model is None:
+            model = BankTransactionModel()
+
+        model.id = entity.id
+        model.tenant_id = entity.tenant_id
+        model.bank_account_id = entity.bank_account_id
+        model.bank_transaction_id = entity.bank_transaction_id
+        model.transaction_date = entity.transaction_date
+        model.amount = entity.amount
+        model.type = entity.type
+        model.memo = entity.memo
+        model.description_user_friendly = entity.description_user_friendly
+        model.check_number = entity.check_number
+        model.is_reconciled = entity.is_reconciled
+        model.created_at = entity.created_at
+
+        return model
+
+
+class BankReconciliationMapper:
+    """Map reconciliation links between domain entity and persistence model."""
+
+    @staticmethod
+    def to_entity(model: BankReconciliationModel) -> BankReconciliation:
+        return BankReconciliation(
+            id=model.id,
+            tenant_id=str(model.tenant_id),
+            bank_transaction_id=model.bank_transaction_id,
+            acquirer_transaction_id=str(model.acquirer_transaction_id),
+            match_confidence=float(model.match_confidence),
+            matched_at=model.matched_at,
+        )
+
+    @staticmethod
+    def to_model(
+        entity: BankReconciliation,
+        model: BankReconciliationModel | None = None,
+    ) -> BankReconciliationModel:
+        if model is None:
+            model = BankReconciliationModel()
+
+        model.id = entity.id
+        model.tenant_id = entity.tenant_id
+        model.bank_transaction_id = entity.bank_transaction_id
+        model.acquirer_transaction_id = entity.acquirer_transaction_id
+        model.match_confidence = entity.match_confidence
         model.matched_at = entity.matched_at
 
         return model
