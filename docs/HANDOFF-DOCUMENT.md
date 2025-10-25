@@ -217,9 +217,10 @@ CIELO_EC_NUMBER=<ec-number>
 CIELO_SFTP_USER=<user>
 CIELO_SFTP_PASSWORD=<password>
 
-REDE_FILIACAO=<filiacao>
-REDE_SOAP_USER=<user>
-REDE_SOAP_PASSWORD=<password>
+REDE_SFTP_HOST=<host>
+REDE_SFTP_USER=<user>
+REDE_SFTP_PASSWORD=<password>
+REDE_EDI_REMOTE_PATH=/rede/edi
 
 STONE_CLIENT_ID=<client-id>
 STONE_CLIENT_SECRET=<client-secret>
@@ -316,10 +317,10 @@ make test-load-k6     # K6
    - Formato: EC{EC_NUMBER}_{YYYYMMDD}.txt
    - Parser: `CieloEDIParser`
 
-2. **Rede (22%)** - SOAP webservice (legacy)
-   - On-demand queries
-   - Parser: `RedeParser`
-   - Note: Migrating to REST in 2026
+2. **Rede (22%)** - EDI fixed-width via SFTP
+   - Arquivos diários EEVC/EEVD/EEFI/EESA (posicional)
+   - Client: `RedeEDIClient`
+   - Parser: `RedeEDIParser`
 
 3. **Stone (18%)** - REST API + OAuth 2.0
    - Real-time access

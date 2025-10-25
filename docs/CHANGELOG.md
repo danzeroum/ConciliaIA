@@ -52,7 +52,7 @@ Multi-tenancy isolation
 Acquirer Integrations (IMPL-006)
 
 Cielo EDI Parser (SFTP)
-Rede SOAP Client
+Rede EDI Client (SFTP)
 Stone API Client (OAuth 2.0)
 72% market coverage
 
