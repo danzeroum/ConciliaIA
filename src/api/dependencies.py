@@ -12,8 +12,10 @@ from src.application.services import (
     MatchingService,
 )
 from src.application.strategies import ExactMatcher, FuzzyMatcher, InstallmentMatcher, MLMatcher
+from src.application.use_cases.cielo_conciliator import ImportCieloReportUseCase
 from src.application.use_cases.reconcile_transactions import ReconcileTransactionsUseCase
 from src.domain.entities import Tenant
+from src.infrastructure.acquirers import CieloAgilizaParser, CieloConciliatorClient
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.repositories.postgresql_divergence_repository import (
     PostgreSQLDivergenceRepository,
@@ -42,6 +44,7 @@ password_hasher: PasswordHasherType = None
 rate_limiter: RateLimiterType = None
 auth_middleware: AuthMiddlewareType = None
 auto_import_scheduler: AutoImportScheduler | None = None
+cielo_conciliator_client: CieloConciliatorClient | None = None
 
 security = HTTPBearer()
 
@@ -82,6 +85,25 @@ async def get_ingestion_service(
 ) -> IngestionService:
     transaction_repo = PostgreSQLTransactionRepository(session)
     return IngestionService(transaction_repo)
+
+
+def get_cielo_conciliator_client() -> CieloConciliatorClient:
+    if cielo_conciliator_client is None:
+        raise HTTPException(status_code=500, detail="Cielo Conciliator não inicializado")
+    return cielo_conciliator_client
+
+
+async def get_import_cielo_report_use_case(
+    session: AsyncSession = Depends(get_db_session),
+) -> ImportCieloReportUseCase:
+    client = get_cielo_conciliator_client()
+    parser = CieloAgilizaParser()
+    transaction_repo = PostgreSQLTransactionRepository(session)
+    return ImportCieloReportUseCase(
+        client=client,
+        parser=parser,
+        transaction_repo=transaction_repo,
+    )
 
 
 async def get_user_repository(
@@ -170,6 +192,8 @@ __all__ = [
     "get_auto_import_scheduler",
     "get_user_repository",
     "get_current_tenant_id",
+    "get_cielo_conciliator_client",
+    "get_import_cielo_report_use_case",
     "require_roles",
     "database",
     "jwt_handler",
@@ -177,4 +201,5 @@ __all__ = [
     "rate_limiter",
     "auth_middleware",
     "auto_import_scheduler",
+    "cielo_conciliator_client",
 ]

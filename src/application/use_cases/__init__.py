@@ -11,6 +11,11 @@ from .bank_reconciliation import (
     ReconcileBankStatementRequest,
     ReconcileBankStatementUseCase,
 )
+from .cielo_conciliator import (
+    ImportCieloReportRequest,
+    ImportCieloReportResponse,
+    ImportCieloReportUseCase,
+)
 from .cash_flow import (
     CashFlowForecastResponse,
     GetCashFlowForecastRequest,
@@ -30,4 +35,7 @@ __all__ = [
     "GetCashFlowForecastUseCase",
     "GetCashFlowForecastRequest",
     "CashFlowForecastResponse",
+    "ImportCieloReportUseCase",
+    "ImportCieloReportRequest",
+    "ImportCieloReportResponse",
 ]
