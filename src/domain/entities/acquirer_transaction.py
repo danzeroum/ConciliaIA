@@ -76,5 +76,12 @@ class AcquirerTransaction:
     def has_installments(self) -> bool:
         return self.installment_plan is not None
 
+    @property
+    def installments(self) -> int:
+        """Return total installments when available."""
+        if self.installment_plan:
+            return self.installment_plan.total_installments
+        return 1
+
     def __str__(self) -> str:  # pragma: no cover - trivial
         return f"Transaction({self.acquirer}, {self.nsu}, {self.amount})"

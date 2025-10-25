@@ -148,6 +148,7 @@ class TransactionService:
         )
         return True
 
+
     async def import_from_csv(
         self, tenant_id: str, csv_content: str
     ) -> Dict[str, Any]:
@@ -205,7 +206,92 @@ class TransactionService:
             imported=imported,
             failed=failed,
         )
+
         return {"imported": imported, "failed": failed, "errors": errors}
+
+    async def import_from_edi(
+        self,
+        tenant_id: str,
+        edi_content: str,
+        acquirer: str = "rede",
+    ) -> Dict[str, Any]:
+        """
+        Import transactions from EDI file content.
+
+        Args:
+            tenant_id: Tenant identifier
+            edi_content: Raw EDI file content
+            acquirer: Acquirer name (default: "rede")
+
+        Returns:
+            Dict with imported/failed counts and errors
+        """
+        from src.infrastructure.parsers.rede_edi_parser import RedeEDIParser
+
+        imported = 0
+        failed = 0
+        errors: list[dict[str, Any]] = []
+
+        # Select parser based on acquirer
+        if acquirer.lower() == "rede":
+            parser = RedeEDIParser()
+        else:
+            raise ValueError(f"EDI parser not implemented for acquirer: {acquirer}")
+
+        try:
+            # Parse EDI
+            transactions = parser.parse(edi_content, tenant_id)
+
+            # Save each transaction
+            for txn in transactions:
+                try:
+                    await self.transaction_repo.save(txn)
+                    imported += 1
+                except Exception as exc:
+                    failed += 1
+                    errors.append({
+                        "nsu": txn.nsu.value,
+                        "error": str(exc),
+                        "data": {
+                            "nsu": txn.nsu.value,
+                            "amount": float(txn.amount.amount),
+                            "date": txn.transaction_date.isoformat(),
+                        }
+                    })
+                    logger.warning(
+                        "transaction_import_failed",
+                        tenant_id=tenant_id,
+                        nsu=txn.nsu.value,
+                        error=str(exc),
+                    )
+
+        except ValueError as exc:
+            # Parser validation failed
+            logger.error(
+                "edi_parsing_failed",
+                tenant_id=tenant_id,
+                acquirer=acquirer,
+                error=str(exc),
+            )
+            return {
+                "imported": 0,
+                "failed": 1,
+                "errors": [{"error": f"Invalid EDI file: {str(exc)}"}]
+            }
+
+        logger.info(
+            "edi_import_completed",
+            tenant_id=tenant_id,
+            acquirer=acquirer,
+            imported=imported,
+            failed=failed,
+        )
+
+        return {
+            "imported": imported,
+            "failed": failed,
+            "errors": errors,
+        }
 
     async def export_to_csv(
         self,

@@ -11,6 +11,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import structlog
+
 from src.api.dependencies import get_current_tenant, get_db_session
 from src.application.services.transaction_service import TransactionService
 from src.domain.entities import Tenant
@@ -22,6 +24,8 @@ from src.infrastructure.persistence.repositories.postgresql_transaction_reposito
 )
 
 router = APIRouter()
+
+logger = structlog.get_logger(__name__)
 
 
 class CreateTransactionRequest(BaseModel):
@@ -302,8 +306,77 @@ async def import_transactions(
         )
 
     contents = await file.read()
+
     result = await service.import_from_csv(tenant.id, contents.decode("utf-8"))
     return ImportTransactionsResponse(**result)
+
+
+@router.post(
+    "/transactions/import-edi",
+    response_model=ImportTransactionsResponse,
+    summary="Import transactions from EDI file",
+    tags=["Transactions"],
+)
+async def import_transactions_edi(
+    file: UploadFile = File(..., description="EDI file (TXT format)"),
+    acquirer: str = Query("rede", description="Acquirer name (rede, cielo, stone)"),
+    tenant: Tenant = Depends(get_current_tenant),
+    service: TransactionService = Depends(get_transaction_service),
+) -> ImportTransactionsResponse:
+    """
+    Import transactions from acquirer EDI file (text format).
+
+    Supported formats:
+    - Rede: EEVC (Extrato Eletrônico de Vendas Crédito)
+    - Cielo: (coming soon)
+    - Stone: (coming soon)
+    """
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File is required",
+        )
+
+    # Read file content
+    contents = await file.read()
+
+    # Decode (try UTF-8 first, then Latin-1)
+    try:
+        edi_content = contents.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            edi_content = contents.decode("latin-1")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unable to decode file. Please ensure it's a valid text file.",
+            )
+
+    # Import via service
+    try:
+        result = await service.import_from_edi(
+            tenant_id=tenant.id,
+            edi_content=edi_content,
+            acquirer=acquirer,
+        )
+        return ImportTransactionsResponse(**result)
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        logger.error(
+            "edi_import_endpoint_failed",
+            tenant_id=tenant.id,
+            acquirer=acquirer,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to import EDI file",
+        )
 
 
 @router.get(
