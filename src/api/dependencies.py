@@ -112,6 +112,12 @@ async def get_current_tenant(user: dict = Depends(get_current_user)) -> Tenant:
     )
 
 
+async def get_current_tenant_id(user: dict = Depends(get_current_user)) -> str:
+    """Return only the tenant identifier for authenticated requests."""
+
+    return user["tenant_id"]
+
+
 def require_roles(required_roles: list[str]):
     async def _require_roles(user: dict = Depends(get_current_user)) -> dict:
         roles = user.get("roles", [])
@@ -163,6 +169,7 @@ __all__ = [
     "get_rate_limiter",
     "get_auto_import_scheduler",
     "get_user_repository",
+    "get_current_tenant_id",
     "require_roles",
     "database",
     "jwt_handler",

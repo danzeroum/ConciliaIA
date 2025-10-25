@@ -87,6 +87,7 @@ class TransactionModel(Base):
     amount = Column(Numeric(15, 2), nullable=False)
     currency = Column(String(3), default="BRL")
     transaction_date = Column(Date, nullable=False, index=True)
+    settlement_date = Column(Date, index=True)
     transaction_time = Column(String(8))
     card_brand = Column(String(20))
     card_last_4 = Column(String(4))
@@ -106,7 +107,13 @@ class TransactionModel(Base):
     __table_args__ = (
         Index("idx_transactions_tenant_date", "tenant_id", "transaction_date"),
         Index("idx_transactions_tenant_acquirer", "tenant_id", "acquirer"),
-        Index("idx_transactions_nsu_trgm", "nsu", postgresql_using="gin", postgresql_ops={"nsu": "gin_trgm_ops"}),
+        Index("idx_transactions_tenant_settlement", "tenant_id", "settlement_date"),
+        Index(
+            "idx_transactions_nsu_trgm",
+            "nsu",
+            postgresql_using="gin",
+            postgresql_ops={"nsu": "gin_trgm_ops"},
+        ),
     )
 
 

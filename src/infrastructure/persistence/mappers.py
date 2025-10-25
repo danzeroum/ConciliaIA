@@ -126,6 +126,7 @@ class TransactionMapper:
             nsu=model.nsu,
             amount=Money(Decimal(model.amount), model.currency),
             transaction_date=model.transaction_date,
+            settlement_date=model.settlement_date,
             authorization_code=model.authorization_code,
             card_brand=model.card_brand,
             card_last_4=model.card_last_4,
@@ -149,6 +150,7 @@ class TransactionMapper:
         model.amount = entity.amount.amount
         model.currency = entity.amount.currency
         model.transaction_date = entity.transaction_date
+        model.settlement_date = entity.settlement_date
         model.authorization_code = (
             str(entity.authorization_code) if getattr(entity, "authorization_code", None) else None
         )

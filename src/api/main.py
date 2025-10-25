@@ -11,7 +11,7 @@ import structlog
 
 from src.api import dependencies
 from src.api.middleware import AuthMiddleware, RateLimitMiddleware, TenantMiddleware
-from src.api.routes import auth
+from src.api.routes import auth, cash_flow
 from src.api.v1.routes import (
     alerts,
     auto_import,
@@ -141,6 +141,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(cash_flow.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(auto_import.router, prefix="/api/v1", tags=["Auto Import"])
 app.include_router(bank_reconciliation.router, prefix="/api/v1", tags=["Bank Reconciliation"])
