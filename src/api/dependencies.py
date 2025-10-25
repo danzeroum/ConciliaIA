@@ -6,7 +6,11 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.services import AnomalyDetectionService, MatchingService
+from src.application.services import (
+    AnomalyDetectionService,
+    IngestionService,
+    MatchingService,
+)
 from src.application.strategies import ExactMatcher, FuzzyMatcher, InstallmentMatcher, MLMatcher
 from src.application.use_cases.reconcile_transactions import ReconcileTransactionsUseCase
 from src.domain.entities import Tenant
@@ -63,6 +67,13 @@ async def get_db_session() -> AsyncSession:
         raise HTTPException(status_code=500, detail="Database not initialized")
     async for session in database.get_session():
         yield session
+
+
+async def get_ingestion_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> IngestionService:
+    transaction_repo = PostgreSQLTransactionRepository(session)
+    return IngestionService(transaction_repo)
 
 
 async def get_user_repository(
@@ -138,6 +149,7 @@ __all__ = [
     "get_current_tenant",
     "get_reconciliation_use_case",
     "get_db_session",
+    "get_ingestion_service",
     "get_jwt_handler",
     "get_password_hasher",
     "get_rate_limiter",

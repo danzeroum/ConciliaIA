@@ -100,10 +100,14 @@ Classificação de urgência da divergência (critical, high, medium, low).
 
 ## T
 
-**Taxa de Matching**  
+**Taxa de Matching**
 % de vendas reconciliadas com sucesso.
 
-**Transaction Missing**  
+**TORC (Transmissão Off-line Recorrente de Crédito)**
+Modalidade de captura da Rede para envio manual de arquivos CSV com vendas recorrentes.
+*Exemplo:* Academia enviando parcelas mensais do plano dos alunos.
+
+**Transaction Missing**
 Venda sem transação correspondente após prazo esperado.
 
 ## V

@@ -14,8 +14,10 @@ from src.infrastructure.acquirers import (
     CieloEDIParser,
     RedeEDIClient,
     RedeEDIParser,
+    RedeTORCParser,
     StoneAPIClient,
     StoneParser,
+    TORCValidationError,
 )
 from src.infrastructure.persistence.repositories import TransactionRepository
 
@@ -105,6 +107,53 @@ class IngestionService:
             file_type=file_type_upper,
             transactions_count=len(transactions),
         )
+        return len(transactions)
+
+    async def ingest_rede_torc(
+        self,
+        tenant_id: str,
+        file_path: Path,
+    ) -> int:
+        """Ingest Rede TORC offline files."""
+
+        self.logger.info(
+            "rede_torc_ingestion_started",
+            tenant_id=tenant_id,
+            file=str(file_path),
+        )
+
+        try:
+            with file_path.open("r", encoding="utf-8") as handle:
+                content = handle.read()
+        except FileNotFoundError:
+            self.logger.warning(
+                "rede_torc_file_not_found", tenant_id=tenant_id, file=str(file_path)
+            )
+            return 0
+
+        parser = RedeTORCParser()
+
+        try:
+            transactions = parser.parse(content, tenant_id)
+        except TORCValidationError as exc:
+            self.logger.error(
+                "rede_torc_validation_failed",
+                tenant_id=tenant_id,
+                file=str(file_path),
+                error=str(exc),
+            )
+            raise
+
+        for transaction in transactions:
+            await self.transaction_repo.save(transaction)
+
+        self.logger.info(
+            "rede_torc_ingestion_completed",
+            tenant_id=tenant_id,
+            file=str(file_path),
+            transactions_count=len(transactions),
+        )
+
         return len(transactions)
 
     async def ingest_stone_api(
