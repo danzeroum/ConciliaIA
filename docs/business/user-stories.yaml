@@ -40,25 +40,23 @@ user_stories:
             - "Deploy em staging"
 
         - story_id: "US-002"
-          title: "Como sistema, quero integrar API Rede em tempo real"
+          title: "Como sistema, quero integrar arquivos EDI da Rede"
           persona: "Sistema"
           priority: "P0"
           story_points: 13
           description: |
-            Sistema deve consultar API SOAP da Rede a cada hora para obter
-            transações do dia, com retry automático e fallback para EDI.
+            Sistema deve baixar arquivos EDI (EEVC/EEVD/EEFI/EESA) da Rede via
+            SFTP diariamente, com retry automático e tratamento de falhas.
           acceptance_criteria:
-            - "Consulta API Rede SOAP a cada 1h"
-            - "Retry 3x com exponential backoff"
-            - "Circuit breaker após 5 falhas"
-            - "Fallback para EDI se indisponível >4h"
-            - "Parse XML para schema canônico"
-            - "Alertar Ops se API down >30min"
+            - "Download SFTP Rede com retry exponencial"
+            - "Suporte aos layouts EEVC, EEVD, EEFI e EESA"
+            - "Parser converte para schema canônico"
+            - "Alertar Ops se arquivo não disponível por >24h"
+            - "Logs estruturados com métricas de ingestão"
           dependencies:
             - "US-001"
           definition_of_done:
             - "Client com retry e circuit breaker"
-            - "Fallback validado em teste"
             - "Monitoramento configurado"
 
         - story_id: "US-003"

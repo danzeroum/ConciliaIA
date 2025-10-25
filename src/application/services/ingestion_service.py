@@ -12,8 +12,8 @@ from src.domain.value_objects import Acquirer
 from src.infrastructure.acquirers import (
     CieloEDIClient,
     CieloEDIParser,
-    RedeParser,
-    RedeSoapClient,
+    RedeEDIClient,
+    RedeEDIParser,
     StoneAPIClient,
     StoneParser,
 )
@@ -60,28 +60,49 @@ class IngestionService:
         )
         return len(transactions)
 
-    async def ingest_rede_soap(
+    async def ingest_rede_edi(
         self,
         tenant_id: str,
-        client: RedeSoapClient,
-        start_date: date,
-        end_date: date,
+        client: RedeEDIClient,
+        file_date: date,
+        file_type: str = "EEVC",
     ) -> int:
+        file_type_upper = file_type.upper()
         self.logger.info(
             "rede_ingestion_started",
             tenant_id=tenant_id,
-            start_date=start_date.isoformat(),
-            end_date=end_date.isoformat(),
+            file_date=file_date.isoformat(),
+            file_type=file_type_upper,
         )
-        raw_transactions = await client.fetch_transactions(start_date, end_date)
-        parser = RedeParser()
-        transactions = parser.parse(raw_transactions, tenant_id)
+
+        fetch_map = {
+            "EEVC": client.fetch_eevc,
+            "EEVD": client.fetch_eevd,
+            "EEFI": client.fetch_eefi,
+            "EESA": client.fetch_eesa,
+        }
+        if file_type_upper not in fetch_map:
+            raise ValueError(f"Tipo arquivo não suportado: {file_type}")
+
+        try:
+            raw_data = await fetch_map[file_type_upper](file_date)
+        except FileNotFoundError:
+            self.logger.warning(
+                "rede_file_not_found",
+                file_date=file_date.isoformat(),
+                file_type=file_type_upper,
+            )
+            return 0
+
+        parser = RedeEDIParser()
+        transactions = parser.parse(raw_data, tenant_id)
         for transaction in transactions:
             await self.transaction_repo.save(transaction)
 
         self.logger.info(
             "rede_ingestion_completed",
             tenant_id=tenant_id,
+            file_type=file_type_upper,
             transactions_count=len(transactions),
         )
         return len(transactions)
@@ -134,9 +155,17 @@ class IngestionService:
 
         if "rede" in acquirer_configs:
             config = acquirer_configs["rede"]
-            client = RedeSoapClient(**config["client_params"])
-            count = await self.ingest_rede_soap(tenant_id, client, start_date, end_date)
-            results[Acquirer.REDE] = count
+            client = RedeEDIClient(**config["client_params"])
+            file_types = [ft.upper() for ft in config.get("file_types", ["EEVC", "EEVD"])]
+            total = 0
+            current_date = start_date
+            while current_date <= end_date:
+                for file_type in file_types:
+                    total += await self.ingest_rede_edi(
+                        tenant_id, client, current_date, file_type
+                    )
+                current_date += timedelta(days=1)
+            results[Acquirer.REDE] = total
 
         if "stone" in acquirer_configs:
             config = acquirer_configs["stone"]

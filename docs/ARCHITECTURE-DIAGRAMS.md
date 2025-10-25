@@ -152,7 +152,7 @@
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │  External Integrations                                 │  │
 │  │  • CieloEDIClient  (SFTP + Parser)                     │  │
-│  │  • RedeSoapClient  (SOAP + Parser)                     │  │
+│  │  • RedeEDIClient   (SFTP + Parser)                     │  │
 │  │  • StoneAPIClient  (REST + OAuth2 + Parser)            │  │
 │  └────────────────────────────────────────────────────────┘  │
 │  ┌────────────────────────────────────────────────────────┐  │

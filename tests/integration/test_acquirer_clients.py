@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.infrastructure.acquirers import CieloEDIClient, RedeSoapClient, StoneAPIClient
+from src.infrastructure.acquirers import CieloEDIClient, RedeEDIClient, StoneAPIClient
 
 
 @pytest.mark.integration
@@ -90,49 +90,16 @@ class TestStoneAPIClient:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-class TestRedeSoapClient:
-    """Test Rede SOAP client parsing."""
+class TestRedeEDIClient:
+    """Test Rede EDI client with local files."""
 
-    @patch("httpx.AsyncClient")
-    async def test_fetch_transactions(self, mock_client: MagicMock) -> None:
-        sample_response = """<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-               xmlns:rede="http://tempuri.org/">
-  <soap:Body>
-    <rede:ConsultarTransacoesResponse>
-      <rede:ConsultarTransacoesResult>
-        <rede:Transacao>
-          <rede:NSU>987654321</rede:NSU>
-          <rede:CodigoAutorizacao>ABC123</rede:CodigoAutorizacao>
-          <rede:Valor>150.00</rede:Valor>
-          <rede:DataTransacao>2023-01-18</rede:DataTransacao>
-          <rede:Bandeira>VISA</rede:Bandeira>
-          <rede:Parcelas>1</rede:Parcelas>
-        </rede:Transacao>
-      </rede:ConsultarTransacoesResult>
-    </rede:ConsultarTransacoesResponse>
-  </soap:Body>
-</soap:Envelope>"""
-        mock_response = MagicMock()
-        mock_response.text = sample_response
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
+    async def test_fetch_local_file(self, tmp_path: Path) -> None:
+        file_date = date(2024, 1, 15)
+        filename = f"EEVC{file_date.strftime('%Y%m%d')}.txt"
+        content = "EEVC HEADER\n012DATA"
+        (tmp_path / filename).write_bytes(content.encode("latin-1"))
 
-        mock_client_instance = MagicMock()
-        mock_client_instance.post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value = mock_client_instance
+        client = RedeEDIClient(base_path=tmp_path)
+        data = await client.fetch_eevc(file_date)
 
-        client = RedeSoapClient(
-            endpoint="https://ws.rede.com.br/WsRede/WsRede.asmx",
-            filiacao="123456",
-            username="user",
-            password="pass",
-        )
-
-        transactions = await client.fetch_transactions(
-            start_date=date(2023, 1, 1),
-            end_date=date(2023, 1, 31),
-        )
-
-        assert len(transactions) == 1
-        assert transactions[0]["nsu"] == "987654321"
+        assert data.decode("latin-1") == content

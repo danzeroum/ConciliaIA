@@ -3,8 +3,8 @@
 from .base_parser import AcquirerParserError, BaseAcquirerParser
 from .cielo_edi_client import CieloEDIClient
 from .cielo_edi_parser import CieloEDIParser
-from .rede_parser import RedeParser
-from .rede_soap_client import RedeSoapClient
+from .rede_edi_client import RedeEDIClient
+from .rede_edi_parser import RedeEDIParser
 from .stone_api_client import StoneAPIClient
 from .stone_parser import StoneParser
 
@@ -13,8 +13,8 @@ __all__ = [
     "BaseAcquirerParser",
     "CieloEDIClient",
     "CieloEDIParser",
-    "RedeParser",
-    "RedeSoapClient",
+    "RedeEDIClient",
+    "RedeEDIParser",
     "StoneAPIClient",
     "StoneParser",
 ]
