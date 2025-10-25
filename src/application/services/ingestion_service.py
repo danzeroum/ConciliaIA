@@ -14,6 +14,7 @@ from src.infrastructure.acquirers import (
     CieloEDIParser,
     RedeEDIClient,
     RedeEDIParser,
+    RedeEEFIParser,
     RedeTORCParser,
     StoneAPIClient,
     StoneParser,
@@ -96,7 +97,8 @@ class IngestionService:
             )
             return 0
 
-        parser = RedeEDIParser()
+        parser_cls = RedeEEFIParser if file_type_upper == "EEFI" else RedeEDIParser
+        parser = parser_cls()
         transactions = parser.parse(raw_data, tenant_id)
         for transaction in transactions:
             await self.transaction_repo.save(transaction)

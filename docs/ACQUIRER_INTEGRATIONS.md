@@ -15,11 +15,11 @@ This document summarizes the ingestion strategy adopted by ConciliaAI for each s
 - **Transport:** SFTP (Rede gateway)
 - **Format:** EDI positional files (EEVC, EEVD, EEFI, EESA)
 - **Client:** `RedeEDIClient`
-- **Parser:** `RedeEDIParser`
+- **Parser:** `RedeEDIParser` (EEVC/EEVD/EESA) e `RedeEEFIParser` (EEFI v4.00)
 - **Highlights:**
-  - Automatic detection of file type by header
-  - Support for credit (parcelado), debit, financial releases and open balance files
-  - Normalizes MDR rate/amount and masked PAN metadata
+  - Automatic detection of file type by header (EEVC/EEVD/EESA)
+  - Parser dedicado para EEFI com validação de bandeiras, status e chargebacks
+  - Normaliza MDR rate/amount, saldos financeiros e detalhamento de ajustes
 
 ## Stone
 
