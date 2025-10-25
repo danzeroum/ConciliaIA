@@ -16,6 +16,7 @@ from src.api.v1.routes import (
     alerts,
     auto_import,
     bank_reconciliation,
+    cielo_conciliator,
     divergences,
     export,
     health,
@@ -27,6 +28,7 @@ from src.api.v1.routes import (
     stats,
     transactions,
 )
+from src.infrastructure.acquirers import CieloConciliatorClient
 from src.infrastructure.logging import setup_logging
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.scheduler import AutoImportScheduler, build_auto_import_runner
@@ -80,12 +82,16 @@ async def lifespan(app: FastAPI):
     dependencies.auto_import_scheduler.start()
     await dependencies.auto_import_scheduler.initialise()
 
+    dependencies.cielo_conciliator_client = CieloConciliatorClient()
+
     logger.info("application_started", environment=os.getenv("ENVIRONMENT"))
 
     yield
 
     if dependencies.auto_import_scheduler:
         dependencies.auto_import_scheduler.shutdown()
+    if dependencies.cielo_conciliator_client:
+        await dependencies.cielo_conciliator_client.aclose()
     if dependencies.database:
         await dependencies.database.close()
     logger.info("application_shutdown")
@@ -145,6 +151,7 @@ app.include_router(cash_flow.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(auto_import.router, prefix="/api/v1", tags=["Auto Import"])
 app.include_router(bank_reconciliation.router, prefix="/api/v1", tags=["Bank Reconciliation"])
+app.include_router(cielo_conciliator.router, prefix="/api/v1")
 app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(notifications.router, prefix="/api/v1", tags=["Notifications"])
 app.include_router(reconciliation.router, prefix="/api/v1", tags=["Reconciliation"])

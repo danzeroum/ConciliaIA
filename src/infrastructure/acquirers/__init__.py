@@ -1,6 +1,8 @@
 """Acquirer integrations package."""
 
 from .base_parser import AcquirerParserError, BaseAcquirerParser
+from .cielo_agiliza_parser import CieloAgilizaParser
+from .cielo_conciliator_client import CieloConciliatorClient, CieloConciliatorError
 from .cielo_edi_client import CieloEDIClient
 from .cielo_edi_parser import CieloEDIParser
 from .rede_edi_client import RedeEDIClient
@@ -13,6 +15,9 @@ from .stone_parser import StoneParser
 __all__ = [
     "AcquirerParserError",
     "BaseAcquirerParser",
+    "CieloAgilizaParser",
+    "CieloConciliatorClient",
+    "CieloConciliatorError",
     "CieloEDIClient",
     "CieloEDIParser",
     "RedeEDIClient",
