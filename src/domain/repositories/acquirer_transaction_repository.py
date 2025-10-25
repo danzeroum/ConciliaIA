@@ -32,3 +32,22 @@ class IAcquirerTransactionRepository(ABC):
     ) -> List[AcquirerTransaction]:
         """Return transactions that occurred within the provided interval."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_delayed_settlements(
+        self,
+        tenant_id: str,
+        cutoff_date: date,
+    ) -> List[AcquirerTransaction]:
+        """Return transactions whose settlement date is past the provided cutoff."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_chargebacks(
+        self,
+        tenant_id: str,
+        start_date: date,
+        end_date: date,
+    ) -> List[AcquirerTransaction]:
+        """Return chargeback transactions within the given period."""
+        raise NotImplementedError

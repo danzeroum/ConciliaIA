@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import List
 from uuid import UUID
 
@@ -76,6 +76,72 @@ class AcquirerTransactionRepository(IAcquirerTransactionRepository):
 
         self._logger.debug(
             "transactions_found_by_date_range",
+            count=len(entities),
+            start=str(start_date),
+            end=str(end_date),
+        )
+
+        return entities
+
+    async def find_delayed_settlements(
+        self,
+        tenant_id: str,
+        cutoff_date: date,
+    ) -> List[AcquirerTransaction]:
+        pending_statuses = [
+            TransactionStatus.PENDING.value,
+            TransactionStatus.APPROVED.value,
+        ]
+
+        stmt: Select[TransactionModel] = (
+            select(TransactionModel)
+            .where(
+                TransactionModel.tenant_id == UUID(tenant_id),
+                TransactionModel.settlement_date.isnot(None),
+                TransactionModel.settlement_date <= cutoff_date,
+                TransactionModel.status.in_(pending_statuses),
+            )
+            .order_by(TransactionModel.settlement_date.asc())
+        )
+
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        entities = [self._mapper.to_entity(model) for model in models]
+
+        self._logger.debug(
+            "transactions_delayed_settlements",
+            count=len(entities),
+            cutoff=str(cutoff_date),
+        )
+
+        return entities
+
+    async def find_chargebacks(
+        self,
+        tenant_id: str,
+        start_date: date,
+        end_date: date,
+    ) -> List[AcquirerTransaction]:
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(end_date, datetime.max.time())
+
+        stmt: Select[TransactionModel] = (
+            select(TransactionModel)
+            .where(
+                TransactionModel.tenant_id == UUID(tenant_id),
+                TransactionModel.transaction_date >= start_dt,
+                TransactionModel.transaction_date <= end_dt,
+                TransactionModel.status == TransactionStatus.CHARGEBACK.value,
+            )
+            .order_by(TransactionModel.transaction_date.asc())
+        )
+
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        entities = [self._mapper.to_entity(model) for model in models]
+
+        self._logger.debug(
+            "transactions_chargebacks",
             count=len(entities),
             start=str(start_date),
             end=str(end_date),

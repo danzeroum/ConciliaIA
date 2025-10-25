@@ -11,6 +11,7 @@ from .import_schedule import ImportSchedule
 from .settlement import Settlement, SettlementStatus
 from .tenant import Tenant, TenantTier
 from .user import User
+from .notification import Notification
 
 __all__ = [
     "AcquirerTransaction",
@@ -31,4 +32,5 @@ __all__ = [
     "Tenant",
     "TenantTier",
     "User",
+    "Notification",
 ]
