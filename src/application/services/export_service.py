@@ -18,6 +18,7 @@ from src.infrastructure.persistence.repositories import (
     DivergenceRepository,
     MatchRepository,
     SaleRepository,
+    SettlementRepository,
     TransactionRepository,
 )
 
@@ -36,6 +37,7 @@ class ExportService:
         transaction_repo: TransactionRepository,
         match_repo: MatchRepository,
         divergence_repo: DivergenceRepository,
+        settlement_repo: SettlementRepository,
         *,
         report_service: ReportService | None = None,
     ) -> None:
@@ -43,6 +45,7 @@ class ExportService:
         self.transaction_repo = transaction_repo
         self.match_repo = match_repo
         self.divergence_repo = divergence_repo
+        self.settlement_repo = settlement_repo
         self._report_service = report_service
 
     async def export_sales_to_excel(
@@ -224,6 +227,7 @@ class ExportService:
                 transaction_repo=self.transaction_repo,
                 match_repo=self.match_repo,
                 divergence_repo=self.divergence_repo,
+                settlement_repo=self.settlement_repo,
             )
         return self._report_service
 

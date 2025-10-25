@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,9 @@ from src.infrastructure.persistence.repositories.postgresql_sale_repository impo
 )
 from src.infrastructure.persistence.repositories.postgresql_transaction_repository import (
     PostgreSQLTransactionRepository,
+)
+from src.infrastructure.persistence.repositories.postgresql_settlement_repository import (
+    PostgreSQLSettlementRepository,
 )
 
 router = APIRouter()
@@ -117,6 +120,23 @@ class MDRVarianceResponse(BaseModel):
     variances: List[MDRVarianceItem]
 
 
+class CashflowTimelineItem(BaseModel):
+    date: str
+    expected_amount: float
+    received_amount: float
+    delayed_amount: float
+
+
+class CashflowOverviewResponse(BaseModel):
+    period_start: str
+    period_end: str
+    total_expected: float
+    total_received: float
+    delayed_amount: float
+    pending_amount: float
+    timeline: List[CashflowTimelineItem]
+
+
 def get_report_service(
     db_session: AsyncSession = Depends(get_db_session),
 ) -> ReportService:
@@ -124,7 +144,14 @@ def get_report_service(
     transaction_repo = PostgreSQLTransactionRepository(db_session)
     match_repo = PostgreSQLMatchRepository(db_session)
     divergence_repo = PostgreSQLDivergenceRepository(db_session)
-    return ReportService(sale_repo, transaction_repo, match_repo, divergence_repo)
+    settlement_repo = PostgreSQLSettlementRepository(db_session)
+    return ReportService(
+        sale_repo,
+        transaction_repo,
+        match_repo,
+        divergence_repo,
+        settlement_repo=settlement_repo,
+    )
 
 
 @router.get(
@@ -244,6 +271,33 @@ async def get_mdr_variance(
         period_end=end_date.isoformat(),
         total_variance_amount=report["total_variance_amount"],
         variances=[MDRVarianceItem(**item) for item in report["variances"]],
+    )
+
+
+@router.get(
+    "/reports/cashflow-overview",
+    response_model=CashflowOverviewResponse,
+    summary="Cashflow forecast versus received",
+    tags=["Reports"],
+)
+async def get_cashflow_overview(
+    tenant: Tenant = Depends(get_current_tenant),
+    service: ReportService = Depends(get_report_service),
+    start_date: date = Query(..., description="Start date"),
+    end_date: date = Query(..., description="End date"),
+) -> CashflowOverviewResponse:
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="Data inicial deve ser anterior à final")
+
+    report = await service.generate_cashflow_overview(tenant.id, start_date, end_date)
+    return CashflowOverviewResponse(
+        period_start=report["period_start"],
+        period_end=report["period_end"],
+        total_expected=report["total_expected"],
+        total_received=report["total_received"],
+        delayed_amount=report["delayed_amount"],
+        pending_amount=report["pending_amount"],
+        timeline=[CashflowTimelineItem(**item) for item in report["timeline"]],
     )
 
 

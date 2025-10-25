@@ -13,6 +13,9 @@ from src.api import dependencies
 from src.api.middleware import AuthMiddleware, RateLimitMiddleware, TenantMiddleware
 from src.api.routes import auth
 from src.api.v1.routes import (
+    alerts,
+    auto_import,
+    bank_reconciliation,
     divergences,
     export,
     health,
@@ -26,6 +29,7 @@ from src.api.v1.routes import (
 )
 from src.infrastructure.logging import setup_logging
 from src.infrastructure.persistence.database import Database
+from src.infrastructure.scheduler import AutoImportScheduler, build_auto_import_runner
 from src.infrastructure.security import JWTHandler, PasswordHasher, RateLimiter
 
 setup_logging(environment=os.getenv("ENVIRONMENT", "development"))
@@ -65,10 +69,23 @@ async def lifespan(app: FastAPI):
     )
     dependencies.database = Database(database_url)
 
+    if dependencies.database is None:
+        raise RuntimeError("Database failed to initialise")
+
+    runner = build_auto_import_runner(dependencies.database.session_factory)
+    dependencies.auto_import_scheduler = AutoImportScheduler(
+        session_factory=dependencies.database.session_factory,
+        runner=runner,
+    )
+    dependencies.auto_import_scheduler.start()
+    await dependencies.auto_import_scheduler.initialise()
+
     logger.info("application_started", environment=os.getenv("ENVIRONMENT"))
 
     yield
 
+    if dependencies.auto_import_scheduler:
+        dependencies.auto_import_scheduler.shutdown()
     if dependencies.database:
         await dependencies.database.close()
     logger.info("application_shutdown")
@@ -125,6 +142,9 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
+app.include_router(auto_import.router, prefix="/api/v1", tags=["Auto Import"])
+app.include_router(bank_reconciliation.router, prefix="/api/v1", tags=["Bank Reconciliation"])
+app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(reconciliation.router, prefix="/api/v1", tags=["Reconciliation"])
 app.include_router(divergences.router, prefix="/api/v1", tags=["Divergences"])
 app.include_router(matches.router, prefix="/api/v1", tags=["Matches"])

@@ -24,6 +24,9 @@ from src.infrastructure.persistence.repositories.postgresql_sale_repository impo
 from src.infrastructure.persistence.repositories.postgresql_transaction_repository import (
     PostgreSQLTransactionRepository,
 )
+from src.infrastructure.persistence.repositories.postgresql_settlement_repository import (
+    PostgreSQLSettlementRepository,
+)
 
 router = APIRouter()
 
@@ -33,12 +36,14 @@ def _get_export_service(session: AsyncSession) -> ExportService:
     transaction_repo = PostgreSQLTransactionRepository(session)
     match_repo = PostgreSQLMatchRepository(session)
     divergence_repo = PostgreSQLDivergenceRepository(session)
+    settlement_repo = PostgreSQLSettlementRepository(session)
 
     report_service = ReportService(
         sale_repo=sale_repo,
         transaction_repo=transaction_repo,
         match_repo=match_repo,
         divergence_repo=divergence_repo,
+        settlement_repo=settlement_repo,
     )
 
     return ExportService(
@@ -46,6 +51,7 @@ def _get_export_service(session: AsyncSession) -> ExportService:
         transaction_repo=transaction_repo,
         match_repo=match_repo,
         divergence_repo=divergence_repo,
+        settlement_repo=settlement_repo,
         report_service=report_service,
     )
 

@@ -219,3 +219,36 @@ class UserModel(Base):
         Index("idx_users_tenant_email", "tenant_id", "email"),
         Index("idx_users_is_active", "is_active"),
     )
+
+
+class ImportScheduleModel(Base):
+    """Model storing automated acquirer import configurations."""
+
+    __tablename__ = "import_schedules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    acquirer = Column(String(50), nullable=False)
+    schedule_type = Column(String(20), nullable=False)
+    time_of_day = Column(String(5), nullable=False)
+    days_to_import = Column(Integer, nullable=False, default=1)
+    credential_hint = Column(String(120))
+    webhook_url = Column(String(255))
+    is_active = Column(Boolean, default=True, index=True)
+    last_run_at = Column(DateTime)
+    next_run_at = Column(DateTime)
+    error_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tenant = relationship("TenantModel")
+
+    __table_args__ = (
+        Index("idx_import_schedules_tenant", "tenant_id"),
+        Index("idx_import_schedules_active", "tenant_id", "is_active"),
+    )
