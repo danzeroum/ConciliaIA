@@ -23,6 +23,8 @@ class TransactionStatus(str, Enum):
     APPROVED = "approved"
     CANCELLED = "cancelled"
     CHARGEBACK = "chargeback"
+    PENDING = "pending"
+    SETTLED = "settled"
 
 
 @dataclass
@@ -35,6 +37,7 @@ class AcquirerTransaction:
     nsu: NSU | str
     amount: Money
     transaction_date: date
+    settlement_date: Optional[date] = None
     authorization_code: Optional[AuthorizationCode | str] = None
     card_brand: Optional[str] = None
     card_last_4: Optional[str] = None
@@ -62,6 +65,9 @@ class AcquirerTransaction:
 
         if self.transaction_date > date.today():
             raise ValueError("Transaction date cannot be in the future")
+
+        if self.settlement_date and self.settlement_date < self.transaction_date:
+            raise ValueError("Settlement date cannot be before the transaction date")
 
         if self.net_amount and self.net_amount.amount >= self.amount.amount:
             raise ValueError("Net amount must be less than gross amount")
