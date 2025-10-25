@@ -6,17 +6,31 @@ from datetime import date
 from decimal import Decimal
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_tenant, get_db_session
+from src.api.dependencies import (
+    get_current_tenant,
+    get_current_tenant_id,
+    get_db_session,
+)
 from src.application.use_cases.auto_bank_reconciliation import (
     AutoBankReconciliationRequest,
     AutoBankReconciliationUseCase,
     BankPayment,
 )
+from src.application.use_cases.bank_reconciliation import (
+    ReconcileBankStatementRequest,
+    ReconcileBankStatementUseCase,
+)
 from src.domain.entities import Tenant
+from src.infrastructure.persistence.repositories.acquirer_transaction_repository import (
+    AcquirerTransactionRepository,
+)
+from src.infrastructure.persistence.repositories.postgresql_bank_transaction_repository import (
+    PostgreSQLBankTransactionRepository,
+)
 from src.infrastructure.persistence.repositories.postgresql_settlement_repository import (
     PostgreSQLSettlementRepository,
 )
@@ -76,6 +90,50 @@ async def auto_match_bank_payments(
             for payment in result.unmatched
         ],
     )
+
+
+@router.post("/upload-ofx")
+async def upload_bank_statement(
+    file: UploadFile = File(..., description="Arquivo OFX do banco"),
+    bank_account_id: str = "default",
+    tenant_id: str = Depends(get_current_tenant_id),
+    session: AsyncSession = Depends(get_db_session),
+):
+    if not file.filename.lower().endswith(".ofx"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Apenas arquivos OFX são aceitos",
+        )
+
+    try:
+        ofx_content = (await file.read()).decode("utf-8")
+    except UnicodeDecodeError as exc:  # pragma: no cover - defensive
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erro ao ler arquivo. Verifique se é um OFX válido",
+        ) from exc
+
+    use_case = ReconcileBankStatementUseCase(
+        acquirer_transaction_repo=AcquirerTransactionRepository(session),
+        bank_transaction_repo=PostgreSQLBankTransactionRepository(session),
+    )
+
+    result = await use_case.execute(
+        ReconcileBankStatementRequest(
+            tenant_id=tenant_id,
+            ofx_content=ofx_content,
+            bank_account_id=bank_account_id,
+        )
+    )
+
+    return {
+        "summary_message": result.summary_message,
+        "total_transactions": result.total_transactions,
+        "matched_count": result.matched_count,
+        "unmatched_count": result.unmatched_count,
+        "total_matched_amount": float(result.total_matched_amount),
+        "matches": result.matches,
+    }
 
 
 __all__ = ["router"]

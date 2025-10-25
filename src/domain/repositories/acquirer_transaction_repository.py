@@ -22,3 +22,13 @@ class IAcquirerTransactionRepository(ABC):
     ) -> List[AcquirerTransaction]:
         """Return transactions filtered by settlement status within a date range."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_date_range(
+        self,
+        tenant_id: str,
+        start_date: date,
+        end_date: date,
+    ) -> List[AcquirerTransaction]:
+        """Return transactions that occurred within the provided interval."""
+        raise NotImplementedError

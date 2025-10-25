@@ -6,6 +6,11 @@ from .auto_bank_reconciliation import (
     AutoBankReconciliationUseCase,
     BankPayment,
 )
+from .bank_reconciliation import (
+    BankReconciliationResponse,
+    ReconcileBankStatementRequest,
+    ReconcileBankStatementUseCase,
+)
 from .cash_flow import (
     CashFlowForecastResponse,
     GetCashFlowForecastRequest,
@@ -19,6 +24,9 @@ __all__ = [
     "AutoBankReconciliationRequest",
     "AutoBankReconciliationResponse",
     "BankPayment",
+    "ReconcileBankStatementUseCase",
+    "ReconcileBankStatementRequest",
+    "BankReconciliationResponse",
     "GetCashFlowForecastUseCase",
     "GetCashFlowForecastRequest",
     "CashFlowForecastResponse",

@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import { SalesPage } from './pages/Sales/Sales';
 import { ReconciliationPage } from './pages/Reconciliation/Reconciliation';
 import BankReconciliationPage from './pages/Reconciliation/BankReconciliation';
+import BankReconciliationUpload from './pages/BankReconciliation/BankReconciliationUpload';
 import { TransactionsPage } from './pages/Transactions/Transactions';
 import { DivergencesPage } from './pages/Divergences/Divergences';
 import { ReportsPage } from './pages/Reports/Reports';
@@ -53,6 +54,7 @@ export function App() {
               <Route path="sales" element={<SalesPage />} />
               <Route path="reconciliation" element={<ReconciliationPage />} />
               <Route path="bank-reconciliation" element={<BankReconciliationPage />} />
+              <Route path="bank-reconciliation/upload" element={<BankReconciliationUpload />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="divergences" element={<DivergencesPage />} />
               <Route path="reports" element={<ReportsPage />} />
