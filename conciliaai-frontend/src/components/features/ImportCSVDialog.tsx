@@ -19,6 +19,7 @@ interface ImportCSVDialogProps {
   title: string;
   acceptedFormats?: string;
   helperText?: React.ReactNode;
+  allowEDI?: boolean;
 }
 
 export function ImportCSVDialog({
@@ -28,6 +29,7 @@ export function ImportCSVDialog({
   title,
   acceptedFormats = '.csv',
   helperText,
+  allowEDI = false,
 }: ImportCSVDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,8 +38,18 @@ export function ImportCSVDialog({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
-      if (!selectedFile.name.endsWith('.csv')) {
-        setError('Por favor, selecione um arquivo CSV válido');
+      const validExtensions = acceptedFormats
+        .split(',')
+        .map(ext => ext.trim().toLowerCase())
+        .filter(Boolean);
+      const fileExtension = `.${selectedFile.name.split('.').pop()?.toLowerCase()}`;
+
+      const isValid = validExtensions.length === 0
+        ? true
+        : validExtensions.some(ext => ext === fileExtension);
+
+      if (!isValid) {
+        setError(`Por favor, selecione um arquivo válido (${acceptedFormats})`);
         setFile(null);
       } else {
         setError(null);
@@ -80,7 +92,7 @@ export function ImportCSVDialog({
             startIcon={<CloudUploadIcon />}
             sx={{ mb: 2 }}
           >
-            Selecionar Arquivo CSV
+            {allowEDI ? 'Selecionar Arquivo (CSV ou EDI)' : 'Selecionar Arquivo CSV'}
             <input
               type="file"
               hidden

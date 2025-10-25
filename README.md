@@ -252,3 +252,33 @@ conciliaai-v7/
 - ✅ **Rate Limiting** - Token bucket (100 req/min)
 - ✅ **PostgreSQL** - Async, pooled, optimized indexes
 - ✅ **Acquirer Parsers** - Cielo EDI, Rede SOAP, Stone API
+
+### 🆕 Importação EDI Direto
+
+O ConciliaAI agora aceita arquivos EDI diretamente das adquirentes, sem necessidade de conversão manual para CSV.
+
+**Formatos Suportados:**
+- ✅ **Rede:** EEVC (Extrato Eletrônico de Vendas Crédito)
+- 🚧 **Cielo:** Em desenvolvimento
+- 🚧 **Stone:** Em desenvolvimento
+
+**Como Usar:**
+
+1. **Via Frontend:**
+   - Acesse: Reconciliação > Importar Transações
+   - Escolha: "EDI"
+   - Selecione arquivo .txt da Rede
+   - Clique: "Importar"
+
+2. **Via API:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/transactions/import-edi?acquirer=rede" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@rede_eevc_test.txt"
+```
+
+3. **Via Script:**
+```bash
+./scripts/test_rede_edi_upload.sh demo_data/rede_oficial/rede_eevc_test.txt
+```
+

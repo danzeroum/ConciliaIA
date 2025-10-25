@@ -90,6 +90,20 @@ export function useImportTransactions() {
   });
 }
 
+
+export function useImportTransactionsEDI() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ file, acquirer }: { file: File; acquirer?: string }) =>
+      transactionsApi.importEDI(file, acquirer || 'rede'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['kpis'] });
+    },
+  });
+}
+
 export function useExportTransactions() {
   const showNotification = useUIStore((state) => state.showNotification);
 

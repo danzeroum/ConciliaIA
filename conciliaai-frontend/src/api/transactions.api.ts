@@ -95,6 +95,24 @@ export const transactionsApi = {
     return response.data;
   },
 
+  // Import from EDI (NEW)
+  importEDI: async (
+    file: File,
+    acquirer: string = 'rede'
+  ): Promise<ImportTransactionsResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post(
+      `/api/v1/transactions/import-edi?acquirer=${acquirer}`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
+  },
+
   // Export to CSV
   exportCSV: async (params?: { start_date?: string; end_date?: string }): Promise<Blob> => {
     const response = await apiClient.get('/api/v1/transactions/export/csv', {

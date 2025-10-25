@@ -17,15 +17,17 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import { ImportCSVDialog } from '@/components/features/ImportCSVDialog';
 import { useImportSales } from '@/hooks/useSales';
-import { useImportTransactions } from '@/hooks/useTransactions';
+import { useImportTransactions, useImportTransactionsEDI } from '@/hooks/useTransactions';
 import { useKPIs } from '@/hooks/useStats';
 import { formatCurrency } from '@/utils/formatters';
 
 export function ReconciliationPage() {
   const [importSalesOpen, setImportSalesOpen] = React.useState(false);
   const [importTransactionsOpen, setImportTransactionsOpen] = React.useState(false);
+  const [importEDIOpen, setImportEDIOpen] = React.useState(false);
   const importSales = useImportSales();
   const importTransactions = useImportTransactions();
+  const importEDI = useImportTransactionsEDI();
   const { data: kpis } = useKPIs(7);
 
   return (
@@ -66,11 +68,22 @@ export function ReconciliationPage() {
                   <CloudUploadIcon color="secondary" />
                 </ListItemIcon>
                 <ListItemText
-                  primary="Importe o arquivo de transações"
-                  secondary="Suporte a Cielo, Rede, Stone e outros adquirentes."
+                  primary="Importe arquivo de transações"
+                  secondary="CSV ou EDI (Rede, Cielo, Stone)"
                 />
-                <Button size="small" onClick={() => setImportTransactionsOpen(true)}>
-                  Importar
+                <Button
+                  size="small"
+                  onClick={() => setImportTransactionsOpen(true)}
+                  sx={{ mr: 1 }}
+                >
+                  CSV
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setImportEDIOpen(true)}
+                >
+                  EDI
                 </Button>
               </ListItem>
 
@@ -160,11 +173,26 @@ export function ReconciliationPage() {
         open={importTransactionsOpen}
         onClose={() => setImportTransactionsOpen(false)}
         onImport={(file) => importTransactions.mutateAsync(file)}
-        title="Importar Transações"
+        title="Importar Transações (CSV)"
         helperText={
           <Typography variant="body2" color="text.secondary">
             Aceitamos arquivos CSV com as colunas: nsu, acquirer, amount, transaction_date,
             settlement_date, card_brand, installments.
+          </Typography>
+        }
+      />
+
+      <ImportCSVDialog
+        open={importEDIOpen}
+        onClose={() => setImportEDIOpen(false)}
+        onImport={(file) => importEDI.mutateAsync({ file, acquirer: 'rede' })}
+        title="Importar Transações (EDI)"
+        acceptedFormats=".txt,.edi"
+        allowEDI
+        helperText={
+          <Typography variant="body2" color="text.secondary">
+            Envie o arquivo EDI diretamente da Rede (formato EEVC .txt). Não é necessário converter
+            para CSV.
           </Typography>
         }
       />
