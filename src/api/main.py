@@ -16,6 +16,7 @@ from src.api.v1.routes import (
     divergences,
     export,
     health,
+    ingestion,
     matches,
     reconciliation,
     reports,
@@ -132,6 +133,7 @@ app.include_router(transactions.router, prefix="/api/v1", tags=["Transactions"])
 app.include_router(reports.router, prefix="/api/v1", tags=["Reports"])
 app.include_router(export.router, prefix="/api/v1", tags=["Exports"])
 app.include_router(stats.router, prefix="/api/v1", tags=["Statistics"])
+app.include_router(ingestion.router, prefix="/api/v1", tags=["Ingestion"])
 
 
 @app.middleware("http")
