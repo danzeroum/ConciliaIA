@@ -1,6 +1,9 @@
 """Routes exposed by API v1."""
 
 from . import (
+    auto_import,
+    alerts,
+    bank_reconciliation,
     divergences,
     export,
     health,
@@ -14,6 +17,9 @@ from . import (
 )
 
 __all__ = [
+    "auto_import",
+    "alerts",
+    "bank_reconciliation",
     "divergences",
     "export",
     "health",

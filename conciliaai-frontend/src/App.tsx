@@ -9,10 +9,14 @@ import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 import { SalesPage } from './pages/Sales/Sales';
 import { ReconciliationPage } from './pages/Reconciliation/Reconciliation';
+import BankReconciliationPage from './pages/Reconciliation/BankReconciliation';
 import { TransactionsPage } from './pages/Transactions/Transactions';
 import { DivergencesPage } from './pages/Divergences/Divergences';
 import { ReportsPage } from './pages/Reports/Reports';
+import CashflowDashboard from './pages/Reports/CashflowDashboard';
 import { SettingsPage } from './pages/Settings/Settings';
+import AutoImportSettings from './pages/Settings/AutoImportSettings';
+import AlertsPage from './pages/Alerts/AlertsPage';
 import { NotificationSnackbar } from './components/common/Snackbar/NotificationSnackbar';
 
 const queryClient = new QueryClient({
@@ -48,10 +52,14 @@ export function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="sales" element={<SalesPage />} />
               <Route path="reconciliation" element={<ReconciliationPage />} />
+              <Route path="bank-reconciliation" element={<BankReconciliationPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="divergences" element={<DivergencesPage />} />
               <Route path="reports" element={<ReportsPage />} />
+              <Route path="reports/cashflow" element={<CashflowDashboard />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/auto-import" element={<AutoImportSettings />} />
+              <Route path="alerts" element={<AlertsPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

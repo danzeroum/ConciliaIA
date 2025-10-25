@@ -27,3 +27,9 @@ class SettlementRepository(ABC):
     @abstractmethod
     async def find_delayed(self, tenant_id: str, reference_date: date | None = None) -> List[Settlement]:
         """Return settlements considered delayed relative to the reference date."""
+
+    @abstractmethod
+    async def find_by_period(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[Settlement]:
+        """Return settlements expected within the provided window."""

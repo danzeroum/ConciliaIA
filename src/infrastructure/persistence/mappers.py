@@ -11,6 +11,7 @@ from src.domain.entities import (
     DivergenceStatus,
     DivergenceType,
     MatchType,
+    ImportSchedule,
     ReconciliationMatch,
     Sale,
     Settlement,
@@ -22,6 +23,7 @@ from src.domain.entities import (
 from src.domain.value_objects import Money, Percentage
 from .models import (
     DivergenceModel,
+    ImportScheduleModel,
     MatchModel,
     SaleModel,
     SettlementModel,
@@ -281,5 +283,52 @@ class SettlementMapper:
         model.actual_date = entity.actual_date
         model.status = entity.status.value if hasattr(entity.status, "value") else entity.status
         model.created_at = entity.created_at
+
+        return model
+
+
+class ImportScheduleMapper:
+    """Map between ImportSchedule entity and ImportScheduleModel."""
+
+    @staticmethod
+    def to_entity(model: ImportScheduleModel) -> ImportSchedule:
+        return ImportSchedule(
+            id=str(model.id),
+            tenant_id=str(model.tenant_id),
+            acquirer=model.acquirer,
+            schedule_type=model.schedule_type,
+            time_of_day=model.time_of_day,
+            days_to_import=model.days_to_import,
+            credential_hint=model.credential_hint,
+            webhook_url=model.webhook_url,
+            is_active=model.is_active,
+            last_run_at=model.last_run_at,
+            next_run_at=model.next_run_at,
+            error_count=model.error_count,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+        )
+
+    @staticmethod
+    def to_model(
+        entity: ImportSchedule, model: ImportScheduleModel | None = None
+    ) -> ImportScheduleModel:
+        if model is None:
+            model = ImportScheduleModel()
+
+        model.id = entity.id
+        model.tenant_id = entity.tenant_id
+        model.acquirer = entity.acquirer
+        model.schedule_type = entity.schedule_type
+        model.time_of_day = entity.time_of_day
+        model.days_to_import = entity.days_to_import
+        model.credential_hint = entity.credential_hint
+        model.webhook_url = entity.webhook_url
+        model.is_active = entity.is_active
+        model.last_run_at = entity.last_run_at
+        model.next_run_at = entity.next_run_at
+        model.error_count = entity.error_count
+        model.created_at = entity.created_at
+        model.updated_at = entity.updated_at
 
         return model

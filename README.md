@@ -23,6 +23,13 @@ Sistema de Reconciliação Financeira de Adquirentes com IA, seguindo **BuildToV
 | **IMPL-008**: Authentication | ✅ | 16h | 100% |
 | **TOTAL** | **✅** | **172h** | **100%** |
 
+## 🆕 Novidades IMPL-010
+
+- **Importação automática Cielo** – agende a coleta diária de relatórios pelo endpoint `POST /api/v1/auto-import/schedule`.
+- **Dashboard de fluxo de caixa** – acompanhe previsto vs recebido com o endpoint `GET /api/v1/reports/cashflow-overview` e nova tela no frontend.
+- **Conciliação bancária automática** – envie créditos bancários para o endpoint `POST /api/v1/bank-reconciliation/auto-match` e atualize settlements automaticamente.
+- **Alertas proativos** – receba eventos críticos via `GET /api/v1/alerts/proactive` e painel dedicado no frontend.
+
 ## 📊 Métricas Finais
 
 | Métrica | Target | Atual | Status |

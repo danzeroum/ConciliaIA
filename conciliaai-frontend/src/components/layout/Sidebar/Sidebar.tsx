@@ -17,6 +17,9 @@ import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import WarningIcon from '@mui/icons-material/Warning';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUIStore } from '@/store/ui.store';
 
@@ -33,9 +36,13 @@ const menuItems: MenuItem[] = [
   { text: 'Vendas', icon: <ShoppingCartIcon />, path: '/sales' },
   { text: 'Transações', icon: <ReceiptIcon />, path: '/transactions' },
   { text: 'Reconciliação', icon: <CompareArrowsIcon />, path: '/reconciliation' },
+  { text: 'Pagamentos Bancários', icon: <AccountBalanceIcon />, path: '/bank-reconciliation' },
   { text: 'Divergências', icon: <WarningIcon />, path: '/divergences' },
   { text: 'Relatórios', icon: <AssessmentIcon />, path: '/reports' },
+  { text: 'Fluxo de Caixa', icon: <AssessmentIcon />, path: '/reports/cashflow' },
+  { text: 'Alertas', icon: <NotificationsActiveIcon />, path: '/alerts' },
   { text: 'Configurações', icon: <SettingsIcon />, path: '/settings' },
+  { text: 'Importação Cielo', icon: <CloudDownloadIcon />, path: '/settings/auto-import' },
 ];
 
 export function Sidebar() {

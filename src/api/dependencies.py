@@ -23,6 +23,7 @@ from src.infrastructure.persistence.repositories.postgresql_sale_repository impo
 from src.infrastructure.persistence.repositories.postgresql_transaction_repository import (
     PostgreSQLTransactionRepository,
 )
+from src.infrastructure.scheduler import AutoImportScheduler
 from src.infrastructure.repositories.postgresql_user_repository import PostgreSQLUserRepository
 from src.infrastructure.security import JWTHandler, PasswordHasher, RateLimiter
 from src.api.middleware import AuthMiddleware
@@ -40,6 +41,7 @@ jwt_handler: JWTHandlerType = None
 password_hasher: PasswordHasherType = None
 rate_limiter: RateLimiterType = None
 auth_middleware: AuthMiddlewareType = None
+auto_import_scheduler: AutoImportScheduler | None = None
 
 security = HTTPBearer()
 
@@ -60,6 +62,12 @@ def get_rate_limiter() -> RateLimiter:
     if rate_limiter is None:
         raise HTTPException(status_code=500, detail="Rate limiter not initialized")
     return rate_limiter
+
+
+def get_auto_import_scheduler() -> AutoImportScheduler:
+    if auto_import_scheduler is None:
+        raise HTTPException(status_code=500, detail="Scheduler not initialized")
+    return auto_import_scheduler
 
 
 async def get_db_session() -> AsyncSession:
@@ -153,6 +161,7 @@ __all__ = [
     "get_jwt_handler",
     "get_password_hasher",
     "get_rate_limiter",
+    "get_auto_import_scheduler",
     "get_user_repository",
     "require_roles",
     "database",
@@ -160,4 +169,5 @@ __all__ = [
     "password_hasher",
     "rate_limiter",
     "auth_middleware",
+    "auto_import_scheduler",
 ]

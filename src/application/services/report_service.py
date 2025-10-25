@@ -14,6 +14,7 @@ from src.infrastructure.persistence.repositories import (
     DivergenceRepository,
     MatchRepository,
     SaleRepository,
+    SettlementRepository,
     TransactionRepository,
 )
 
@@ -29,11 +30,14 @@ class ReportService:
         transaction_repo: TransactionRepository,
         match_repo: MatchRepository,
         divergence_repo: DivergenceRepository,
+        *,
+        settlement_repo: SettlementRepository | None = None,
     ) -> None:
         self.sale_repo = sale_repo
         self.transaction_repo = transaction_repo
         self.match_repo = match_repo
         self.divergence_repo = divergence_repo
+        self.settlement_repo = settlement_repo
 
     async def generate_accuracy_report(
         self, tenant_id: str, start_date: date, end_date: date
@@ -361,6 +365,61 @@ class ReportService:
         return {
             "total_variance_amount": round(float(total_variance_amount), 2),
             "variances": variances,
+        }
+
+    async def generate_cashflow_overview(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> Dict[str, Any]:
+        if self.settlement_repo is None:
+            raise RuntimeError("Settlement repository not configured")
+
+        settlements = await self.settlement_repo.find_by_period(
+            tenant_id, start_date, end_date
+        )
+
+        totals = defaultdict(
+            lambda: {
+                "expected": Decimal("0"),
+                "received": Decimal("0"),
+                "delayed": Decimal("0"),
+            }
+        )
+
+        expected_total = Decimal("0")
+        received_total = Decimal("0")
+        delayed_total = Decimal("0")
+
+        for settlement in settlements:
+            amount = settlement.net_amount.amount
+            expected_total += amount
+            bucket = totals[settlement.expected_date]
+            bucket["expected"] += amount
+
+            if settlement.is_paid and settlement.actual_date:
+                bucket["received"] += amount
+                received_total += amount
+            elif settlement.is_delayed:
+                bucket["delayed"] += amount
+                delayed_total += amount
+
+        timeline = [
+            {
+                "date": day.isoformat(),
+                "expected_amount": float(values["expected"]),
+                "received_amount": float(values["received"]),
+                "delayed_amount": float(values["delayed"]),
+            }
+            for day, values in sorted(totals.items(), key=lambda item: item[0])
+        ]
+
+        return {
+            "period_start": start_date.isoformat(),
+            "period_end": end_date.isoformat(),
+            "total_expected": float(expected_total),
+            "total_received": float(received_total),
+            "delayed_amount": float(delayed_total),
+            "pending_amount": float(expected_total - received_total),
+            "timeline": timeline,
         }
 
 

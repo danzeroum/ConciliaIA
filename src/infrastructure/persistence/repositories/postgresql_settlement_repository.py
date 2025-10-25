@@ -98,3 +98,20 @@ class PostgreSQLSettlementRepository(SettlementRepository):
         self.logger.warning("delayed_settlements_found", count=len(models))
 
         return [self.mapper.to_entity(model) for model in models]
+
+    async def find_by_period(
+        self, tenant_id: str, start_date: date, end_date: date
+    ) -> List[Settlement]:
+        stmt = (
+            select(SettlementModel)
+            .where(
+                SettlementModel.tenant_id == UUID(tenant_id),
+                SettlementModel.expected_date >= start_date,
+                SettlementModel.expected_date <= end_date,
+            )
+            .order_by(SettlementModel.expected_date)
+        )
+
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+        return [self.mapper.to_entity(model) for model in models]

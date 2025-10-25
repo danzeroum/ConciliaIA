@@ -37,6 +37,7 @@ async def test_export_sales_to_excel_generates_workbook() -> None:
     match_repo = Mock()
     transaction_repo = Mock()
     divergence_repo = Mock()
+    settlement_repo = Mock()
 
     sale_repo.find_by_date_range = AsyncMock(return_value=[_make_sale()])
     match_repo.find_by_date_range = AsyncMock(
@@ -52,11 +53,14 @@ async def test_export_sales_to_excel_generates_workbook() -> None:
         ]
     )
 
+    settlement_repo.find_by_period = AsyncMock(return_value=[])
+
     service = ExportService(
         sale_repo=sale_repo,
         transaction_repo=transaction_repo,
         match_repo=match_repo,
         divergence_repo=divergence_repo,
+        settlement_repo=settlement_repo,
     )
 
     output = await service.export_sales_to_excel("tenant-1", date(2024, 1, 1), date(2024, 1, 31))
@@ -109,11 +113,15 @@ async def test_export_reports_use_report_service() -> None:
         }
     )
 
+    settlement_repo = Mock()
+    settlement_repo.find_by_period = AsyncMock(return_value=[])
+
     service = ExportService(
         sale_repo=sale_repo,
         transaction_repo=transaction_repo,
         match_repo=match_repo,
         divergence_repo=divergence_repo,
+        settlement_repo=settlement_repo,
         report_service=report_service,
     )
 
