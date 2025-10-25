@@ -6,6 +6,7 @@ from .match_repository import MatchRepository
 from .sale_repository import SaleRepository
 from .settlement_repository import SettlementRepository
 from .transaction_repository import TransactionRepository
+from .notification_repository import NotificationRepository
 from .postgresql_bank_transaction_repository import PostgreSQLBankTransactionRepository
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "SettlementRepository",
     "TransactionRepository",
     "PostgreSQLBankTransactionRepository",
+    "NotificationRepository",
 ]

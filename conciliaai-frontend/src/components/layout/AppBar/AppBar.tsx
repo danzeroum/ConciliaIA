@@ -21,6 +21,7 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
+import { NotificationCenter } from '@/components/features/notifications/NotificationCenter';
 
 export function AppBar() {
   const theme = useTheme();
@@ -77,6 +78,8 @@ export function AppBar() {
           <IconButton color="inherit" onClick={toggleThemeMode}>
             {currentTheme === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
           </IconButton>
+
+          <NotificationCenter />
 
           <IconButton onClick={handleMenu} color="inherit">
             <Avatar sx={{ width: 32, height: 32 }}>

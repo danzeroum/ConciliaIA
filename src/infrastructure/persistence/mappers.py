@@ -13,6 +13,7 @@ from src.domain.entities import (
     DivergenceStatus,
     DivergenceType,
     ImportSchedule,
+    Notification,
     MatchType,
     ReconciliationMatch,
     Sale,
@@ -28,6 +29,7 @@ from .models import (
     BankTransactionModel,
     DivergenceModel,
     ImportScheduleModel,
+    NotificationModel,
     MatchModel,
     SaleModel,
     SettlementModel,
@@ -165,6 +167,41 @@ class TransactionMapper:
         model.net_amount = entity.net_amount.amount if entity.net_amount else None
         model.status = entity.status.value if hasattr(entity.status, "value") else entity.status
         model.created_at = entity.created_at
+
+        return model
+
+
+class NotificationMapper:
+    """Map between Notification entity and NotificationModel."""
+
+    @staticmethod
+    def to_entity(model: NotificationModel) -> Notification:
+        return Notification(
+            id=model.id,
+            tenant_id=str(model.tenant_id),
+            title=model.title,
+            message=model.message,
+            priority=model.priority,
+            action_url=model.action_url,
+            is_read=model.is_read,
+            created_at=model.created_at,
+            read_at=model.read_at,
+        )
+
+    @staticmethod
+    def to_model(entity: Notification, model: Optional[NotificationModel] = None) -> NotificationModel:
+        if model is None:
+            model = NotificationModel()
+
+        model.id = entity.id
+        model.tenant_id = entity.tenant_id
+        model.title = entity.title
+        model.message = entity.message
+        model.priority = entity.priority
+        model.action_url = entity.action_url
+        model.is_read = entity.is_read
+        model.created_at = entity.created_at
+        model.read_at = entity.read_at
 
         return model
 

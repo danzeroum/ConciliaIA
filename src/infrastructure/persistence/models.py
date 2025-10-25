@@ -50,6 +50,9 @@ class TenantModel(Base):
     matches = relationship("MatchModel", back_populates="tenant", cascade="all, delete-orphan")
     divergences = relationship("DivergenceModel", back_populates="tenant", cascade="all, delete-orphan")
     users = relationship("UserModel", back_populates="tenant", cascade="all, delete-orphan")
+    notifications = relationship(
+        "NotificationModel", back_populates="tenant", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (Index("idx_tenants_active_tier", "active", "tier"),)
 
@@ -338,4 +341,50 @@ class ImportScheduleModel(Base):
     __table_args__ = (
         Index("idx_import_schedules_tenant", "tenant_id"),
         Index("idx_import_schedules_active", "tenant_id", "is_active"),
+    )
+
+
+class NotificationModel(Base):
+    """Notifications delivered to tenants."""
+
+    __tablename__ = "notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    priority = Column(String(20), nullable=False, default="info")
+    action_url = Column(String(500))
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    read_at = Column(DateTime)
+
+    tenant = relationship("TenantModel", back_populates="notifications")
+
+    __table_args__ = (
+        Index("idx_notifications_tenant_created", "tenant_id", "created_at"),
+        Index("idx_notifications_unread", "tenant_id", "is_read"),
+    )
+
+
+class AlertHistoryModel(Base):
+    """Keep track of alerts already triggered to avoid duplicates."""
+
+    __tablename__ = "alert_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    rule_id = Column(String(50), nullable=False, index=True)
+    triggered_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    alert_data = Column(JSONB)
+
+    tenant = relationship("TenantModel")
+
+    __table_args__ = (
+        Index("idx_alert_history_tenant", "tenant_id", "triggered_at"),
+        Index("idx_alert_history_rule", "rule_id", "triggered_at"),
     )

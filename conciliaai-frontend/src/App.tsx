@@ -18,6 +18,7 @@ import CashflowDashboard from './pages/Reports/CashflowDashboard';
 import { SettingsPage } from './pages/Settings/Settings';
 import AutoImportSettings from './pages/Settings/AutoImportSettings';
 import AlertsPage from './pages/Alerts/AlertsPage';
+import NotificationsPage from './pages/Notifications/NotificationsPage';
 import { NotificationSnackbar } from './components/common/Snackbar/NotificationSnackbar';
 
 const queryClient = new QueryClient({
@@ -62,6 +63,7 @@ export function App() {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="settings/auto-import" element={<AutoImportSettings />} />
               <Route path="alerts" element={<AlertsPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
