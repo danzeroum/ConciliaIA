@@ -49,55 +49,55 @@ help:
 
 
 start: check-python
-        @chcp 65001 >nul 2>&1
-        @echo 🚀 ConciliaAI - Starting complete environment...
-        @echo.
-        @echo 📦 Step 1/5: Installing dependencies...
-        @$(MAKE) --no-print-directory install
+@chcp 65001 >nul 2>&1
+@echo 🚀 ConciliaAI - Starting complete environment...
+@echo.
+@echo 📦 Step 1/5: Installing dependencies...
+@$(MAKE) --no-print-directory install
 
-	@echo.
-	@echo 🐳 Step 2/5: Starting Docker containers...
-	@$(MAKE) --no-print-directory docker-up
-	@echo.
-	@echo ⏳ Step 3/5: Waiting for database...
-	@timeout /t 10 /nobreak >nul
-	@echo.
-	@echo 🗄️ Step 4/5: Running migrations...
-	@$(MAKE) --no-print-directory migrate
-	@echo.
-	@echo 🌱 Step 5/5: Seeding database...
-	@$(MAKE) --no-print-directory seed
-	@echo.
-	@echo ✅ Environment ready!
-	@echo.
-	@echo 📍 API: http://localhost:8000
-	@echo 📖 Docs: http://localhost:8000/docs
-	@echo 🗄️ DB: postgresql://btv_user:btv_password@localhost:5432/conciliaai
-	@echo.
-	@echo 🎯 Next steps:
-	@echo    - Access API docs: http://localhost:8000/docs
-	@echo    - Run tests: make test
-	@echo    - View logs: make docker-logs
-	@echo.
+@echo.
+@echo 🐳 Step 2/5: Starting Docker containers...
+@$(MAKE) --no-print-directory docker-up
+@echo.
+@echo ⏳ Step 3/5: Waiting for database...
+@timeout /t 10 /nobreak >nul
+@echo.
+@echo 🗄️ Step 4/5: Running migrations...
+@$(MAKE) --no-print-directory migrate
+@echo.
+@echo 🌱 Step 5/5: Seeding database...
+@$(MAKE) --no-print-directory seed
+@echo.
+@echo ✅ Environment ready!
+@echo.
+@echo 📍 API: http://localhost:8000
+@echo 📖 Docs: http://localhost:8000/docs
+@echo 🗄️ DB: postgresql://btv_user:btv_password@localhost:5432/conciliaai
+@echo.
+@echo 🎯 Next steps:
+@echo    - Access API docs: http://localhost:8000/docs
+@echo    - Run tests: make test
+@echo    - View logs: make docker-logs
+@echo.
 
 setup: install docker-up
 	@timeout /t 5 /nobreak >nul
 	@$(MAKE) migrate
 
 install:
-        @chcp 65001 >nul 2>&1
-        @where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
-        @python -m pip install --upgrade pip
-        @python -m pip install -r requirements.txt
-        @python -m pip install -r requirements-dev.txt
-        @python -m pip install pytest-benchmark locust
-        @echo ✅ Dependencies installed
+@chcp 65001 >nul 2>&1
+@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
+@python -m pip install --upgrade pip
+@python -m pip install -r requirements.txt
+@python -m pip install -r requirements-dev.txt
+@python -m pip install pytest-benchmark locust
+@echo ✅ Dependencies installed
 
 check-python:
-        @chcp 65001 >nul 2>&1
-        @where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
-        @where docker >nul 2>&1 || (echo ❌ Docker not found. Install from https://www.docker.com && exit /b 1)
-        @echo ✅ Prerequisites OK
+@chcp 65001 >nul 2>&1
+@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
+@where docker >nul 2>&1 || (echo ❌ Docker not found. Install from https://www.docker.com && exit /b 1)
+@echo ✅ Prerequisites OK
 
 
 test:
