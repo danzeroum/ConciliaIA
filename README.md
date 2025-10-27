@@ -46,7 +46,10 @@ Sistema de Reconciliação Financeira de Adquirentes com IA, seguindo **BuildToV
 ## 🚀 Quick Start
 
 ### Pré-requisitos
-- Python 3.11+
+- **Python 3.11** (recomendado) ou Python 3.12
+  - ✅ Python 3.11.9+ instalado e funcionando
+  - Download: https://www.python.org/downloads/
+  - Durante instalação: marque "Add Python to PATH"
 - Docker & Docker Compose
 - PostgreSQL 16+ (ou usar Docker)
 - 8GB RAM, 20GB disk
@@ -97,6 +100,29 @@ make test           # Executar testes
 make docker-logs    # Ver logs do Docker
 make docker-reset   # Resetar ambiente Docker
 ```
+
+### Troubleshooting
+
+#### Erro: "pip: command not found"
+```bash
+# Reparar pip automaticamente
+make fix-pip
+```
+
+#### Erro: "pydantic-core requires Rust"
+**Causa:** Python 3.13+ não é suportado.
+
+**Solução:**
+1. Desinstalar Python 3.13
+2. Instalar Python 3.11: https://www.python.org/downloads/
+3. Verificar: `python --version` → deve mostrar 3.11.x
+4. Executar: `make start`
+
+#### Erro: "Docker não encontrado"
+1. Instalar Docker Desktop: https://www.docker.com/products/docker-desktop
+2. Iniciar Docker Desktop
+3. Verificar: `docker --version`
+4. Executar: `make start`
 
 ## 🔐 Credenciais de Teste (MVP)
 
