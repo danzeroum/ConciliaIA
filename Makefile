@@ -153,11 +153,11 @@ run:
 migrate:
 @chcp 65001 >nul 2>&1
 @echo Running database migrations...
-@python -m alembic upgrade head
+@docker exec conciliaai-backend python -m alembic upgrade head
 @echo ✅ Migrations completed
 
 migrate-create:
-@set /p name="Enter migration name: " && python -m alembic revision --autogenerate -m "%name%"
+@set /p name="Enter migration name: " && docker exec conciliaai-backend python -m alembic revision --autogenerate -m "%name%"
 
 seed:
 	@chcp 65001 >nul 2>&1
