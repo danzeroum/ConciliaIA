@@ -1,4 +1,4 @@
-.PHONY: help setup install start check-python test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create seed docker-up docker-down docker-logs docker-reset
+.PHONY: help setup install start check-python fix-pip test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create seed docker-up docker-down docker-logs docker-reset
 
 SHELL := cmd.exe
 .SHELLFLAGS := /c
@@ -14,6 +14,7 @@ help:
 	@echo   make setup              - Install dependencies and prepare environment
 	@echo   make install            - Install Python dependencies
 	@echo   make check-python       - Verify Python and Docker installation
+	@echo   make fix-pip            - Install/repair pip if needed
 	@echo.
 	@echo 🐳 Docker:
 	@echo   make docker-up          - Start Docker containers
@@ -44,9 +45,18 @@ help:
 	@echo   make benchmark          - Run pytest benchmarks
 
 check-python:
-	@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
+	@chcp 65001 >nul 2>&1
+	@echo 🔍 Checking prerequisites...
+	@where python >nul 2>&1 || (echo ❌ Python not found. Install Python 3.11 from https://www.python.org && exit /b 1)
 	@where docker >nul 2>&1 || (echo ❌ Docker not found. Install from https://www.docker.com && exit /b 1)
+	@python --version | findstr /C:"3.11" >nul || python --version | findstr /C:"3.12" >nul || (echo ⚠️  WARNING: Python 3.11-3.12 recommended. Current version: && python --version && timeout /t 3 >nul)
 	@echo ✅ Prerequisites OK
+
+fix-pip:
+	@chcp 65001 >nul 2>&1
+	@echo 🔧 Checking pip installation...
+	@python -m pip --version >nul 2>&1 && echo ✅ Pip OK || (echo 📥 Installing pip... && python -m ensurepip --default-pip)
+	@python -m pip install --upgrade pip setuptools wheel
 
 start: check-python
 	@chcp 65001 >nul 2>&1
@@ -83,9 +93,9 @@ setup: install docker-up
 	@timeout /t 5 /nobreak >nul
 	@$(MAKE) migrate
 
-install:
-	@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
-	@python -m pip install --upgrade pip
+install: fix-pip
+	@chcp 65001 >nul 2>&1
+	@echo 📦 Installing dependencies...
 	@python -m pip install -r requirements.txt
 	@python -m pip install -r requirements-dev.txt
 	@python -m pip install pytest-benchmark locust
