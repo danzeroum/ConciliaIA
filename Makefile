@@ -1,10 +1,5 @@
 .PHONY: help setup install start check-python test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create seed docker-up docker-down docker-logs docker-reset
 
-# Default shell for Windows compatibility
-SHELL := cmd.exe
-.SHELLFLAGS := /c
-
-# Default shell for Windows compatibility
 SHELL := cmd.exe
 .SHELLFLAGS := /c
 
@@ -18,6 +13,7 @@ help:
 	@echo 📦 Setup:
 	@echo   make setup              - Install dependencies and prepare environment
 	@echo   make install            - Install Python dependencies
+	@echo   make check-python       - Verify Python and Docker installation
 	@echo.
 	@echo 🐳 Docker:
 	@echo   make docker-up          - Start Docker containers
@@ -47,58 +43,53 @@ help:
 	@echo 📊 Monitoring:
 	@echo   make benchmark          - Run pytest benchmarks
 
+check-python:
+	@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
+	@where docker >nul 2>&1 || (echo ❌ Docker not found. Install from https://www.docker.com && exit /b 1)
+	@echo ✅ Prerequisites OK
 
 start: check-python
-@chcp 65001 >nul 2>&1
-@echo 🚀 ConciliaAI - Starting complete environment...
-@echo.
-@echo 📦 Step 1/5: Installing dependencies...
-@$(MAKE) --no-print-directory install
-
-@echo.
-@echo 🐳 Step 2/5: Starting Docker containers...
-@$(MAKE) --no-print-directory docker-up
-@echo.
-@echo ⏳ Step 3/5: Waiting for database...
-@timeout /t 10 /nobreak >nul
-@echo.
-@echo 🗄️ Step 4/5: Running migrations...
-@$(MAKE) --no-print-directory migrate
-@echo.
-@echo 🌱 Step 5/5: Seeding database...
-@$(MAKE) --no-print-directory seed
-@echo.
-@echo ✅ Environment ready!
-@echo.
-@echo 📍 API: http://localhost:8000
-@echo 📖 Docs: http://localhost:8000/docs
-@echo 🗄️ DB: postgresql://btv_user:btv_password@localhost:5432/conciliaai
-@echo.
-@echo 🎯 Next steps:
-@echo    - Access API docs: http://localhost:8000/docs
-@echo    - Run tests: make test
-@echo    - View logs: make docker-logs
-@echo.
+	@chcp 65001 >nul 2>&1
+	@echo 🚀 ConciliaAI - Starting complete environment...
+	@echo.
+	@echo 📦 Step 1/5: Installing dependencies...
+	@$(MAKE) --no-print-directory install
+	@echo.
+	@echo 🐳 Step 2/5: Starting Docker containers...
+	@$(MAKE) --no-print-directory docker-up
+	@echo.
+	@echo ⏳ Step 3/5: Waiting for database...
+	@timeout /t 10 /nobreak >nul
+	@echo.
+	@echo 🗄️ Step 4/5: Running migrations...
+	@$(MAKE) --no-print-directory migrate
+	@echo.
+	@echo 🌱 Step 5/5: Seeding database...
+	@$(MAKE) --no-print-directory seed
+	@echo.
+	@echo ✅ Environment ready!
+	@echo.
+	@echo 📍 API: http://localhost:8000
+	@echo 📖 Docs: http://localhost:8000/docs
+	@echo 🗄️ DB: postgresql://btv_user:btv_password@localhost:5432/conciliaai
+	@echo.
+	@echo 🎯 Next steps:
+	@echo    - Access API docs: http://localhost:8000/docs
+	@echo    - Run tests: make test
+	@echo    - View logs: make docker-logs
+	@echo.
 
 setup: install docker-up
 	@timeout /t 5 /nobreak >nul
 	@$(MAKE) migrate
 
 install:
-@chcp 65001 >nul 2>&1
-@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
-@python -m pip install --upgrade pip
-@python -m pip install -r requirements.txt
-@python -m pip install -r requirements-dev.txt
-@python -m pip install pytest-benchmark locust
-@echo ✅ Dependencies installed
-
-check-python:
-@chcp 65001 >nul 2>&1
-@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
-@where docker >nul 2>&1 || (echo ❌ Docker not found. Install from https://www.docker.com && exit /b 1)
-@echo ✅ Prerequisites OK
-
+	@where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
+	@python -m pip install --upgrade pip
+	@python -m pip install -r requirements.txt
+	@python -m pip install -r requirements-dev.txt
+	@python -m pip install pytest-benchmark locust
+	@echo ✅ Dependencies installed
 
 test:
 	@pytest tests/unit/ tests/integration/ -v
@@ -165,7 +156,6 @@ seed:
 	@echo ✅ Database seeded
 
 docker-up:
-	@chcp 65001 >nul 2>&1
 	@docker-compose up -d
 	@echo ⏳ Waiting for services to be ready...
 	@timeout /t 5 /nobreak >nul
