@@ -1,7 +1,4 @@
 """Use case responsible for cash flow forecasts."""
-
-"""Cash flow forecast use case implementation."""
-
 from __future__ import annotations
 
 from datetime import date, timedelta
