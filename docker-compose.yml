@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -36,9 +34,9 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
+  backend:
     build: .
-    container_name: conciliaai-api
+    container_name: conciliaai-backend
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
@@ -53,11 +51,17 @@ services:
       POSTGRES_DB: conciliaai
     depends_on:
       postgres:
-        condition: service_healthy  # Ensure database is ready before the API starts
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
-      - ./alembic.ini:/app/alembic.ini # <--- NOVO
+      - ./alembic.ini:/app/alembic.ini
       - ./alembic:/app/alembic
       - ./scripts:/app/scripts
       - ./requirements-dev.txt:/app/requirements-dev.txt

@@ -51,26 +51,52 @@ Sistema de Reconciliação Financeira de Adquirentes com IA, seguindo **BuildToV
 - PostgreSQL 16+ (ou usar Docker)
 - 8GB RAM, 20GB disk
 
-### Instalação Rápida
+### Instalação Completa (1 comando)
+
 ```bash
-# Clone o repositório
-git clone https://github.com/conciliaai/backend-v7.git
-cd backend-v7
-
-# Instalação completa (1 comando)
-make setup
-
-# Ou passo a passo:
-make install        # Instalar dependências
-make docker-up      # Subir PostgreSQL
-make migrate        # Rodar migrations
-make seed           # Dados de exemplo (opcional)
-make test           # Executar testes
-make run            # Iniciar API
+make start
 ```
 
-**API disponível em**: http://localhost:8000
+Este comando irá:
+1. ✅ Instalar dependências Python
+2. ✅ Subir PostgreSQL via Docker
+3. ✅ Executar migrations
+4. ✅ Popular banco com dados de exemplo
+5. ✅ Iniciar API
+
+**API disponível em**: http://localhost:8000  
 **Documentação**: http://localhost:8000/docs
+
+### Instalação Passo a Passo (alternativa)
+
+```bash
+# 1. Instalar dependências
+make install
+
+# 2. Subir Docker
+make docker-up
+
+# 3. Aguardar database (10 segundos)
+sleep 10
+
+# 4. Rodar migrations
+make migrate
+
+# 5. Popular banco (opcional)
+make seed
+
+# 6. Iniciar API
+make run
+```
+
+### Comandos Úteis
+
+```bash
+make help           # Ver todos os comandos disponíveis
+make test           # Executar testes
+make docker-logs    # Ver logs do Docker
+make docker-reset   # Resetar ambiente Docker
+```
 
 ## 🔐 Credenciais de Teste (MVP)
 
