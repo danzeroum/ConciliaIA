@@ -4,6 +4,10 @@
 SHELL := cmd.exe
 .SHELLFLAGS := /c
 
+# Default shell for Windows compatibility
+SHELL := cmd.exe
+.SHELLFLAGS := /c
+
 help:
 	@chcp 65001 >nul 2>&1
 	@echo ConciliaAI - Available commands:
@@ -43,12 +47,14 @@ help:
 	@echo 📊 Monitoring:
 	@echo   make benchmark          - Run pytest benchmarks
 
+
 start: check-python
         @chcp 65001 >nul 2>&1
         @echo 🚀 ConciliaAI - Starting complete environment...
         @echo.
         @echo 📦 Step 1/5: Installing dependencies...
         @$(MAKE) --no-print-directory install
+
 	@echo.
 	@echo 🐳 Step 2/5: Starting Docker containers...
 	@$(MAKE) --no-print-directory docker-up
@@ -92,6 +98,7 @@ check-python:
         @where python >nul 2>&1 || (echo ❌ Python not found. Install from https://www.python.org && exit /b 1)
         @where docker >nul 2>&1 || (echo ❌ Docker not found. Install from https://www.docker.com && exit /b 1)
         @echo ✅ Prerequisites OK
+
 
 test:
 	@pytest tests/unit/ tests/integration/ -v
