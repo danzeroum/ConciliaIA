@@ -57,6 +57,6 @@ docker exec conciliaai-backend python scripts/seed_database.py
 
 Write-Host ""
 Write-Host "✅ Database initialized successfully!" -ForegroundColor Green
-Write-Host "🌐 API: http://localhost:8000" -ForegroundColor Cyan
-Write-Host "📚 Docs: http://localhost:8000/docs" -ForegroundColor Cyan
+Write-Host "API: http://localhost:8000" -ForegroundColor Cyan
+Write-Host "Docs: http://localhost:8000/docs" -ForegroundColor Cyan
 
