@@ -160,10 +160,10 @@ migrate-create:
 	@set /p name="Enter migration name: " && docker exec conciliaai-backend python -m alembic revision --autogenerate -m "%name%"
 
 seed:
-	@chcp 65001 >nul 2>&1
-	@echo Seeding database with sample data...
-	@python scripts/seed_database.py
-	@echo ✅ Database seeded
+@chcp 65001 >nul 2>&1
+@echo Seeding database with sample data...
+@docker exec conciliaai-backend python scripts/seed_database.py
+@echo ✅ Database seeded successfully
 
 docker-up:
 	@docker-compose up -d
