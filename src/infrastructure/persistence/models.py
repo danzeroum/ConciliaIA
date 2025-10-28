@@ -19,9 +19,10 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from .database import Base
+Base = declarative_base()
 
 
 class TenantModel(Base):
