@@ -9,13 +9,16 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
+import structlog
+from sqlalchemy import text
+
 # Adiciona o diretório raiz do projeto (que é o pai de 'scripts') ao sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # FIM DO CÓDIGO DE AJUSTE DE PATH
 
 from src.domain.entities import AcquirerTransaction, Sale
 from src.domain.entities.tenant import TenantTier
-from src.infrastructure.persistence.models import TenantModel # <--- IMPORTAÇÃO CRUCIAL (ASSUME que você a definiu em models.py)
+from src.infrastructure.persistence.models import TenantModel  # <--- IMPORTAÇÃO CRUCIAL (ASSUME que você a definiu em models.py)
 from src.domain.value_objects import Acquirer, Money
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.repositories.postgresql_sale_repository import PostgreSQLSaleRepository
@@ -23,11 +26,40 @@ from src.infrastructure.persistence.repositories.postgresql_transaction_reposito
     PostgreSQLTransactionRepository,
 )
 
+logger = structlog.get_logger(__name__)
+
+
+async def check_tables_exist(engine) -> None:
+    """Verify that required tables exist before seeding."""
+    async with engine.connect() as conn:
+        result = await conn.execute(
+            text(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_name = 'tenants'
+                """
+            )
+        )
+        if not result.fetchone():
+            raise RuntimeError(
+                "❌ ERROR: Table 'tenants' does not exist!\n"
+                "Run migrations first: docker exec conciliaai-backend python -m alembic upgrade head"
+            )
+    logger.info("table_check_passed", tables="tenants exists")
+
 
 async def seed_data() -> None:
     """Seed database with sample data."""
     database_url = "postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai"
     database = Database(database_url)
+    engine = database.engine
+
+    logger.info("database_initialized", url=database_url.split("@")[0])
+
+    # Ensure tables exist before attempting to seed data.
+    await check_tables_exist(engine)
 
     async for session in database.get_session():
         sale_repo = PostgreSQLSaleRepository(session)
