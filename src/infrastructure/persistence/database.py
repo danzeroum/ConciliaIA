@@ -5,12 +5,9 @@ from __future__ import annotations
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
 import structlog
 
 logger = structlog.get_logger(__name__)
-
-Base = declarative_base()
 
 
 class Database:

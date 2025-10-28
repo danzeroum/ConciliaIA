@@ -1,4 +1,4 @@
-.PHONY: help setup install start check-python fix-pip test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create seed docker-up docker-down docker-logs docker-reset
+.PHONY: help setup install start check-python fix-pip test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create generate-migration seed docker-up docker-down docker-logs docker-reset
 
 SHELL := cmd.exe
 .SHELLFLAGS := /c
@@ -158,6 +158,19 @@ migrate:
 
 migrate-create:
 	@set /p name="Enter migration name: " && docker exec conciliaai-backend python -m alembic revision --autogenerate -m "%name%"
+
+# Generate migration automatically from models
+generate-migration:
+	@chcp 65001 >nul 2>&1
+	@echo 🔄 Generating migration from models...
+	@docker-compose down -v
+	@docker-compose up -d postgres
+	@timeout /t 5 /nobreak >nul
+	@docker-compose build backend
+	@docker-compose run --rm backend python -m alembic revision --autogenerate -m "auto generated schema"
+	@echo ✅ Migration generated! Check alembic/versions/
+	@echo.
+	@echo Next: make start
 
 seed:
 	@chcp 65001 >nul 2>&1

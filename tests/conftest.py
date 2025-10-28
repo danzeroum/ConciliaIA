@@ -29,8 +29,7 @@ os.environ["REDIS_HOST"] = "redis"
 from src.api import dependencies
 from src.api.main import app
 from src.api.middleware import AuthMiddleware, RateLimitMiddleware
-from src.infrastructure.persistence.database import Base
-from src.infrastructure.persistence.models import TenantModel, UserModel
+from src.infrastructure.persistence.models import Base, TenantModel, UserModel
 from src.infrastructure.security import JWTHandler, RateLimiter
 from src.infrastructure.security.password_hasher import PasswordHasher
 

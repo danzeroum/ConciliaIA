@@ -1,23 +1,21 @@
-from __future__ import annotations  # AGORA NA PRIMEIRA LINHA EXECUTÁVEL
-
 """Alembic environment configuration."""
-import sys
-import os
-import asyncio
-from logging.config import fileConfig
 
-# Adiciona o diretório raiz do projeto (que é o pai de 'alembic') ao sys.path.
-# Isso resolve o erro ModuleNotFoundError: No module named 'src'.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from __future__ import annotations
+
+import asyncio
+import sys
+from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-# Importações corrigidas:
-from src.infrastructure.persistence.database import Base
-from src.infrastructure.persistence.models import * # noqa: F401,F403
+# Add project root to sys.path so Alembic can import application modules.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.infrastructure.persistence.models import Base  # noqa: E402
 
 config = context.config
 
