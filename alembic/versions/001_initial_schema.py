@@ -20,11 +20,19 @@ def upgrade():
     # Tenants table
     op.create_table(
         'tenants',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()')),
+        sa.Column('org_name', sa.String(255), nullable=False),
+        sa.Column('cnpj', sa.String(18), unique=True, nullable=False),
+        sa.Column('tier', sa.String(20), nullable=False),
+        sa.Column('active', sa.Boolean, nullable=False, server_default='true'),
+        sa.Column('features', postgresql.JSONB, nullable=False, server_default='[]'),
+        sa.Column('rate_limit', sa.Integer, nullable=False, server_default='100'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     )
+    op.create_index('idx_tenants_cnpj', 'tenants', ['cnpj'], unique=True)
+    op.create_index('idx_tenants_tier', 'tenants', ['tier'])
+    op.create_index('idx_tenants_active', 'tenants', ['active'])
     
     # Users table
     op.create_table(
@@ -126,6 +134,9 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_index('idx_tenants_active', 'tenants')
+    op.drop_index('idx_tenants_tier', 'tenants')
+    op.drop_index('idx_tenants_cnpj', 'tenants')
     op.drop_table('settlements')
     op.drop_table('divergences')
     op.drop_table('matches')
