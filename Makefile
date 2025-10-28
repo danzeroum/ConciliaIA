@@ -151,13 +151,13 @@ run:
 	@uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 migrate:
-@chcp 65001 >nul 2>&1
-@echo Running database migrations...
-@docker exec conciliaai-backend python -m alembic upgrade head
-@echo ✅ Migrations completed
+	@chcp 65001 >nul 2>&1
+	@echo Running database migrations...
+	@docker exec conciliaai-backend python -m alembic upgrade head
+	@echo ✅ Migrations completed
 
 migrate-create:
-@set /p name="Enter migration name: " && docker exec conciliaai-backend python -m alembic revision --autogenerate -m "%name%"
+	@set /p name="Enter migration name: " && docker exec conciliaai-backend python -m alembic revision --autogenerate -m "%name%"
 
 seed:
 	@chcp 65001 >nul 2>&1
