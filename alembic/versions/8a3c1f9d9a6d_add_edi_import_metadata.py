@@ -1,7 +1,7 @@
 """Add EDI import metadata to transactions.
 
 Revision ID: 8a3c1f9d9a6d
-Revises: None
+Revises: 001_initial
 Create Date: 2024-05-09 00:00:00.000000
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '8a3c1f9d9a6d'
-down_revision = None
+down_revision = '001_initial'
 branch_labels = None
 depends_on = None
 
