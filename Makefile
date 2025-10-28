@@ -1,4 +1,4 @@
-.PHONY: help setup install start check-python fix-pip test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create generate-migration seed docker-up docker-down docker-logs docker-reset
+.PHONY: help setup install start check-python fix-pip test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create generate-migration seed docker-up docker-down docker-logs docker-reset init-db
 
 SHELL := cmd.exe
 .SHELLFLAGS := /c
@@ -59,35 +59,41 @@ fix-pip:
 	@python -m pip install --upgrade pip setuptools wheel
 
 start: check-python
-	@chcp 65001 >nul 2>&1
-	@echo 🚀 ConciliaAI - Starting complete environment...
-	@echo.
-	@echo 📦 Step 1/5: Installing dependencies...
-	@$(MAKE) --no-print-directory install
-	@echo.
-	@echo 🐳 Step 2/5: Starting Docker containers...
-	@$(MAKE) --no-print-directory docker-up
-	@echo.
-	@echo ⏳ Step 3/5: Waiting for database...
-	@timeout /t 10 /nobreak >nul
-	@echo.
-	@echo 🗄️ Step 4/5: Running migrations...
-	@$(MAKE) --no-print-directory migrate
-	@echo.
-	@echo 🌱 Step 5/5: Seeding database...
-	@$(MAKE) --no-print-directory seed
-	@echo.
-	@echo ✅ Environment ready!
-	@echo.
-	@echo 📍 API: http://localhost:8000
-	@echo 📖 Docs: http://localhost:8000/docs
-	@echo 🗄️ DB: postgresql://btv_user:btv_password@localhost:5432/conciliaai
-	@echo.
-	@echo 🎯 Next steps:
-	@echo    - Access API docs: http://localhost:8000/docs
-	@echo    - Run tests: make test
-	@echo    - View logs: make docker-logs
-	@echo.
+        @chcp 65001 >nul 2>&1
+        @echo 🚀 ConciliaAI - Starting complete environment...
+        @echo.
+        @rem Check if migrations exist
+        @if not exist "alembic\versions\*.py" (
+                @echo ⚠️  No migrations found! Running init-db...
+                @$(MAKE) --no-print-directory init-db
+        ) else (
+                @echo 📦 Step 1/5: Installing dependencies...
+                @$(MAKE) --no-print-directory install
+                @echo.
+                @echo 🐳 Step 2/5: Starting Docker containers...
+                @$(MAKE) --no-print-directory docker-up
+                @echo.
+                @echo ⏳ Step 3/5: Waiting for database...
+                @timeout /t 10 /nobreak >nul
+                @echo.
+                @echo 🗄️ Step 4/5: Running migrations...
+                @$(MAKE) --no-print-directory migrate
+                @echo.
+                @echo 🌱 Step 5/5: Seeding database...
+                @$(MAKE) --no-print-directory seed
+                @echo.
+                @echo ✅ Environment ready!
+                @echo.
+                @echo 📍 API: http://localhost:8000
+                @echo 📖 Docs: http://localhost:8000/docs
+                @echo 🗄️ DB: postgresql://btv_user:btv_password@localhost:5432/conciliaai
+                @echo.
+                @echo 🎯 Next steps:
+                @echo    - Access API docs: http://localhost:8000/docs
+                @echo    - Run tests: make test
+                @echo    - View logs: make docker-logs
+                @echo.
+        )
 
 setup: install docker-up
 	@timeout /t 5 /nobreak >nul
@@ -173,10 +179,16 @@ generate-migration:
 	@echo Next: make start
 
 seed:
-	@chcp 65001 >nul 2>&1
-	@echo Seeding database with sample data...
-	@docker exec conciliaai-backend python scripts/seed_database.py
-	@echo ✅ Database seeded successfully
+        @chcp 65001 >nul 2>&1
+        @echo Seeding database with sample data...
+        @docker exec conciliaai-backend python scripts/seed_database.py
+        @echo ✅ Database seeded successfully
+
+init-db:
+        @chcp 65001 >nul 2>&1
+        @echo 🔄 Initializing database from scratch...
+        @powershell -ExecutionPolicy Bypass -File scripts/init-db.ps1
+        @echo ✅ Database initialized!
 
 docker-up:
 	@docker-compose up -d
