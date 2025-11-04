@@ -1,0 +1,12 @@
+**/*.pyc
+**/__pycache__
+**/.git
+**/.gitignore
+**/.DS_Store
+**/node_modules
+**/venv
+**/env
+**/.vscode
+**/.idea
+**/logs
+**/tmp

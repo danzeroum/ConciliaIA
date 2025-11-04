@@ -1,0 +1,237 @@
+name: BuildToValue Quality Gates
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  documentation-gate:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Validate Documentation
+        run: |
+          chmod +x scripts/gates/documentation-check.sh
+          ./scripts/gates/documentation-check.sh
+
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: documentation-gate
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools for schema validation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nodejs npm
+          sudo npm install -g ajv-cli
+          sudo wget https://github.com/mikefarah/yq/releases/download/v4.30.8/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Validate BuildToValue config schema
+        run: |
+          yq eval -o=json .buildtovalue/config/governance.yaml > /tmp/governance.json
+          ajv validate -s .buildtovalue/schemas/btv-governance.schema.json -d /tmp/governance.json
+      - name: Ethics Guardian Unit Tests
+        run: pytest -q tests/test_ethics_guardian.py
+      - name: Run Full Gates
+        run: |
+          chmod +x scripts/gates-v7.sh
+          ./scripts/gates-v7.sh --full --report=.buildtovalue/reports/gates-report.json || true
+      - name: Deep Auditor (mutation + BDD + rerunfailures)
+        run: |
+          chmod +x scripts/auditor/run-mutation-tests.sh scripts/auditor/run-bdd-validation.sh scripts/auditor/quarantine-flaky.sh
+          ./scripts/auditor/run-mutation-tests.sh
+          ./scripts/auditor/run-bdd-validation.sh
+          ./scripts/auditor/quarantine-flaky.sh
+      - name: ROI & Metrics Validation
+        run: |
+          ./scripts/analytics/collect-metrics.sh
+          ./scripts/analytics/calculate-roi.sh
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gates-report
+          path: .buildtovalue/reports/gates-report.json
+          retention-days: 30
+
+  what-matters-metrics:
+    name: What Matters Metrics
+    runs-on: ubuntu-latest
+    needs: quality-gates
+    if: always()
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessário para git log/tags
+
+      - name: Setup Node (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (stable & min-version)
+        run: |
+          set -euo pipefail
+
+          # yq (pinned release)
+          YQ_VERSION="v4.40.5"
+          sudo curl -fsSL -o /usr/local/bin/yq \
+            "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
+          # jq / bc (mínimo requerido; apt decide versão)
+          sudo apt-get update
+          sudo apt-get install -y jq bc
+          JQ_VER="$(jq --version | sed 's/^jq-//')"
+          dpkg --compare-versions "$JQ_VER" ge "1.6" || { echo "jq >= 1.6 requerido"; exit 1; }
+
+          # ajv-cli (pinned) + ajv engine (pinned)
+          npm install -g ajv-cli@5.0.0 ajv@8.12.0
+
+      - name: Verify tool versions
+        run: |
+          echo "yq: $(yq --version)"
+          echo "jq: $(jq --version)"
+          echo "ajv-cli: $(ajv --version)"
+          echo "bc: $(bc --version | head -1)"
+          node -v
+          npm -v
+
+      - name: Compute What Matters
+        env:
+          WINDOW_DAYS: 7
+          PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          chmod +x scripts/metrics/compute-what-matters.sh
+          scripts/metrics/compute-what-matters.sh
+
+      - name: What Matters Gate
+        env:
+          STRICT_MODE: false  # Modo warning inicialmente
+          NOTIFY: true
+        run: |
+          chmod +x scripts/gates/what-matters-gate.sh
+          scripts/gates/what-matters-gate.sh || true
+
+      - name: Build markdown summary
+        id: build_summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT=".buildtovalue/reports/what-matters.json"
+          SUMMARY_FILE=".buildtovalue/reports/summary.md"
+          mkdir -p .buildtovalue/reports
+
+          node - <<'NODE'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('.buildtovalue/reports/what-matters.json','utf8'));
+          const ok = s => s==='PASS'?'✅':'❌';
+          const body = `
+          ## 📊 What Matters Metrics Report
+
+          **Window:** ${r.window_days} days
+          **Overall Status:** ${r.overall_status==='PASS'?'✅ PASS':'⚠️ NEEDS ATTENTION'}
+
+          ### DORA Metrics
+          | Metric | Value | Target | Status |
+          |--------|-------|--------|--------|
+          | Deployment Frequency | ${r.dora_metrics.deployment_frequency.value} deploys | ≥${r.dora_metrics.deployment_frequency.target} | ${ok(r.dora_metrics.deployment_frequency.status)} |
+          | Lead Time | ${Math.round(r.dora_metrics.lead_time_for_changes.value)} min | ≤${r.dora_metrics.lead_time_for_changes.target} min | ${ok(r.dora_metrics.lead_time_for_changes.status)} |
+          | Change Failure Rate | ${(r.dora_metrics.change_failure_rate.value*100).toFixed(1)}% | ≤15% | ${ok(r.dora_metrics.change_failure_rate.status)} |
+          | MTTR | ${Math.round(r.dora_metrics.mean_time_to_recovery.value)} min | ≤${r.dora_metrics.mean_time_to_recovery.target} min | ${ok(r.dora_metrics.mean_time_to_recovery.status)} |
+
+          ### Quality Metrics
+          | Metric | Value | Target | Status |
+          |--------|-------|--------|--------|
+          | Flaky Test Rate | ${(r.quality_metrics.flaky_test_rate.value*100).toFixed(1)}% | ≤2% | ${ok(r.quality_metrics.flaky_test_rate.status)} |
+          | AI Rework Ratio | ${(r.quality_metrics.ai_rework_ratio.value*100).toFixed(1)}% | ≤15% | ${ok(r.quality_metrics.ai_rework_ratio.status)} |
+
+          ---
+          📈 View full report: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}
+          `;
+          fs.writeFileSync('.buildtovalue/reports/summary.md', body.trim() + '\n');
+          NODE
+
+          {
+            printf 'WMM_MARKDOWN<<BTVEOF\n'
+            cat "$SUMMARY_FILE"
+            printf 'BTVEOF\n'
+          } >> "$GITHUB_ENV"
+
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: what-matters-report
+          path: .buildtovalue/reports/what-matters.json
+          retention-days: 90
+
+      - name: Publish Job Summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .buildtovalue/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR (when allowed)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs')
+            const body = fs.readFileSync('.buildtovalue/reports/summary.md','utf8')
+            const pr = context.payload.pull_request?.number
+            if (!pr) {
+              core.warning('No PR in context; skipping comment.')
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body
+              })
+            }
+
+      - name: Adicionar nota para PRs de fork (sem comentário)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == true
+        run: |
+          echo "PR de fork detectado: comentário desabilitado por segurança." >> "$GITHUB_STEP_SUMMARY"
+
+
+  auto-log:
+    name: Log Decision
+    runs-on: ubuntu-latest
+    needs: [documentation-gate, quality-gates]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log to Ledger
+        run: |
+          chmod +x scripts/ledger/auto-log-decision.sh
+          OUTCOME="success"
+          if [ "${{ needs.quality-gates.result }}" != "success" ]; then
+            OUTCOME="failed"
+          fi
+          ./scripts/ledger/auto-log-decision.sh \
+            "ci-pipeline" \
+            "Quality Gates Check" \
+            "$OUTCOME" \
+            0.95

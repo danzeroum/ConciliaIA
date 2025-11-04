@@ -1,0 +1,113 @@
+# BuildToValue v7.4-Platinum - Service Level Objectives
+
+service:
+  name: buildtovalue
+  version: v7.4-platinum-phase2
+
+slos:
+  - name: task_success_rate
+    description: Percentage of tasks completed successfully
+    sli:
+      metric: btv_tasks_success_total / btv_tasks_total
+      type: availability
+    objective:
+      target: 99.5
+      window: 30d
+    alerts:
+      - severity: warning
+        threshold: 98.0
+        window: 1h
+      - severity: critical
+        threshold: 95.0
+        window: 1h
+
+  - name: task_latency_p95
+    description: 95th percentile task completion time
+    sli:
+      metric: histogram_quantile(0.95, btv_task_duration_seconds)
+      type: latency
+    objective:
+      target: 10.0
+      window: 7d
+    alerts:
+      - severity: warning
+        threshold: 15.0
+        window: 30m
+      - severity: critical
+        threshold: 20.0
+        window: 15m
+
+  - name: mpaa_validation_accuracy
+    description: MPAA validation accuracy rate
+    sli:
+      metric: btv_mpaa_approved_total / btv_mpaa_validations_total
+      type: quality
+    objective:
+      target: 95.0
+      window: 7d
+    alerts:
+      - severity: warning
+        threshold: 90.0
+        window: 1h
+
+  - name: sandbox_security_breaches
+    description: Zero sandbox escape attempts
+    sli:
+      metric: btv_sandbox_escape_attempts
+      type: security
+    objective:
+      target: 0
+      window: 30d
+    alerts:
+      - severity: critical
+        threshold: 1
+        window: 5m
+
+  - name: cost_per_task
+    description: Average cost per task execution
+    sli:
+      metric: btv_cost_total_usd / btv_tasks_total
+      type: cost
+    objective:
+      target: 0.02
+      window: 30d
+    alerts:
+      - severity: warning
+        threshold: 0.05
+        window: 1d
+      - severity: critical
+        threshold: 0.10
+        window: 6h
+
+  - name: ledger_integrity
+    description: Ledger integrity check success rate
+    sli:
+      metric: btv_ledger_integrity_checks_success / btv_ledger_integrity_checks_total
+      type: reliability
+    objective:
+      target: 100.0
+      window: 90d
+    alerts:
+      - severity: critical
+        threshold: 99.9
+        window: 1h
+
+error_budgets:
+  - slo: task_success_rate
+    budget_percent: 0.5
+    burn_rate_alerts:
+      - severity: warning
+        burn_rate: 2.0
+        window: 1h
+      - severity: critical
+        burn_rate: 10.0
+        window: 15m
+
+dashboards:
+  - name: SLO Overview
+    url: http://grafana.local/d/btv-slo-overview
+    panels:
+      - task_success_rate
+      - task_latency_p95
+      - mpaa_validation_accuracy
+      - cost_per_task

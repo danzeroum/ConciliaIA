@@ -1,22 +1,29 @@
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: conciliaai-postgres
+    image: postgres:15-alpine
+    container_name: buildtovalue-postgres
     environment:
-      POSTGRES_DB: conciliaai
+      POSTGRES_DB: buildtovalue
       POSTGRES_USER: btv_user
-      POSTGRES_PASSWORD: btv_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
     ports:
-      - "5432:5432"
+    - 5432:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    - postgres_data:/var/lib/postgresql/data
+    - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    - postgres-data:/var/lib/postgresql/data
+    - ./scripts/database/init-schema.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U btv_user"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U btv_user
+      - pg_isready -U btv_user -d buildtovalue
       interval: 10s
       timeout: 5s
       retries: 5
-
+    networks:
+    - buildtovalue-network
+    restart: unless-stopped
   postgres-test:
     image: postgres:16-alpine
     container_name: conciliaai-postgres-test
@@ -25,21 +32,22 @@ services:
       POSTGRES_USER: btv_user
       POSTGRES_PASSWORD: btv_password
     ports:
-      - "5433:5432"
+    - 5433:5432
     tmpfs:
-      - /var/lib/postgresql/data
+    - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U btv_user"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U btv_user
       interval: 10s
       timeout: 5s
       retries: 5
-
   backend:
     build: .
     container_name: conciliaai-backend
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
-      - "8000:8000"
+    - 8000:8000
     environment:
       DATABASE_URL: postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai
       LOG_LEVEL: INFO
@@ -53,18 +61,93 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8000/api/v1/health
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
     volumes:
-      - ./src:/app/src
-      - ./tests:/app/tests
-      - ./alembic.ini:/app/alembic.ini
-      - ./alembic:/app/alembic
-      - ./scripts:/app/scripts
-      - ./requirements-dev.txt:/app/requirements-dev.txt
-
+    - ./src:/app/src
+    - ./tests:/app/tests
+    - ./alembic.ini:/app/alembic.ini
+    - ./alembic:/app/alembic
+    - ./scripts:/app/scripts
+    - ./requirements-dev.txt:/app/requirements-dev.txt
+  redis:
+    image: redis:7-alpine
+    container_name: buildtovalue-redis
+    command: redis-server --appendonly yes
+    ports:
+    - 6379:6379
+    volumes:
+    - redis-data:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+    - buildtovalue-network
+    restart: unless-stopped
+  chromadb:
+    build:
+      context: ./docker/chromadb
+      dockerfile: Dockerfile
+    container_name: buildtovalue-chromadb
+    ports:
+    - 8000:8000
+    volumes:
+    - chromadb-data:/chroma/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -f http://localhost:8000/api/v1/heartbeat || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    networks:
+    - buildtovalue-network
+    restart: unless-stopped
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: buildtovalue-app
+    env_file:
+    - .env
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    ports:
+    - 8080:8080
+    volumes:
+    - ./.buildtovalue:/app/.buildtovalue
+    - ./docs:/app/docs
+    - ./logs:/app/logs
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    networks:
+    - buildtovalue-network
+    restart: unless-stopped
 volumes:
-  postgres_data:
+  postgres_data: null
+  postgres-data: null
+  redis-data: null
+  chromadb-data: null
+networks:
+  buildtovalue-network:
+    driver: bridge

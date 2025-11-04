@@ -91,3 +91,56 @@ node_modules/
 !package.json
 !package-lock.json
 !tsconfig.jest.json
+# ====================================
+# BuildToValue v7 - Git Ignore
+# Environment variables
+# Python
+__pycache__/
+MANIFEST
+# Virtual Environment
+# IDEs
+# Testing
+# Jupyter Notebook
+.ipynb_checkpoints
+# MyPy
+# BuildToValue specific
+.buildtovalue/ledger/*
+.buildtovalue/chromadb/*
+.buildtovalue/logs/*
+.buildtovalue/cache/*
+.buildtovalue/tmp/*
+.buildtovalue/context/*
+.buildtovalue/packages/current/*
+.buildtovalue/analytics/*.jsonl
+.buildtovalue/reports/*
+!.buildtovalue/reports/what-matters.json
+!.buildtovalue/reports/validation-report.md
+# Keep structure folders
+!.buildtovalue/ledger/.gitkeep
+!.buildtovalue/chromadb/.gitkeep
+!.buildtovalue/logs/.gitkeep
+!.buildtovalue/cache/.gitkeep
+!.buildtovalue/tmp/.gitkeep
+!.buildtovalue/context/.gitkeep
+!.buildtovalue/packages/current/.gitkeep
+!.buildtovalue/reports/.gitkeep
+# Database
+# Docker
+docker-compose.override.yml
+# Monitoring
+prometheus/data/
+grafana/data/
+# Temporary files
+*.bak
+# OS
+# Documentation build
+site/
+docs/_build/
+# Secrets (double check)
+*secret*
+*password*
+*token*
+*key*.txt
+# Except example files
+!.env.example
+!config/keys.example.yaml

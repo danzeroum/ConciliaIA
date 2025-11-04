@@ -226,6 +226,12 @@ run_learning_gates() {
   echo -e "Learning Score: ${gate_scores[learning]}%"
 }
 
+run_ia_quality_gates() {
+  log_section "IA Quality Metrics"
+
+  run_gate "ia_quality_metrics" "./scripts/gates/ia-quality-metrics.sh" "info"
+}
+
 check_test_coverage() {
   local coverage=87
   local threshold=80
@@ -416,6 +422,11 @@ generate_html_report() {
 
   log_info "Generating HTML report: $REPORT_FILE"
 
+  local report_dir
+  report_dir="$(dirname "$REPORT_FILE")"
+  log_info "Ensuring report directory exists: $report_dir"
+  mkdir -p "$report_dir"
+
   cat > "$REPORT_FILE" << EOF_REPORT
 <!DOCTYPE html>
 <html>
@@ -490,6 +501,7 @@ main() {
   run_squad_gates
   run_business_gates
   run_learning_gates
+  run_ia_quality_gates
 
   local summary_status=0
   generate_summary || summary_status=$?

@@ -1,0 +1,46 @@
+groups:
+- name: ethics-slo
+  interval: 1m
+  rules:
+  # Recording (7d e 30d)
+  - record: ethics:pii_exposures_7d
+    expr: increase(btv_pii_exposures_total[7d])
+  - record: ethics:pii_exposures_30d
+    expr: increase(btv_pii_exposures_total[30d])
+  - record: ethics:bias_warnings_7d
+    expr: increase(btv_bias_warnings_total[7d])
+  - record: ethics:bias_warnings_30d
+    expr: increase(btv_bias_warnings_total[30d])
+  - record: ethics:fairness_violations_7d
+    expr: increase(btv_fairness_violations_total[7d]) OR on() vector(0)
+  - record: ethics:fairness_violations_30d
+    expr: increase(btv_fairness_violations_total[30d]) OR on() vector(0)
+  # Error budget burn (heurística simples: 7d vs meta mensal proporcional)
+  - record: ethics:error_budget_burn_pii
+    expr: (ethics:pii_exposures_7d) / clamp_min((1/4), 0.001)  # meta 1/mês => 0.25/7d
+  - record: ethics:error_budget_burn_bias
+    expr: (ethics:bias_warnings_7d) / clamp_min((5/4), 0.001) # meta 5/mês => 1.25/7d
+  - record: ethics:error_budget_burn_fairness
+    expr: (ethics:fairness_violations_7d) / clamp_min((3/4), 0.001) # meta 3/mês => 0.75/7d
+  # Alerts
+  - alert: EthicsPIISLOBreach
+    expr: ethics:pii_exposures_30d > 1
+    for: 5m
+    labels: { severity: critical, pillar: ethics }
+    annotations:
+      summary: "SLO de PII (30d) excedido"
+      description: "Total de exposições críticas nos últimos 30 dias: {{ $value }} (meta ≤ 1)."
+  - alert: EthicsBiasSLOBreach
+    expr: ethics:bias_warnings_30d > 5
+    for: 15m
+    labels: { severity: high, pillar: ethics }
+    annotations:
+      summary: "SLO de Bias (30d) excedido"
+      description: "Avisos severos de viés nos últimos 30 dias: {{ $value }} (meta ≤ 5)."
+  - alert: EthicsFairnessSLOBreach
+    expr: ethics:fairness_violations_30d > 3
+    for: 15m
+    labels: { severity: high, pillar: ethics }
+    annotations:
+      summary: "SLO de Fairness (30d) excedido"
+      description: "Violações de fairness (30d): {{ $value }} (meta ≤ 3)."

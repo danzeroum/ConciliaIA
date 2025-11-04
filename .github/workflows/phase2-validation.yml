@@ -1,0 +1,189 @@
+name: Phase 2 - Enrichment Validation
+
+on:
+  push:
+    branches: [main, develop, feature/phase2-*]
+  pull_request:
+    branches: [main]
+
+# SOLUÇÃO DEFINITIVA: Define a variável de ambiente para todos os jobs
+# Isso resolve o erro PEP 668 (externally-managed-environment)
+env:
+  BTV_TELEMETRY_ENABLED: "false"
+  BTV_ENVIRONMENT: ci
+  PIP_BREAK_SYSTEM_PACKAGES: "1"
+
+jobs:
+  test-resource-limits:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 🛡️ Governação: garantir permissões executáveis em todos os scripts
+      - name: Ensure script permissions
+        run: |
+          echo "🔒 Normalizando permissões (+x) para todos os scripts..."
+          find scripts -type f -name "*.sh" -exec chmod +x {} +
+
+      - name: Setup
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq yq bc
+          pip install --break-system-packages pytest pyyaml
+
+      - name: Validate seccomp profiles
+        run: |
+          for profile in scripts/security/seccomp-profiles/*.json; do
+            jq empty "$profile" || exit 1
+          done
+
+      - name: Test resource limits
+        run: pytest -v tests/test_resource_limits.py
+
+      - name: Test security profiles
+        run: pytest -v tests/test_seccomp_profiles.py
+
+
+  test-telemetry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure script permissions
+        run: |
+          echo "🔒 Normalizando permissões (+x) para todos os scripts..."
+          find scripts -type f -name "*.sh" -exec chmod +x {} +
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install OpenTelemetry (optional)
+        run: |
+          pip install --break-system-packages \
+            opentelemetry-api \
+            opentelemetry-sdk \
+            opentelemetry-exporter-jaeger || true
+
+      - name: Test tracer initialization
+        run: pytest -v tests/test_telemetry_integration.py
+
+      - name: Generate collector config
+        run: bash scripts/observability/otel-collector.sh generate-config
+
+      - name: Validate collector config
+        run: |
+          if [ -f .buildtovalue/telemetry/otel-collector-config.yaml ]; then
+            pip install --break-system-packages pyyaml
+            python3 -c "import yaml; yaml.safe_load(open('.buildtovalue/telemetry/otel-collector-config.yaml'))"
+          fi
+
+
+  test-slo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure script permissions
+        run: |
+          echo "🔒 Normalizando permissões (+x) para todos os scripts..."
+          find scripts -type f -name "*.sh" -exec chmod +x {} +
+
+      - name: Setup
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq yq bc
+          pip install --break-system-packages pytest pyyaml matplotlib
+
+      - name: Validate SLO config
+        run: |
+          python3 -c "import yaml; yaml.safe_load(open('scripts/slo/slos.yaml'))"
+
+      - name: Test SLI calculations
+        run: pytest -v tests/test_slo_compliance.py
+
+      - name: Generate SLO report
+        run: |
+          mkdir -p .buildtovalue
+          touch .buildtovalue/ledger.jsonl .buildtovalue/cost-ledger.jsonl
+          bash scripts/slo/sli-calculator.sh report || true
+
+      - name: Test SLO reporter
+        run: |
+          python3 scripts/slo/slo-reporter.py --format text || true
+
+
+  integration-test:
+    needs: [test-resource-limits, test-telemetry, test-slo]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure script permissions
+        run: |
+          echo "🔒 Normalizando permissões (+x) para todos os scripts..."
+          find scripts -type f -name "*.sh" -exec chmod +x {} +
+
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq yq bc docker.io
+          pip install --break-system-packages pytest pyyaml matplotlib
+          chmod +x scripts/**/*.py
+
+      - name: Initialize BuildToValue
+        run: |
+          mkdir -p .buildtovalue/{locks,archives,audit,reports,telemetry,slo-reports}
+          touch .buildtovalue/ledger.jsonl .buildtovalue/cost-ledger.jsonl
+
+      - name: Test sandbox with resource limits
+        run: |
+          echo "#!/bin/bash" > /tmp/test-task.sh
+          echo "echo 'Test task'" >> /tmp/test-task.sh
+          chmod +x /tmp/test-task.sh
+          bash scripts/orchestrator/sandbox-executor.sh /tmp/test-task.sh "test task" || true
+
+      - name: Export telemetry spans
+        run: |
+          bash scripts/observability/span-exporter.sh export || true
+          bash scripts/observability/span-exporter.sh report || true
+
+      - name: Generate SLO reports
+        run: |
+          bash scripts/slo/sli-calculator.sh export
+          python3 scripts/slo/slo-reporter.py --format markdown -o slo-report.md || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: phase2-reports
+          path: |
+            .buildtovalue/slo-reports/
+            .buildtovalue/telemetry/
+            slo-report.md
+
+
+  docker-build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure script permissions
+        run: |
+          echo "🔒 Normalizando permissões (+x) para todos os scripts..."
+          find scripts -type f -name "*.sh" -exec chmod +x {} +
+
+      - name: Test Docker with seccomp
+        run: |
+          docker run --rm \
+            --security-opt seccomp=scripts/security/seccomp-profiles/default.json \
+            --memory=256m \
+            --cpus=0.5 \
+            ubuntu:22.04 \
+            echo "Docker with resource limits OK"

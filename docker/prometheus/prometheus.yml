@@ -1,0 +1,33 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - '/etc/prometheus/rules/ethics_slo.rules.yml'
+  - "/etc/prometheus/rules/*.rules"
+
+scrape_configs:
+  # Métricas do Pipeline Bífido
+  - job_name: 'btv-pipeline-metrics'
+    static_configs:
+      - targets: ['github-exporter:8080']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # Métricas da Aplicação BuildToValue
+  - job_name: 'btv-application'
+    static_configs:
+      - targets: ['app:8080']
+    scrape_interval: 15s
+
+  # Self-monitoring do Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+
+  # Métricas do Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    scrape_interval: 30s

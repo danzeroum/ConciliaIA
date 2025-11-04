@@ -1,0 +1,194 @@
+name: BuildToValue Local Executor - Phase 1
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_description:
+        description: 'Task description'
+        required: true
+        type: string
+      
+  push:
+    branches: [main, develop]
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+
+env:
+  BTV_MAX_CONCURRENT: 3
+  BTV_LEDGER_MAX_SIZE_MB: 10
+  BTV_RETENTION_DAYS: 90
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set test matrix
+        id: set-matrix
+        run: |
+          echo "matrix={\"test\": [\"concurrency\", \"prompt_integrity\", \"ledger_rotation\"]}" >> $GITHUB_OUTPUT
+
+  test-phase1:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{fromJson(needs.setup.outputs.matrix)}}
+      fail-fast: false
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc gzip
+          pip install pytest yq
+      
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/**/*.sh
+          chmod +x scripts/**/*.py
+      
+      - name: Run ${{ matrix.test }} tests
+        run: |
+          pytest -v tests/test_${{ matrix.test }}.py
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.test }}
+          path: |
+            .buildtovalue/**/*.jsonl
+            .buildtovalue/**/*.json
+
+  execute-task:
+    if: github.event_name == 'workflow_dispatch'
+    needs: test-phase1
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc gzip yq
+          pip install pytest
+          chmod +x scripts/**/*.sh scripts/**/*.py
+      
+      - name: Initialize BuildToValue
+        run: |
+          mkdir -p .buildtovalue/{locks,archives,audit,reports}
+          touch .buildtovalue/ledger.jsonl
+          touch .buildtovalue/cost-ledger.jsonl
+      
+      - name: Configure providers
+        run: |
+          # Usar apenas Ollama mock para CI
+          cat > scripts/providers/providers.yaml <<EOF
+          providers:
+            - name: ollama
+              priority: 1
+              type: local
+              enabled: true
+              models:
+                generation: mock-gen
+                audit: mock-audit
+              endpoint: http://localhost:11434
+              timeout: 30
+          EOF
+      
+      - name: Execute task
+        run: |
+          # Mock de ollama para CI
+          mkdir -p /tmp/mock-ollama
+          cat > /tmp/mock-ollama/ollama <<'EOF'
+          #!/bin/bash
+          echo "def hello_world():"
+          echo "    print('Hello, World!')"
+          EOF
+          chmod +x /tmp/mock-ollama/ollama
+          export PATH="/tmp/mock-ollama:$PATH"
+          
+          # Executar tarefa
+          timeout 60s ./scripts/orchestrator/btv-task.sh "${{ github.event.inputs.task_description }}" || true
+      
+      - name: Health check
+        run: |
+          bash scripts/maintenance/ledger-health-check.sh
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution-artifacts
+          path: |
+            .buildtovalue/ledger.jsonl
+            .buildtovalue/reports/
+            .buildtovalue/maintenance-report.json
+
+  maintenance:
+    if: github.event_name == 'push'
+    needs: test-phase1
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup
+        run: |
+          sudo apt-get install -y jq bc gzip
+          chmod +x scripts/**/*.sh
+      
+      - name: Run maintenance
+        run: |
+          mkdir -p .buildtovalue/{locks,archives}
+          touch .buildtovalue/ledger.jsonl
+          
+          # Simular ledger grande
+          for i in {1..1000}; do
+            echo "{\"timestamp\":\"2025-11-04T00:00:00Z\",\"task\":\"test$i\",\"result\":\"success\"}" >> .buildtovalue/ledger.jsonl
+          done
+          
+          # Executar manutenção
+          bash scripts/maintenance/rotate-ledger.sh rotate
+          bash scripts/orchestrator/task-lock-manager.sh cleanup
+      
+      - name: Validate maintenance
+        run: |
+          # Verificar que archive foi criado
+          ls -lh .buildtovalue/archives/
+          
+          # Verificar que ledger foi rotacionado
+          [[ $(wc -l < .buildtovalue/ledger.jsonl) -lt 100 ]]
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run shellcheck
+        run: |
+          sudo apt-get install -y shellcheck
+          find scripts -name "*.sh" -exec shellcheck {} \;
+      
+      - name: Run bandit (Python security)
+        run: |
+          pip install bandit
+          bandit -r scripts/ -ll
+      
+      - name: Check for secrets
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --all-files --force-use-all-plugins

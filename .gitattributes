@@ -1,0 +1,37 @@
+# ===============================================================
+# BuildToValue v7.4-Platinum – LF Enforcement Policy
+# Governa a padronização de quebras de linha (Windows-safe + Linux-native)
+# ===============================================================
+
+# Scripts shell e de automação → sempre LF
+*.sh text eol=lf
+
+# Arquivos de configuração e YAML → sempre LF
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Código-fonte Python → sempre LF
+*.py text eol=lf
+
+# Código Markdown e documentação → sempre LF
+*.md text eol=lf
+*.txt text eol=lf
+
+# Scripts de CI/CD → sempre LF
+.github/**/*.yml text eol=lf
+.buildtovalue/**/*.yml text eol=lf
+
+# JSON, JSONL e logs → sempre LF
+*.json text eol=lf
+*.jsonl text eol=lf
+*.log text eol=lf
+
+# Exceções (mantêm formato binário)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.gif binary
+*.zip binary
+*.gz binary
+*.pdf binary
