@@ -64,3 +64,10 @@ htmlcov/
 tmp/
 temp/
 *.tmp
+
+# Cache e build temporário
+__pycache__/
+*.db
+*.sqlite3
+alembic/versions/__pycache__/
+migrations/__pycache__/

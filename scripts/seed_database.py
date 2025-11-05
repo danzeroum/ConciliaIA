@@ -1,4 +1,4 @@
-"""Seed database with sample data for development."""
+"""Seed database with sample data for development (BuildToValue v7 / ConciliaAI)."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ from uuid import uuid4
 import structlog
 from sqlalchemy import text
 
-# Adiciona o diretório raiz do projeto (que é o pai de 'scripts') ao sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-# FIM DO CÓDIGO DE AJUSTE DE PATH
+# --- Ajuste de path do projeto ---
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# --- FIM ---
 
 from src.domain.entities import AcquirerTransaction, Sale
 from src.domain.entities.tenant import TenantTier
-from src.infrastructure.persistence.models import TenantModel  # <--- IMPORTAÇÃO CRUCIAL (ASSUME que você a definiu em models.py)
 from src.domain.value_objects import Acquirer, Money
+from src.infrastructure.persistence.models import TenantModel
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.repositories.postgresql_sale_repository import PostgreSQLSaleRepository
 from src.infrastructure.persistence.repositories.postgresql_transaction_repository import (
@@ -28,9 +28,15 @@ from src.infrastructure.persistence.repositories.postgresql_transaction_reposito
 
 logger = structlog.get_logger(__name__)
 
+# URL atualizada conforme docker-compose
+DEFAULT_DB_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://btv_user:btv_password@postgres:5432/buildtovalue",
+)
+
 
 async def check_tables_exist(engine) -> None:
-    """Verify that required tables exist before seeding."""
+    """Verifica se a tabela 'tenants' existe antes de semear os dados."""
     async with engine.connect() as conn:
         result = await conn.execute(
             text(
@@ -45,20 +51,21 @@ async def check_tables_exist(engine) -> None:
         if not result.fetchone():
             raise RuntimeError(
                 "❌ ERROR: Table 'tenants' does not exist!\n"
-                "Run migrations first: docker exec conciliaai-backend python -m alembic upgrade head"
+                "Run migrations first:\n"
+                "docker exec conciliaai-backend alembic upgrade head"
             )
     logger.info("table_check_passed", tables="tenants exists")
 
 
 async def seed_data() -> None:
-    """Seed database with sample data."""
-    database_url = "postgresql+asyncpg://btv_user:btv_password@postgres:5432/conciliaai"
+    """Insere dados de exemplo para ambiente de desenvolvimento."""
+    database_url = DEFAULT_DB_URL
     database = Database(database_url)
     engine = database.engine
 
-    logger.info("database_initialized", url=database_url.split("@")[0])
+    logger.info("database_initialized", url=database_url.replace("btv_password", "***"))
 
-    # Ensure tables exist before attempting to seed data.
+    # Garante que as tabelas existem antes de popular dados
     await check_tables_exist(engine)
 
     async for session in database.get_session():
@@ -66,26 +73,26 @@ async def seed_data() -> None:
         transaction_repo = PostgreSQLTransactionRepository(session)
 
         tenant_id = str(uuid4())
-        
-        # --- LÓGICA CORRIGIDA: INSERIR TenantModel (Modelo ORM) ---
+
+        # --- Cria TenantModel (ORM) ---
         tenant_model = TenantModel(
             id=tenant_id,
-            org_name="Mariana - E-commerce Owner", # Usa campo correto
-            cnpj="99999999000100",                 # CNPJ de placeholder
-            tier=TenantTier.ALPHA.value,           # Tier de placeholder (passa o valor da Enum)
+            org_name="Mariana - E-commerce Owner",
+            cnpj="99999999000100",
+            tier=TenantTier.ALPHA.value,
             active=True,
         )
         session.add(tenant_model)
-        await session.flush() # Persiste o tenant_id antes de usá-lo
-        # --- FIM DA LÓGICA CORRIGIDA ---
+        await session.flush()  # Garante persistência antes de uso
 
-        print(f"🌱 Seeding data for tenant: {tenant_id}")
+        logger.info("tenant_created", tenant_id=tenant_id, org="Mariana - E-commerce Owner")
 
+        # --- Seed de vendas e transações ---
         for i in range(100):
             amount = Decimal(100 + i * 10)
             sale = Sale(
                 id=str(uuid4()),
-                tenant_id=tenant_id, # ID do tenant recém-criado
+                tenant_id=tenant_id,
                 nsu=f"NSU{i:09d}",
                 amount=Money(amount),
                 date=date.today() - timedelta(days=i % 30),
@@ -96,7 +103,7 @@ async def seed_data() -> None:
             if i < 95:
                 transaction = AcquirerTransaction(
                     id=str(uuid4()),
-                    tenant_id=tenant_id, # ID do tenant recém-criado
+                    tenant_id=tenant_id,
                     acquirer=Acquirer.CIELO if i % 3 == 0 else Acquirer.REDE,
                     nsu=f"NSU{i:09d}",
                     amount=Money(amount),
@@ -106,11 +113,18 @@ async def seed_data() -> None:
                 )
                 await transaction_repo.save(transaction)
 
-        print("✅ Seeded 100 sales and 95 transactions")
-        # O commit é tratado pelo get_session()
+        logger.info("seed_completed", sales=100, transactions=95, tenant_id=tenant_id)
+        print("✅ Seeded 100 sales and 95 transactions for tenant:", tenant_id)
 
     await database.close()
+    logger.info("database_connection_closed")
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_data())
+    try:
+        asyncio.run(seed_data())
+        print("🎉 Database seeding completed successfully.")
+    except Exception as e:
+        logger.error("seed_failed", error=str(e))
+        print(f"❌ Seed failed: {e}")
+        sys.exit(1)
