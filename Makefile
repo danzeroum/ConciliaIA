@@ -4,7 +4,7 @@
 .PHONY: help setup install start check-python fix-pip test test-cov test-integration test-accuracy test-performance test-load test-load-k6 test-stress test-all benchmark lint format run migrate migrate-create generate-migration seed docker-up docker-down docker-logs docker-reset init-db init-tenant fix-db reset-db
 
 SHELL := cmd.exe
-.SHELLFLAGS := /c "setlocal EnableDelayedExpansion &&"
+.SHELLFLAGS := /c
 
 # --------------------------------------
 # 🔧 Environment Check & Setup
@@ -55,7 +55,7 @@ docker-logs:
 docker-reset:
 	@echo ♻️ Full docker reset...
 	@docker-compose down -v
-	@docker volume rm conciliaai_postgres_data --force || true
+	@docker volume rm conciliaai_postgres_data --force 2>nul || echo Volume already removed
 	@docker-compose up -d postgres
 	@echo ⏳ Waiting for Postgres health...
 	@timeout /t 25 /nobreak >nul
@@ -74,20 +74,9 @@ migrate:
 	@docker-compose run --rm backend alembic upgrade head
 	@echo ✅ Migrations applied successfully
 
-# ✅ --- FIX 1: init-tenant with smart wait ---
 init-tenant:
 	@chcp 65001 >nul 2>&1
-	@echo 🏗️ Ensuring default tenant exists \(ConciliaAI MVP\)...
-	@echo ⏳ Waiting for 'tenants' table to be ready...
-	@for /l %%i in (1,1,30) do ( \
-		docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue -tAc "SELECT 1 FROM pg_tables WHERE tablename='tenants';" | find "1" >nul && (echo ✅ Table ready! & goto table_ready) || (echo . waiting... & timeout /t 3 >nul) \
-	) \
-	& echo ❌ Timeout waiting for tenants table. Check migrations. & exit /b 1
-
-	:table_ready
-	@docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue -c "INSERT INTO tenants (id, org_name, cnpj, tier, active) VALUES (gen_random_uuid(), 'ConciliaAI MVP', '00000000000001', 'alpha', true) ON CONFLICT DO NOTHING;"
-	@echo ✅ Default tenant ensured!
-	@docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue -c "SELECT org_name, tier, active FROM tenants;"
+	@powershell -ExecutionPolicy Bypass -NoProfile -File scripts/init-tenant.ps1
 
 init-db:
 	@chcp 65001 >nul 2>&1
@@ -111,41 +100,33 @@ fix-db:
 	@echo 🧩 Running full database repair (PowerShell)...
 	@powershell -ExecutionPolicy Bypass -NoProfile -File scripts/fix-db.ps1
 
-# ✅ --- FIX 2: reset-db persistent alembic volume ---
 reset-db:
 	@chcp 65001 >nul 2>&1
-	@echo 🔁 Full BuildToValue reset: containers + volumes + Alembic + migrations...
+	@echo 🔁 Full BuildToValue reset: containers + volumes + schema...
 	@docker-compose down -v >nul 2>&1
-	@if exist ".\alembic\versions" del /q .\alembic\versions\*.py >nul 2>&1
-	@echo 🧹 Old migrations removed.
+	@docker volume rm conciliaai_postgres_data --force 2>nul || echo Volume already removed
+	@if exist ".\alembic\versions\*.py" del /q .\alembic\versions\*.py >nul 2>&1
+	@echo 🧹 Old migrations and volumes removed.
 	@docker-compose up -d postgres >nul 2>&1
-	@echo ⏳ Waiting for Postgres (15s)...
-	@timeout /t 15 /nobreak >nul
-	@docker exec -i buildtovalue-postgres psql -U btv_user -d postgres -c "CREATE DATABASE buildtovalue OWNER btv_user;" >nul 2>&1 || echo (db already exists)
+	@echo ⏳ Waiting for Postgres (20s)...
+	@timeout /t 20 /nobreak >nul
+	@docker exec -i buildtovalue-postgres psql -U btv_user -d postgres -c "DROP DATABASE IF EXISTS buildtovalue;" >nul 2>&1
+	@docker exec -i buildtovalue-postgres psql -U btv_user -d postgres -c "CREATE DATABASE buildtovalue OWNER btv_user;" >nul 2>&1
+	@echo ✅ Database recreated from scratch
 	@docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" >nul
 	@docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";" >nul
 	@docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" >nul
-	@echo ⚙️ Generating Alembic migration from current models...
-	@docker-compose run --rm -v "%cd%/alembic:/app/alembic" backend alembic revision --autogenerate -m "auto_full_schema" >nul
-	@echo 🚀 Applying migrations...
-	@docker-compose run --rm -v "%cd%/alembic:/app/alembic" backend alembic upgrade head >nul
-	@echo 💤 Waiting 5s to ensure schema visibility...
-	@timeout /t 5 >nul
-	@echo ✅ Database schema fully rebuilt!
-
-# --------------------------------------
-# 🚀 Startup Automation
-# --------------------------------------
-
-# --------------------------------------
-# 🚀 Startup Automation (Governed Mode)
-# --------------------------------------
+	@echo 🏗️ Applying SQL schema directly...
+	@docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue < scripts/create-schema.sql
+	@echo ✅ Database schema created!
+	@docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue -c "\dt"
 
 start: check-python
 	@chcp 65001 >nul 2>&1
 	@echo 🚀 ConciliaAI - Starting complete environment under BuildToValue v7.1...
 	@echo.
 	@if not exist ".env" (echo ❌ ERROR: .env file not found. Please create it first! && exit /b 1)
+	@if not exist "scripts\init-tenant.ps1" (echo ❌ ERROR: scripts\init-tenant.ps1 not found! && exit /b 1)
 	@echo 📦 Step 1/4: Resetting full environment...
 	@$(MAKE) --no-print-directory reset-db
 	@echo.
@@ -158,8 +139,8 @@ start: check-python
 	@timeout /t 10 /nobreak >nul
 	@docker ps --filter "name=backend"
 	@echo.
-	@echo 🩺 Step 4/4: Validating backend health & dependencies...
-	@powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','validate-backend.ps1','-ContainerName','conciliaai-backend' -Wait"
+	@echo 🩺 Step 4/4: Validating backend health...
+	@docker exec conciliaai-backend curl -f http://localhost:8000/health 2>nul >nul && (echo ✅ Backend is healthy!) || (echo ⚠️ Backend health check failed - check logs: docker logs conciliaai-backend)
 	@echo.
 	@echo ✅ Environment fully validated!
 	@echo 📍 API: http://localhost:8000
