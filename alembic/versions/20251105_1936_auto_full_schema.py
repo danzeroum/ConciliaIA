@@ -1,8 +1,8 @@
 """auto_full_schema
 
-Revision ID: c70493df5bc0
+Revision ID: 2481690915f0
 Revises: 
-Create Date: 2025-11-05 19:16:17.179420
+Create Date: 2025-11-05 19:36:55.925639
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'c70493df5bc0'
+revision = '2481690915f0'
 down_revision = None
 branch_labels = None
 depends_on = None

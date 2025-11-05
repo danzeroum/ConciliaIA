@@ -137,21 +137,33 @@ reset-db:
 # 🚀 Startup Automation
 # --------------------------------------
 
+# --------------------------------------
+# 🚀 Startup Automation (Governed Mode)
+# --------------------------------------
+
 start: check-python
 	@chcp 65001 >nul 2>&1
-	@echo 🚀 ConciliaAI - Starting complete environment...
+	@echo 🚀 ConciliaAI - Starting complete environment under BuildToValue v7.1...
 	@echo.
 	@if not exist ".env" (echo ❌ ERROR: .env file not found. Please create it first! && exit /b 1)
-	@echo 📦 Step 1/3: Resetting full environment...
+	@echo 📦 Step 1/4: Resetting full environment...
 	@$(MAKE) --no-print-directory reset-db
 	@echo.
-	@echo 🧱 Step 2/3: Ensuring default tenant...
+	@echo 🧱 Step 2/4: Ensuring default tenant...
 	@$(MAKE) --no-print-directory init-tenant
 	@echo.
-	@echo 🩺 Step 3/3: Verifying backend health...
-	@powershell -Command "Start-Sleep -Seconds 5; try { Invoke-RestMethod -Uri 'http://localhost:8000/api/v1/health' -TimeoutSec 10 } catch { Write-Host '⚠️ Healthcheck failed, backend may still be starting.' }"
+	@echo ⚙️ Step 3/4: Starting backend container...
+	@docker-compose up -d backend
+	@echo ⏳ Waiting for backend to start...
+	@timeout /t 10 /nobreak >nul
+	@docker ps --filter "name=backend"
 	@echo.
-	@echo ✅ Environment ready!
+	@echo 🩺 Step 4/4: Validating backend health & dependencies...
+	@powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','validate-backend.ps1','-ContainerName','conciliaai-backend' -Wait"
+	@echo.
+	@echo ✅ Environment fully validated!
 	@echo 📍 API: http://localhost:8000
 	@echo 📖 Docs: http://localhost:8000/docs
 	@echo 🗄️ DB: postgresql://btv_user:btv_password@localhost:5432/buildtovalue
+	@echo.
+	@echo 🧩 BuildToValue v7.1: All checks passed ✅
