@@ -108,6 +108,7 @@ async def seed_data() -> None:
                     nsu=f"NSU{i:09d}",
                     amount=Money(amount),
                     transaction_date=date.today() - timedelta(days=i % 30),
+                    transaction_time=time(14, 30 + (i % 30), 0),
                     mdr_amount=Money(amount * Decimal("0.025")),
                     net_amount=Money(amount * Decimal("0.975")),
                 )

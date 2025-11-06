@@ -1,7 +1,7 @@
 """SQLAlchemy models for PostgreSQL."""
 
 from __future__ import annotations
-
+from sqlalchemy import Time
 from datetime import datetime
 from uuid import uuid4
 
@@ -98,7 +98,7 @@ class TransactionModel(Base):
     currency = Column(String(3), default="BRL")
     transaction_date = Column(DateTime, nullable=False, index=True)
     settlement_date = Column(Date, index=True)
-    transaction_time = Column(String(8))
+    transaction_time = Column(Time)
     card_brand = Column(String(20))
     card_last_4 = Column(String(4))
     mdr_rate = Column(Numeric(5, 4))

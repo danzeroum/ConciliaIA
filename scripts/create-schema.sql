@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS ix_users_tenant_id ON users(tenant_id);
 CREATE INDEX IF NOT EXISTS ix_users_email ON users(email);
 
 -- Acquirer Transactions
--- Acquirer Transactions (VERSÃO COMPLETA COM TODAS AS COLUNAS)
+-- Acquirer Transactions (CORRIGIDO - transaction_time como TIME)
 CREATE TABLE IF NOT EXISTS acquirer_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS acquirer_transactions (
     currency VARCHAR(3) DEFAULT 'BRL',
     transaction_date DATE NOT NULL,
     settlement_date DATE,
-    transaction_time TIME,
+    transaction_time TIME,  -- ✅ TIPO CORRETO
     card_brand VARCHAR(50),
     card_last_4 VARCHAR(4),
     mdr_rate DECIMAL(5,4),
@@ -62,6 +62,16 @@ CREATE TABLE IF NOT EXISTS acquirer_transactions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Índices...
+CREATE INDEX IF NOT EXISTS idx_transactions_nsu_trgm ON acquirer_transactions USING gin(nsu gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_transactions_tenant_acquirer ON acquirer_transactions(tenant_id, acquirer);
+CREATE INDEX IF NOT EXISTS idx_transactions_tenant_date ON acquirer_transactions(tenant_id, transaction_date);
+CREATE INDEX IF NOT EXISTS idx_transactions_tenant_settlement ON acquirer_transactions(tenant_id, settlement_date);
+CREATE INDEX IF NOT EXISTS ix_acquirer_transactions_tenant_id ON acquirer_transactions(tenant_id);
+CREATE INDEX IF NOT EXISTS ix_acquirer_transactions_nsu ON acquirer_transactions(nsu);
+CREATE INDEX IF NOT EXISTS ix_acquirer_transactions_acquirer ON acquirer_transactions(acquirer);
+CREATE INDEX IF NOT EXISTS ix_acquirer_transactions_transaction_date ON acquirer_transactions(transaction_date);
+CREATE INDEX IF NOT EXISTS ix_acquirer_transactions_settlement_date ON acquirer_transactions(settlement_date);
 CREATE INDEX IF NOT EXISTS idx_transactions_nsu_trgm ON acquirer_transactions USING gin(nsu gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_transactions_tenant_acquirer ON acquirer_transactions(tenant_id, acquirer);
 CREATE INDEX IF NOT EXISTS idx_transactions_tenant_date ON acquirer_transactions(tenant_id, transaction_date);
