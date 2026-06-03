@@ -426,7 +426,7 @@ Follow these steps manually if the automated script encounters issues.
 mkdir -p backups/v6-manual-backup
 
 # Database
-docker exec buildtoflip-postgres pg_dump -U btv_user buildtoflip > \
+docker exec buildtoflip-postgres pg_dump -U app_user buildtoflip > \
   backups/v6-manual-backup/database.sql
 
 # Files
@@ -775,7 +775,7 @@ git reset --hard v6-final
 git clean -fd
 
 # 3. Restore database
-docker exec -i buildtoflip-postgres psql -U btv_user buildtoflip < \
+docker exec -i buildtoflip-postgres psql -U app_user buildtoflip < \
   backups/v6-backup-TIMESTAMP/database.sql
 
 # 4. Restore files
@@ -861,10 +861,10 @@ A: Smart routing (when enabled) and Auto-RAG searches. Both configurable.
 A: 
 1. Discord: https://discord.gg/buildtovalue (fastest)
 2. GitHub Issues: https://github.com/buildtovalue/v7/issues
-3. Email: support@buildtovalue.com
+3. Email: https://github.com/danzeroum/ConciliaIA/issues
 
 **Q: Is professional migration support available?**
-A: Yes, for enterprise customers. Contact: enterprise@buildtovalue.com
+A: Yes, for enterprise customers. Contact: https://github.com/danzeroum/ConciliaIA/issues
 
 **Q: What if I find a bug?**
 A: Report on GitHub Issues with migration support bundle:
@@ -960,12 +960,12 @@ nano .buildtovalue/config/quality-gates.yaml
 - **Discord**: https://discord.gg/buildtovalue
 - **GitHub Discussions**: https://github.com/buildtovalue/v7/discussions
 - **YouTube Tutorials**: https://youtube.com/@buildtovalue
-- **Blog**: https://blog.buildtovalue.com
+- **Blog**: https://github.com/danzeroum/ConciliaIA
 
 ### Professional Services
 
 For enterprise migrations:
-- **Email**: enterprise@buildtovalue.com
+- **Email**: https://github.com/danzeroum/ConciliaIA/issues
 - **Services**:
   - Migration planning & execution
   - Custom integration

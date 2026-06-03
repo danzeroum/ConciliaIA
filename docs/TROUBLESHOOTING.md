@@ -196,7 +196,7 @@ EXCLUDED_PREFIXES = (
 **Diagnosis:**
 ```bash
 # Test database connection
-docker exec buildtovalue-postgres pg_isready
+docker exec conciliaai-postgres pg_isready
 
 # Test Redis connection
 docker exec buildtovalue-redis redis-cli ping
@@ -556,20 +556,20 @@ sudo usermod -aG docker $USER
 **Solutions:**
 ```bash
 # Check PostgreSQL is running
-docker exec buildtovalue-postgres pg_isready
+docker exec conciliaai-postgres pg_isready
 
 # Check database exists
-docker exec buildtovalue-postgres psql -U btv_user -lqt | cut -d \| -f 1 | grep buildtovalue
+docker exec conciliaai-postgres psql -U app_user -lqt | cut -d \| -f 1 | grep buildtovalue
 
 # If database doesn't exist, create it
-docker exec buildtovalue-postgres createdb -U btv_user buildtovalue
+docker exec conciliaai-postgres createdb -U app_user buildtovalue
 
 # Re-run initialization
-docker exec -i buildtovalue-postgres psql -U btv_user -d buildtovalue < \
+docker exec -i conciliaai-postgres psql -U app_user -d buildtovalue < \
   ./scripts/database/init-schema.sql
 
 # Verify tables created
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c "\dt"
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c "\dt"
 ```
 
 ---
@@ -681,11 +681,11 @@ performance:
 **Solution 2: Fix Connection Leaks**
 ```bash
 # Check active connections
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c \
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c \
   "SELECT count(*) FROM pg_stat_activity WHERE datname='buildtovalue';"
 
 # Kill idle connections
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c \
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c \
   "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
    WHERE datname='buildtovalue' AND state='idle' AND \
    state_change < NOW() - INTERVAL '1 hour';"
@@ -698,7 +698,7 @@ docker-compose restart app
 **Solution 3: Optimize Queries**
 ```bash
 # Find slow queries
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c \
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c \
   "SELECT query, mean_exec_time, calls \
    FROM pg_stat_statements \
    ORDER BY mean_exec_time DESC \
@@ -725,17 +725,17 @@ docker-compose logs app | grep "slow query"
 **Solutions:**
 ```bash
 # Check disk usage
-docker exec buildtovalue-postgres du -sh /var/lib/postgresql/data
+docker exec conciliaai-postgres du -sh /var/lib/postgresql/data
 
 # Check Docker volume size
 docker system df -v | grep postgres
 
 # Solution 1: Clean old data
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c \
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c \
   "DELETE FROM decisions WHERE created_at < NOW() - INTERVAL '365 days';"
 
 # Solution 2: Vacuum database
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c "VACUUM FULL;"
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c "VACUUM FULL;"
 
 # Solution 3: Archive and purge
 ./scripts/database/archive-old-data.sh --older-than=1year
@@ -1089,7 +1089,7 @@ docker-compose restart
 ./scripts/database/add-indexes.sh
 
 # Update statistics
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c "ANALYZE;"
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c "ANALYZE;"
 ```
 
 **Solution 3: Enable Performance Features**
@@ -1343,7 +1343,7 @@ du -sh .buildtovalue/*
 
 ---
 
-### "Role 'btv_user' does not exist"
+### "Role 'app_user' does not exist"
 
 **Meaning:** PostgreSQL user not created
 
@@ -1354,12 +1354,12 @@ du -sh .buildtovalue/*
 **Quick Fix:**
 ```bash
 # Create user
-docker exec buildtovalue-postgres psql -U postgres -c \
-  "CREATE USER btv_user WITH PASSWORD 'your_password';"
+docker exec conciliaai-postgres psql -U postgres -c \
+  "CREATE USER app_user WITH PASSWORD 'your_password';"
 
 # Grant privileges
-docker exec buildtovalue-postgres psql -U postgres -c \
-  "GRANT ALL PRIVILEGES ON DATABASE buildtovalue TO btv_user;"
+docker exec conciliaai-postgres psql -U postgres -c \
+  "GRANT ALL PRIVILEGES ON DATABASE buildtovalue TO app_user;"
 
 # Or re-initialize
 ./scripts/database/init-schema.sh
@@ -1562,25 +1562,25 @@ wireshark capture.pcap
 Deep dive into database issues:
 ```bash
 # Enable query logging
-docker exec buildtovalue-postgres psql -U postgres -c \
+docker exec conciliaai-postgres psql -U postgres -c \
   "ALTER SYSTEM SET log_statement = 'all';"
-docker exec buildtovalue-postgres psql -U postgres -c \
+docker exec conciliaai-postgres psql -U postgres -c \
   "SELECT pg_reload_conf();"
 
 # View active queries
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c \
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c \
   "SELECT pid, usename, application_name, state, query \
    FROM pg_stat_activity \
    WHERE datname = 'buildtovalue';"
 
 # Check for locks
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c \
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c \
   "SELECT * FROM pg_locks l \
    JOIN pg_stat_activity a ON l.pid = a.pid \
    WHERE NOT l.granted;"
 
 # Analyze table bloat
-docker exec buildtovalue-postgres psql -U btv_user -d buildtovalue -c \
+docker exec conciliaai-postgres psql -U app_user -d buildtovalue -c \
   "SELECT schemaname, tablename, \
    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) \
    FROM pg_tables \
@@ -1697,7 +1697,7 @@ docker-compose up -d
 docker-compose down -v
 
 # 3. Remove all Docker resources
-docker volume rm buildtovalue-postgres-data
+docker volume rm conciliaai-postgres-data
 docker volume rm buildtovalue-redis-data
 docker volume rm buildtovalue-chromadb-data
 
@@ -1760,11 +1760,11 @@ Prepare this information:
 ### Professional Support
 
 - **Email Support**
-  - Address: support@buildtovalue.com
+  - Address: https://github.com/danzeroum/ConciliaIA/issues
   - Response time: 24-48 hours (standard)
   - Include: Support bundle, system info
 - **Priority Support (Enterprise)**
-  - Email: enterprise@buildtovalue.com
+  - Email: https://github.com/danzeroum/ConciliaIA/issues
   - Slack Connect available
   - Response time: 4 hours
   - Phone support available
@@ -2007,7 +2007,7 @@ docker run -p 5050:80 \
 # Access: http://localhost:5050
 
 # pg_stat_statements (Query analysis)
-docker exec buildtovalue-postgres psql -U postgres -c \
+docker exec conciliaai-postgres psql -U postgres -c \
   "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
 ```
 
@@ -2115,7 +2115,7 @@ docker exec buildtovalue-postgres psql -U postgres -c \
 │ SUPPORT                                                 │
 │   Discord:            https://discord.gg/buildtovalue   │
 │   GitHub:             github.com/buildtovalue/v7/issues │
-│   Email:              support@buildtovalue.com          │
+│   Email:              https://github.com/danzeroum/ConciliaIA/issues          │
 │   Docs:               docs/TROUBLESHOOTING.md           │
 └─────────────────────────────────────────────────────────┘
 ```

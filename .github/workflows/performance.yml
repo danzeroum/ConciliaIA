@@ -17,8 +17,8 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_DB: conciliaai_test
-          POSTGRES_USER: btv_user
-          POSTGRES_PASSWORD: btv_password
+          POSTGRES_USER: ci_test_user
+          POSTGRES_PASSWORD: ci_test_password
         ports:
           - 5432:5432
         options: >-
@@ -43,13 +43,13 @@ jobs:
 
       - name: Run performance tests
         env:
-          DATABASE_URL: postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai_test
+          DATABASE_URL: postgresql+asyncpg://ci_test_user:ci_test_password@localhost:5432/conciliaai_test
         run: |
           pytest tests/performance/ -v -m performance --benchmark-only
 
       - name: Run stress tests
         env:
-          DATABASE_URL: postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai_test
+          DATABASE_URL: postgresql+asyncpg://ci_test_user:ci_test_password@localhost:5432/conciliaai_test
         run: |
           pytest tests/stress/ -v -m stress
 

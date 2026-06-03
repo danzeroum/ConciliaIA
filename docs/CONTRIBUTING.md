@@ -610,7 +610,7 @@ When you change code that affects documentation:
 ### Stay Updated
 
 - **GitHub:** Watch the repository
-- **Blog:** Read [our blog](https://buildtovalue.com/blog)
+- **Repositório:** https://github.com/danzeroum/ConciliaIA
 - **Twitter:** Follow [@buildtovalue](https://twitter.com/buildtovalue)
 - **Newsletter:** Subscribe to updates
 
@@ -686,8 +686,8 @@ By contributing, you agree that your contributions will be licensed under the MI
 ## Questions?
 
 - **Technical questions:** [GitHub Discussions](https://github.com/buildtovalue/v7/discussions)
-- **Security issues:** security@buildtovalue.com (private)
-- **Other inquiries:** hello@buildtovalue.com
+- **Security issues:** https://github.com/danzeroum/ConciliaIA/security (private)
+- **Other inquiries:** danniellau@gmail.com
 
 ---
 

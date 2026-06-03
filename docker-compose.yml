@@ -1,11 +1,11 @@
 ﻿services:
   postgres:
     image: postgres:15-alpine
-    container_name: buildtovalue-postgres
+    container_name: conciliaai-postgres
     environment:
-      POSTGRES_DB: buildtovalue
-      POSTGRES_USER: btv_user
-      POSTGRES_PASSWORD: btv_password
+      POSTGRES_DB: ${POSTGRES_DB:-conciliaai}
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
     ports:
@@ -14,7 +14,7 @@
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U btv_user -d buildtovalue"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app_user} -d ${POSTGRES_DB:-conciliaai}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,14 +28,14 @@
       - "8000:8000"
     environment:
       PYTHONPATH: /app/src
-      DATABASE_URL: postgresql+asyncpg://btv_user:btv_password@postgres:5432/buildtovalue
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@postgres:5432/${POSTGRES_DB:-conciliaai}
       LOG_LEVEL: INFO
       ENVIRONMENT: production
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: btv_user
-      POSTGRES_PASSWORD: btv_password
-      POSTGRES_DB: buildtovalue
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+      POSTGRES_DB: ${POSTGRES_DB:-conciliaai}
     depends_on:
       postgres:
         condition: service_healthy

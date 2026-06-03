@@ -126,8 +126,8 @@ curl http://localhost:8080/api/v7/orchestrator/route \
 | Environment | Base URL | Purpose |
 |-------------|----------|---------|
 | **Local** | `http://localhost:8080/api/v7` | Development |
-| **Staging** | `https://staging.buildtovalue.com/api/v7` | Testing |
-| **Production** | `https://api.buildtovalue.com/v7` | Production |
+| **Staging** | `https://staging.conciliaai.com/api/v1` | Testing |
+| **Production** | `https://api.conciliaai.com/v1` | Production |
 
 ### Endpoints
 

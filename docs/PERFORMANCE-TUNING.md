@@ -679,19 +679,19 @@ def get_pool_status():
 # scripts/database/maintenance.sh
 
 # Daily vacuum (analyze)
-psql -U btv_user -d buildtovalue -c "VACUUM ANALYZE;"
+psql -U app_user -d buildtovalue -c "VACUUM ANALYZE;"
 
 # Weekly vacuum (full)
-psql -U btv_user -d buildtovalue -c "VACUUM FULL ANALYZE;"
+psql -U app_user -d buildtovalue -c "VACUUM FULL ANALYZE;"
 
 # Reindex concurrently (monthly)
-psql -U btv_user -d buildtovalue -c "REINDEX INDEX CONCURRENTLY idx_decisions_timestamp_desc;"
+psql -U app_user -d buildtovalue -c "REINDEX INDEX CONCURRENTLY idx_decisions_timestamp_desc;"
 
 # Update statistics
-psql -U btv_user -d buildtovalue -c "ANALYZE;"
+psql -U app_user -d buildtovalue -c "ANALYZE;"
 
 # Check table bloat
-psql -U btv_user -d buildtovalue -c "
+psql -U app_user -d buildtovalue -c "
 SELECT
     schemaname || '.' || tablename AS table,
     pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size,
