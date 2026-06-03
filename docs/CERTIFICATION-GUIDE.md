@@ -73,7 +73,7 @@ Orientar squads na obtenção das certificações oficiais BuildToValue (Bronze,
 - Use `./scripts/certification/renew.sh --level <nivel>` para automatizar.
 
 ## 📬 Contato com Comitê
-- Email: certification@buildtovalue.com
+- Email: danniellau@gmail.com
 - Discord: `#btv-certification`
 - SLA de resposta: até 5 dias úteis
 

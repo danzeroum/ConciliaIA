@@ -89,7 +89,7 @@ FOUNDATION_LEVEL=lite  # Options: lite, standard, enterprise
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=buildtovalue
-POSTGRES_USER=btv_user
+POSTGRES_USER=app_user
 POSTGRES_PASSWORD=change_me_in_production
 
 # Optional: Observability (recommended)
@@ -544,7 +544,7 @@ curl https://api.openai.com/v1/models \
 docker-compose -f docker/docker-compose-v7.yml ps postgres
 
 # Check connection
-docker exec -it buildtovalue-postgres psql -U btv_user -d buildtovalue
+docker exec -it conciliaai-postgres psql -U app_user -d buildtovalue
 
 # If connection works but app doesn't:
 # Verify .env.dev has correct POSTGRES_HOST (should be 'localhost' for local)
@@ -630,7 +630,7 @@ cat docs/TROUBLESHOOTING.md
 ### 3. Community Support
 - **Discord**: Fastest response, community + maintainers
 - **GitHub Issues**: Bug reports and feature requests
-- **Email**: support@buildtovalue.com (paid support)
+- Abra uma issue em https://github.com/danzeroum/ConciliaIA/issues
 
 ### 4. Emergency
 ```bash

@@ -29,10 +29,9 @@ from src.infrastructure.persistence.repositories.postgresql_transaction_reposito
 logger = structlog.get_logger(__name__)
 
 # URL atualizada conforme docker-compose
-DEFAULT_DB_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://btv_user:btv_password@postgres:5432/buildtovalue",
-)
+DEFAULT_DB_URL = os.getenv("DATABASE_URL")
+if not DEFAULT_DB_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required")
 
 
 async def check_tables_exist(engine) -> None:
@@ -63,7 +62,10 @@ async def seed_data() -> None:
     database = Database(database_url)
     engine = database.engine
 
-    logger.info("database_initialized", url=database_url.replace("btv_password", "***"))
+    from urllib.parse import urlparse, urlunparse
+    _parsed = urlparse(database_url)
+    _safe_url = urlunparse(_parsed._replace(netloc=f"{_parsed.username}:***@{_parsed.hostname}:{_parsed.port}"))
+    logger.info("database_initialized", url=_safe_url)
 
     # Garante que as tabelas existem antes de popular dados
     await check_tables_exist(engine)

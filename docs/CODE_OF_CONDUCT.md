@@ -53,7 +53,7 @@ This Code of Conduct also applies when an individual is officially representing 
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at:
 
-**conduct@buildtovalue.com**
+**https://github.com/danzeroum/ConciliaIA/issues**
 
 All complaints will be reviewed and investigated promptly and fairly.
 
@@ -110,7 +110,7 @@ Community leaders will follow these Community Impact Guidelines in determining t
 
 If you disagree with a decision:
 
-1. Email **appeals@buildtovalue.com** within 7 days
+1. Email **https://github.com/danzeroum/ConciliaIA/issues** within 7 days
 2. Explain why you believe the decision was incorrect
 3. Provide any new evidence or information
 4. Appeals committee will review (within 14 days)
@@ -305,7 +305,7 @@ Everyone's time is valuable:
 
 DO NOT report security vulnerabilities publicly. Instead:
 
-- Email **security@buildtovalue.com**
+- Email **https://github.com/danzeroum/ConciliaIA/security**
 - Use encrypted communication if possible
 - Allow time for fixes before disclosure
 - Follow responsible disclosure practices
@@ -367,15 +367,15 @@ DO NOT report security vulnerabilities publicly. Instead:
 
 ### Questions About the Code of Conduct
 
-- General questions: **conduct@buildtovalue.com**
-- Report violations: **conduct@buildtovalue.com**
-- Appeals: **appeals@buildtovalue.com**
+- General questions: **https://github.com/danzeroum/ConciliaIA/issues**
+- Report violations: **https://github.com/danzeroum/ConciliaIA/issues**
+- Appeals: **https://github.com/danzeroum/ConciliaIA/issues**
 
 ### Other Resources
 
 - Technical questions: GitHub Discussions
-- Security issues: security@buildtovalue.com
-- General inquiries: hello@buildtovalue.com
+- Security issues: https://github.com/danzeroum/ConciliaIA/security
+- General inquiries: danniellau@gmail.com
 
 ## Acknowledgments
 
@@ -404,7 +404,7 @@ We may update this Code of Conduct from time to time. We will:
 
 ## Contact
 
-Code of Conduct Team: **conduct@buildtovalue.com**
+Code of Conduct Team: **https://github.com/danzeroum/ConciliaIA/issues**
 
 Community Managers:
 

@@ -20,8 +20,8 @@ async def seed_mvp() -> None:
     database = Database(
         host=os.getenv("POSTGRES_HOST", "postgres"),
         port=int(os.getenv("POSTGRES_PORT", "5432")),
-        user=os.getenv("POSTGRES_USER", "btv_user"),
-        password=os.getenv("POSTGRES_PASSWORD", "btv_password"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
         database=os.getenv("POSTGRES_DB", "conciliaai"),
     )
 

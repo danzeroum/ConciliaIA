@@ -41,7 +41,9 @@ logger = structlog.get_logger(__name__)
 def _configure_security_components() -> None:
     """Initialise security-related dependencies used across the API."""
 
-    secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
+    secret_key = os.getenv("SECRET_KEY")
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY environment variable is required")
     dependencies.jwt_handler = JWTHandler(secret_key=secret_key)
     dependencies.password_hasher = PasswordHasher(rounds=12)
 
@@ -65,10 +67,9 @@ _configure_security_components()
 async def lifespan(app: FastAPI):
     logger.info("application_startup_started")
 
-    database_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai",
-    )
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL environment variable is required")
     dependencies.database = Database(database_url)
 
     if dependencies.database is None:

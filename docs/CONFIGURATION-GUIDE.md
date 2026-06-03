@@ -75,7 +75,7 @@ Step-by-step handbook for configuring BuildToValue across development, staging, 
 | `POSTGRES_HOST` | Hostname | `localhost` | Use `postgres` inside Docker network |
 | `POSTGRES_PORT` | Port | `5432` | Keep open in firewall rules |
 | `POSTGRES_DB` | Database name | `buildtovalue` | Use separate DB for tests |
-| `POSTGRES_USER` | Username | `btv_user` | Rotate for production |
+| `POSTGRES_USER` | Username | `app_user` | Rotate for production |
 | `POSTGRES_PASSWORD` | Password | `change_me_in_production` | Store in secrets manager |
 | `POSTGRES_POOL_MIN/MAX` | Connection pool | `2` / `10` | Tune for workload |
 | `POSTGRES_BACKUP_*` | Backup toggle/schedule | `true` / `0 2 * * *` | Use offsite storage for prod |
@@ -170,9 +170,9 @@ Step-by-step handbook for configuring BuildToValue across development, staging, 
 
 | Variable | Description | Dev Default | Notes |
 |----------|-------------|-------------|-------|
-| `POSTGRES_CONTAINER_NAME` | Container name | `buildtovalue-postgres` | Use in scripts |
+| `POSTGRES_CONTAINER_NAME` | Container name | `conciliaai-postgres` | Use in scripts |
 | `DOCKER_NETWORK_NAME` | Network | `buildtovalue-network` | Ensure unique per project |
-| `POSTGRES_VOLUME` | Volume | `buildtovalue-postgres-data` | Map to persistent storage |
+| `POSTGRES_VOLUME` | Volume | `conciliaai-postgres-data` | Map to persistent storage |
 
 ### Feature Flags
 

@@ -1,8 +1,16 @@
-"""Example: ingest Stone API transactions."""
+"""Example: ingest Stone API transactions.
+
+Before running, set the required environment variables:
+  DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname
+  STONE_CLIENT_ID=your_client_id
+  STONE_CLIENT_SECRET=your_client_secret
+  STONE_CODE=your_stone_code
+"""
 
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import date
 
 from src.infrastructure.acquirers import StoneAPIClient, StoneParser
@@ -13,16 +21,15 @@ from src.infrastructure.persistence.repositories.postgresql_transaction_reposito
 
 
 async def main() -> None:
-    database = Database(
-        "postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai"
-    )
+    database_url = os.environ["DATABASE_URL"]
+    database = Database(database_url)
 
     async for session in database.get_session():
         transaction_repo = PostgreSQLTransactionRepository(session)
         client = StoneAPIClient(
-            client_id="your_client_id",
-            client_secret="your_client_secret",
-            stone_code="your_stone_code",
+            client_id=os.environ["STONE_CLIENT_ID"],
+            client_secret=os.environ["STONE_CLIENT_SECRET"],
+            stone_code=os.environ["STONE_CODE"],
         )
 
         start_date = date(2023, 1, 1)

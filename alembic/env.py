@@ -26,10 +26,10 @@ target_metadata = Base.metadata
 
 # --- Database URL ---
 # Garante que Alembic use psycopg2 mesmo que a app use asyncpg
-database_url = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://btv_user:btv_password@postgres:5432/buildtovalue"
-).replace("asyncpg", "psycopg2")
+_raw_url = os.getenv("DATABASE_URL")
+if not _raw_url:
+    raise RuntimeError("DATABASE_URL environment variable is required for migrations")
+database_url = _raw_url.replace("asyncpg", "psycopg2")
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""

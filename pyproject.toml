@@ -3,16 +3,16 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "buildtovalue"
-version = "7.0.0"
-description = "AI Squad for Software Development with Auto-RAG Learning"
+name = "conciliaai"
+version = "1.0.0"
+description = "Sistema de Reconciliação Financeira com IA"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "BuildToValue Team", email = "hello@buildtovalue.com"}
+    {name = "ConciliaIA", email = "danniellau@gmail.com"}
 ]
-keywords = ["ai", "llm", "orchestration", "development", "rag"]
+keywords = ["ai", "reconciliation", "fintech", "conciliacao", "fastapi"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -22,10 +22,7 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://buildtovalue.com"
-Documentation = "https://docs.buildtovalue.com"
-Repository = "https://github.com/buildtovalue/v7"
-Changelog = "https://github.com/buildtovalue/v7/blob/main/CHANGELOG.md"
+Repository = "https://github.com/danzeroum/ConciliaIA"
 
 [tool.black]
 line-length = 100

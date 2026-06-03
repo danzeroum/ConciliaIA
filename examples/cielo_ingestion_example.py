@@ -1,8 +1,17 @@
-"""Example: ingest Cielo EDI files."""
+"""Example: ingest Cielo EDI files.
+
+Before running, set the required environment variables:
+  DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname
+  CIELO_SFTP_HOST=sftp.cielo.com.br
+  CIELO_SFTP_USERNAME=your_username
+  CIELO_SFTP_PASSWORD=your_password
+  CIELO_EC_NUMBER=your_ec_number
+"""
 
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import date
 from pathlib import Path
 
@@ -14,18 +23,17 @@ from src.infrastructure.persistence.repositories.postgresql_transaction_reposito
 
 
 async def main() -> None:
-    database = Database(
-        "postgresql+asyncpg://btv_user:btv_password@localhost:5432/conciliaai"
-    )
+    database_url = os.environ["DATABASE_URL"]
+    database = Database(database_url)
 
     async for session in database.get_session():
         transaction_repo = PostgreSQLTransactionRepository(session)
         client = CieloEDIClient(
-            host="sftp.cielo.com.br",
+            host=os.getenv("CIELO_SFTP_HOST", "sftp.cielo.com.br"),
             port=22,
-            username="your_username",
-            password="your_password",
-            ec_number="1234567890",
+            username=os.environ["CIELO_SFTP_USERNAME"],
+            password=os.environ["CIELO_SFTP_PASSWORD"],
+            ec_number=os.environ["CIELO_EC_NUMBER"],
         )
 
         target_date = date.today()
