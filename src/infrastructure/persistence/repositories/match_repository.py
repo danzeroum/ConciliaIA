@@ -43,3 +43,9 @@ class MatchRepository(ABC):
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[ReconciliationMatch]:
         """Return matches performed in the given date interval."""
+
+    @abstractmethod
+    async def find_recent(
+        self, tenant_id: str, limit: int = 50
+    ) -> List[ReconciliationMatch]:
+        """Return the most recent matches for a tenant, newest first."""

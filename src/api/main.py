@@ -7,10 +7,16 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import structlog
 
 from src.api import dependencies
-from src.api.middleware import AuthMiddleware, RateLimitMiddleware, TenantMiddleware
+from src.api.middleware import (
+    AuthMiddleware,
+    JWTContextMiddleware,
+    RateLimitMiddleware,
+    TenantMiddleware,
+)
 from src.api.routes import auth, cash_flow, notifications
 from src.api.v1.routes import (
     alerts,
@@ -113,6 +119,11 @@ app.add_middleware(
     RateLimitMiddleware,
     rate_limiter=dependencies.rate_limiter,
 )
+# Runs ahead of the tenant/rate-limit middlewares (added above) so that the
+# decoded JWT identity is already on ``request.state`` when they execute.
+if dependencies.jwt_handler is None:
+    raise RuntimeError("JWT handler failed to initialise")
+app.add_middleware(JWTContextMiddleware, jwt_handler=dependencies.jwt_handler)
 # =========================================================================
 # CORS configuration
 # =========================================================================
@@ -183,14 +194,56 @@ async def health_check():
     return {"status": "healthy", "version": "7.0.0"}
 
 
-@app.get("/")
-async def root():
-    return {
-        "message": "ConciliaAI API v7.0",
-        "docs": "/docs",
-        "health": "/health",
-        "login": "/auth/login",
-    }
+# ---------------------------------------------------------------------------
+# Single-image frontend serving
+# ---------------------------------------------------------------------------
+# When the React build is bundled into the image (``FRONTEND_DIST`` points at a
+# directory containing ``index.html``), FastAPI serves the static assets and
+# falls back to ``index.html`` for client-side routes. This is what makes the
+# "Docker único" deployment work: one application image (frontend + backend),
+# with PostgreSQL always kept as an EXTERNAL service.
+_FRONTEND_DIST = os.getenv("FRONTEND_DIST", "/app/static")
+_FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
+_FRONTEND_AVAILABLE = os.path.isfile(_FRONTEND_INDEX)
+
+# Reserved prefixes that must never be swallowed by the SPA fallback.
+_API_PREFIXES = ("/api", "/auth", "/docs", "/redoc", "/openapi", "/health")
+
+
+if _FRONTEND_AVAILABLE:
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    _assets_dir = os.path.join(_FRONTEND_DIST, "assets")
+    if os.path.isdir(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    async def spa_root() -> "FileResponse":
+        return FileResponse(_FRONTEND_INDEX)
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        # API/doc routes are matched by their routers before reaching here; an
+        # unmatched request under a reserved prefix is a genuine 404.
+        if any(("/" + full_path).startswith(prefix) for prefix in _API_PREFIXES):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+
+        candidate = os.path.join(_FRONTEND_DIST, full_path)
+        if full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(_FRONTEND_INDEX)
+
+else:
+
+    @app.get("/")
+    async def root():
+        return {
+            "message": "ConciliaAI API v7.0",
+            "docs": "/docs",
+            "health": "/health",
+            "login": "/auth/login",
+        }
 
 
 __all__ = ["app"]

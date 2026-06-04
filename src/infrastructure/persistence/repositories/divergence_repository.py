@@ -43,3 +43,16 @@ class DivergenceRepository(ABC):
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[Divergence]:
         """Return divergences detected during the provided interval."""
+
+    @abstractmethod
+    async def find_paginated(
+        self,
+        tenant_id: str,
+        *,
+        status: Optional[DivergenceStatus] = None,
+        divergence_type: Optional[str] = None,
+        severity: Optional[Severity] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[List[Divergence], int]:
+        """Return a page of divergences and the total count for the filters."""

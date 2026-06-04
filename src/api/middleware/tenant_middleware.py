@@ -7,6 +7,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 import structlog
 
+from .paths import is_protected_api
+
 logger = structlog.get_logger(__name__)
 
 # --- CORREÇÃO: LISTA DE EXCLUSÃO ROBUSTA ---
@@ -44,9 +46,9 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
 
-        if path in EXCLUDED_EXACT_PATHS or any(
-            path.startswith(prefix) for prefix in EXCLUDED_PREFIXES
-        ):
+        # Public endpoints, auth/health, docs and the static frontend are not
+        # tenant-scoped; only the protected API surface is guarded here.
+        if not is_protected_api(path):
             return await call_next(request)
 
         tenant_id = getattr(request.state, "tenant_id", None)

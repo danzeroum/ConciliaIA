@@ -31,6 +31,12 @@ if not _raw_url:
     raise RuntimeError("DATABASE_URL environment variable is required for migrations")
 database_url = _raw_url.replace("asyncpg", "psycopg2")
 
+# Override the templated ``sqlalchemy.url`` from alembic.ini with the resolved
+# DATABASE_URL. The ini value uses ``%(DB_USER)s``-style interpolation that has
+# no backing config options, so reading the section (``get_section`` below)
+# would otherwise raise ``InterpolationMissingOptionError``.
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     context.configure(

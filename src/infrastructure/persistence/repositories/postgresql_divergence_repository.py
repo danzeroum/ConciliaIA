@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -117,6 +117,50 @@ class PostgreSQLDivergenceRepository(DivergenceRepository):
         self.logger.warning("critical_divergences_found", count=len(models))
 
         return [self.mapper.to_entity(model) for model in models]
+
+    async def find_paginated(
+        self,
+        tenant_id: str,
+        *,
+        status: Optional[DivergenceStatus] = None,
+        divergence_type: Optional[str] = None,
+        severity: Optional[Severity] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[List[Divergence], int]:
+        """Return a page of divergences and the total count for the filters."""
+        filters = [DivergenceModel.tenant_id == tenant_id]
+
+        if status is not None:
+            filters.append(
+                DivergenceModel.status == (status.value if hasattr(status, "value") else status)
+            )
+        if divergence_type is not None:
+            filters.append(DivergenceModel.divergence_type == divergence_type)
+        if severity is not None:
+            filters.append(
+                DivergenceModel.severity
+                == (severity.value if hasattr(severity, "value") else severity)
+            )
+
+        count_stmt = select(func.count()).select_from(DivergenceModel).where(*filters)
+        total = (await self.session.execute(count_stmt)).scalar_one()
+
+        page = max(page, 1)
+        page_size = max(min(page_size, 200), 1)
+
+        stmt = (
+            select(DivergenceModel)
+            .where(*filters)
+            .order_by(DivergenceModel.detected_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+
+        return [self.mapper.to_entity(model) for model in models], int(total)
 
     async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date
