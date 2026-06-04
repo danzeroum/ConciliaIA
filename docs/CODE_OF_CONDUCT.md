@@ -43,7 +43,7 @@ This Code of Conduct applies within all community spaces, including:
 * Email communications
 * Social media accounts
 * Community events (online and offline)
-* Any other spaces where you represent the BuildToValue community
+* Any other spaces where you represent the ConciliaIA community
 
 This Code of Conduct also applies when an individual is officially representing the community in public spaces.
 
@@ -387,7 +387,7 @@ We thank all community members who help maintain a positive environment:
 - Providing feedback
 - Being respectful role models
 
-Your contributions make BuildToValue a welcoming community!
+Your contributions make ConciliaIA a welcoming community!
 
 ## Changes to This Code of Conduct
 
@@ -417,6 +417,6 @@ Community Managers:
 
 This Code of Conduct is licensed under the Creative Commons Attribution 4.0 International License.
 
-Remember: We're all here to build something great together. Let's make BuildToValue a community we're proud to be part of! 🚀
+Remember: We're all here to build something great together. Let's make ConciliaIA a community we're proud to be part of! 🚀
 
-© 2025 BuildToValue | [Main Documentation](./README.md) | [Contributing Guide](./CONTRIBUTING.md)
+© 2025 ConciliaIA | [Main Documentation](./README.md) | [Contributing Guide](./CONTRIBUTING.md)

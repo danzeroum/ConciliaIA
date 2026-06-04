@@ -7,7 +7,7 @@
 4. **Acessibilidade primeiro:** contraste mínimo 4.5:1, estados de foco visíveis e sem dependência de cor.
 
 ## Design Tokens
-Os tokens base estão definidos em [`design/prototype/design-tokens.css`](../../design/prototype/design-tokens.css).
+Os tokens base do tema (paleta, tipografia, espaçamento) vivem no tema MUI do frontend em [`conciliaai-frontend/src/theme/`](../../conciliaai-frontend/src/theme/) (`colors.ts`, `typography.ts`, `theme.ts`).
 
 ### Paleta de Cores
 - **Criticidade:** vermelho 700, laranja 700, amarelo 700, roxo 700.  
