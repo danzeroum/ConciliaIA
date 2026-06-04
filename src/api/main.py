@@ -20,6 +20,7 @@ from src.api.middleware import (
 )
 from src.api.routes import auth, cash_flow, notifications
 from src.api.v1.routes import (
+    acquirers,
     alerts,
     auto_import,
     bank_reconciliation,
@@ -31,6 +32,7 @@ from src.api.v1.routes import (
     matches,
     reconciliation,
     reconciliation_jobs,
+    reconciliation_rules,
     reports,
     sales,
     stats,
@@ -181,6 +183,8 @@ app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(notifications.router, prefix="/api/v1", tags=["Notifications"])
 app.include_router(reconciliation.router, prefix="/api/v1", tags=["Reconciliation"])
 app.include_router(reconciliation_jobs.router, prefix="/api/v1", tags=["Reconciliation"])
+app.include_router(reconciliation_rules.router, prefix="/api/v1", tags=["Reconciliation"])
+app.include_router(acquirers.router, prefix="/api/v1", tags=["Acquirers"])
 app.include_router(divergences.router, prefix="/api/v1", tags=["Divergences"])
 app.include_router(matches.router, prefix="/api/v1", tags=["Matches"])
 app.include_router(sales.router, prefix="/api/v1", tags=["Sales"])
