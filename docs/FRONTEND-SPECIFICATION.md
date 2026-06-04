@@ -856,7 +856,7 @@ export const useUIStore = create<UIState>((set) => ({
 import axios from 'axios';
 import { useAuthStore } from '../store/auth.store';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.conciliaai.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''  // mesma origem na imagem única; http://localhost:8000 em dev;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -914,7 +914,7 @@ import type { ReconciliationRequest, ReconciliationResult } from '../types/api.t
 export const reconciliationApi = {
   // Execute reconciliation
   reconcile: async (data: ReconciliationRequest): Promise<ReconciliationResult> => {
-    const response = await apiClient.post('/api/reconcile', data);
+    const response = await apiClient.post('/api/v1/reconciliation/execute', data);
     return response.data;
   },
 
@@ -925,13 +925,13 @@ export const reconciliationApi = {
     page?: number;
     pageSize?: number;
   }) => {
-    const response = await apiClient.get('/api/matches', { params });
+    const response = await apiClient.get('/api/v1/matches', { params });
     return response.data;
   },
 
   // Get match by ID
   getMatchById: async (id: string) => {
-    const response = await apiClient.get(`/api/matches/${id}`);
+    const response = await apiClient.get(`/api/v1/matches/${id}`);
     return response.data;
   },
 };
@@ -950,19 +950,19 @@ export const divergencesApi = {
     page?: number;
     pageSize?: number;
   }) => {
-    const response = await apiClient.get('/api/divergences', { params });
+    const response = await apiClient.get('/api/v1/divergences', { params });
     return response.data;
   },
 
   // Get divergence by ID
   getDivergenceById: async (id: string): Promise<Divergence> => {
-    const response = await apiClient.get(`/api/divergences/${id}`);
+    const response = await apiClient.get(`/api/v1/divergences/${id}`);
     return response.data;
   },
 
   // Resolve divergence
   resolveDivergence: async (id: string, data: ResolveDivergenceRequest) => {
-    const response = await apiClient.patch(`/api/divergences/${id}/resolve`, data);
+    const response = await apiClient.patch(`/api/v1/divergences/${id}/resolve`, data);
     return response.data;
   },
 };
@@ -981,31 +981,31 @@ export const salesApi = {
     page?: number;
     pageSize?: number;
   }) => {
-    const response = await apiClient.get('/api/sales', { params });
+    const response = await apiClient.get('/api/v1/sales', { params });
     return response.data;
   },
 
   // Get sale by ID
   getSaleById: async (id: string): Promise<Sale> => {
-    const response = await apiClient.get(`/api/sales/${id}`);
+    const response = await apiClient.get(`/api/v1/sales/${id}`);
     return response.data;
   },
 
   // Create sale
   createSale: async (data: CreateSaleRequest): Promise<Sale> => {
-    const response = await apiClient.post('/api/sales', data);
+    const response = await apiClient.post('/api/v1/sales', data);
     return response.data;
   },
 
   // Update sale
   updateSale: async (id: string, data: Partial<Sale>): Promise<Sale> => {
-    const response = await apiClient.put(`/api/sales/${id}`, data);
+    const response = await apiClient.patch(`/api/v1/sales/${id}`, data)  // backend usa PATCH (payload parcial);
     return response.data;
   },
 
   // Delete sale
   deleteSale: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/sales/${id}`);
+    await apiClient.delete(`/api/v1/sales/${id}`);
   },
 
   // Import sales from CSV
@@ -1013,7 +1013,7 @@ export const salesApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await apiClient.post('/api/sales/import', formData, {
+    const response = await apiClient.post('/api/v1/sales/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -1562,7 +1562,7 @@ VITE_APP_NAME=ConciliaAI
 VITE_APP_VERSION=1.0.0
 
 # .env.production
-VITE_API_BASE_URL=https://api.conciliaai.com
+VITE_API_BASE_URL=  # vazio = mesma origem (imagem única); use http://localhost:8000 em dev
 VITE_APP_NAME=ConciliaAI
 VITE_APP_VERSION=1.0.0
 VITE_SENTRY_DSN=https://xxx@sentry.io/xxx
@@ -1805,7 +1805,7 @@ jobs:
 - Implement Delete confirmation dialog
 - Implement Import Sales from CSV
 - Implement Export Sales to CSV/Excel
-- Connect to /api/sales endpoints
+- Connect to /api/v1/sales endpoints
 - Add pagination
 - Add sorting
 - Add bulk actions
@@ -1858,7 +1858,7 @@ jobs:
 - Implement Matches Table
 - Implement Unmatched Sales/Transactions lists
 - Implement Export Results button
-- Connect to /api/reconcile endpoint
+- Connect to /api/v1/reconciliation/execute endpoint
 - Add real-time progress updates
 - Add success/error notifications
 

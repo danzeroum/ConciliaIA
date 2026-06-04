@@ -1,343 +1,130 @@
-# 🏦 ConciliaAI v7.0 - Sistema de Reconciliação Financeira
+# ConciliaIA
 
-Sistema de Reconciliação Financeira de Adquirentes com IA, seguindo **BuildToValue v7.0** methodology.
+Sistema de **reconciliação financeira** para e-commerce e varejo: concilia as
+vendas do lojista com os relatórios das adquirentes (Cielo, Rede, Stone),
+detecta divergências (MDR, NSU ausente, chargeback, atraso de liquidação) e
+expõe tudo numa API versionada e num dashboard.
 
-[![CI Pipeline](https://github.com/conciliaai/backend/workflows/CI/badge.svg)](https://github.com/conciliaai/backend/actions)
-[![Coverage](https://img.shields.io/codecov/c/github/conciliaai/backend)](https://codecov.io/gh/conciliaai/backend)
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+> **Arquitetura:** monólito modular, **funcional em Docker e escalável por
+> design**. Uma única imagem da aplicação (frontend estático + FastAPI) com
+> **PostgreSQL externo**. Ver [`docs/ARCHITECTURE-POSTURE.md`](docs/ARCHITECTURE-POSTURE.md).
 
-## 🎯 Status da Implementação
+## Stack
 
-### ✅ COMPLETO - 100%
+| Camada | Tecnologia |
+|---|---|
+| Backend | Python 3.11 · FastAPI · SQLAlchemy 2 (async) · Alembic · asyncpg · APScheduler |
+| Banco | PostgreSQL 15 |
+| Frontend | React 18 · Vite · TypeScript · MUI (em `conciliaai-frontend/`) |
+| Empacotamento | Imagem única da app (Docker) + Postgres como serviço externo |
 
-| Implementação | Status | Horas | Progresso |
-|---------------|--------|-------|-----------|
-| **IMPL-001**: Domain Layer | ✅ | 16h | 100% |
-| **IMPL-002**: Matching Strategies | ✅ | 24h | 100% |
-| **IMPL-003**: Anomaly Detection | ✅ | 20h | 100% |
-| **IMPL-004**: Use Cases | ✅ | 16h | 100% |
-| **IMPL-005**: PostgreSQL Repositories | ✅ | 20h | 100% |
-| **IMPL-006**: Parsers Adquirentes | ✅ | 32h | 100% |
-| **IMPL-007**: Testes Completos | ✅ | 28h | 100% |
-| **IMPL-008**: Authentication | ✅ | 16h | 100% |
-| **TOTAL** | **✅** | **172h** | **100%** |
+## Quick start (Docker)
 
-## 🆕 Novidades IMPL-010
-
-- **Importação automática Cielo** – agende a coleta diária de relatórios pelo endpoint `POST /api/v1/auto-import/schedule`.
-- **Dashboard de fluxo de caixa** – acompanhe previsto vs recebido com o endpoint `GET /api/v1/reports/cashflow-overview` e nova tela no frontend.
-- **Conciliação bancária automática** – envie créditos bancários para o endpoint `POST /api/v1/bank-reconciliation/auto-match` e atualize settlements automaticamente.
-- **Alertas proativos** – receba eventos críticos via `GET /api/v1/alerts/proactive` e painel dedicado no frontend.
-
-## 📊 Métricas Finais
-
-| Métrica | Target | Atual | Status |
-|---------|--------|-------|--------|
-| **Accuracy** | ≥ 99.5% | **99.52%** | ✅ |
-| **Test Coverage** | ≥ 87% | **91%** | ✅ |
-| **False Positive Rate** | ≤ 1% | **0.8%** | ✅ |
-| **Divergence Recall** | ≥ 99% | **99.2%** | ✅ |
-| **API Latency (P95)** | < 100ms | **47ms** | ✅ |
-| **API Latency (P99)** | < 500ms | **68ms** | ✅ |
-| **Throughput** | ≥ 10k req/h | **12.5k req/h** | ✅ |
-| **Match Throughput** | ≥ 1k txn/s | **2.1k txn/s** | ✅ |
-
-## 🚀 Quick Start
-
-### Pré-requisitos
-- **Python 3.11** (recomendado) ou Python 3.12
-  - ✅ Python 3.11.9+ instalado e funcionando
-  - Download: https://www.python.org/downloads/
-  - Durante instalação: marque "Add Python to PATH"
-- Docker & Docker Compose
-- PostgreSQL 16+ (ou usar Docker)
-- 8GB RAM, 20GB disk
-
-### Instalação Completa (1 comando)
+Pré-requisitos: Docker + Docker Compose.
 
 ```bash
-make start
+cp .env.example .env          # ajuste SECRET_KEY (openssl rand -hex 32) e credenciais
+docker compose up --build     # sobe postgres (externo) + a imagem da app
 ```
 
-Este comando irá:
-1. ✅ Instalar dependências Python
-2. ✅ Subir PostgreSQL via Docker
-3. ✅ Executar migrations
-4. ✅ Popular banco com dados de exemplo
-5. ✅ Iniciar API
+No startup, a imagem da aplicação executa automaticamente:
 
-**API disponível em**: http://localhost:8000  
-**Documentação**: http://localhost:8000/docs
+1. `alembic upgrade head` — aplica as migrations (`0001_initial`, `0002_reconciliation_jobs`);
+2. `python scripts/seed_database.py` — seed **idempotente** (tenant + 100 vendas/95 transações + usuário de teste);
+3. `uvicorn src.api.main:app` — sobe a API em `:8000`, **servindo também o frontend estático**.
 
-### Instalação Passo a Passo (alternativa)
+Acesse:
 
-```bash
-# 1. Instalar dependências
-make install
+- App + API: <http://localhost:8000>
+- Swagger / OpenAPI: <http://localhost:8000/docs>
+- Healthcheck: <http://localhost:8000/api/v1/health>
 
-# 2. Subir Docker
-make docker-up
+Credenciais de teste do seed: `test@example.com` / `SecurePassword123!`.
 
-# 3. Aguardar database (10 segundos)
-sleep 10
+### Targets do Makefile
 
-# 4. Rodar migrations
-make migrate
-
-# 5. Popular banco (opcional)
-make seed
-
-# 6. Iniciar API
-make run
+```
+make help          # lista os targets
+make docker-up     # docker compose up -d
+make docker-down   # docker compose down
+make docker-logs   # logs do backend
+make docker-reset  # derruba e recria (apaga o volume do Postgres)
+make migrate       # alembic upgrade head no container
+make start         # build + up
 ```
 
-### Comandos Úteis
+## Desenvolvimento local (sem Docker)
+
+Backend:
 
 ```bash
-make help           # Ver todos os comandos disponíveis
-make test           # Executar testes
-make docker-logs    # Ver logs do Docker
-make docker-reset   # Resetar ambiente Docker
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+cp .env.example .env                       # DATABASE_URL apontando para o seu Postgres
+alembic upgrade head
+python scripts/seed_database.py
+uvicorn src.api.main:app --reload --port 8000
 ```
 
-### Troubleshooting
-
-#### Erro: "pip: command not found"
-```bash
-# Reparar pip automaticamente
-make fix-pip
-```
-
-#### Erro: "pydantic-core requires Rust"
-**Causa:** Python 3.13+ não é suportado.
-
-**Solução:**
-1. Desinstalar Python 3.13
-2. Instalar Python 3.11: https://www.python.org/downloads/
-3. Verificar: `python --version` → deve mostrar 3.11.x
-4. Executar: `make start`
-
-#### Erro: "Docker não encontrado"
-1. Instalar Docker Desktop: https://www.docker.com/products/docker-desktop
-2. Iniciar Docker Desktop
-3. Verificar: `docker --version`
-4. Executar: `make start`
-
-## 🔐 Credenciais de Teste (MVP)
-
-Para fazer login no frontend durante desenvolvimento:
-
-- **Email:** test@example.com
-- **Senha:** SecurePassword123!
-
-> ⚠️ **Atenção:** Estas são credenciais temporárias para desenvolvimento. 
-> Não usar em produção.
-
-## 🌐 Ambiente de Produção
-
-- **API (Render)**: https://conciliaia-api.onrender.com
-- **Swagger público**: https://conciliaia-api.onrender.com/api-docs
-- **Logs**: painel da Render > *Logs*
-- **Monitoring**: painel da Render > *Metrics*
-
-### Variáveis de ambiente
-
-Configure as variáveis diretamente no painel da plataforma de deploy ou em um arquivo `.env.production` local (não versionado):
-
-| Variável | Descrição |
-|----------|-----------|
-| `DATABASE_URL` | URL do PostgreSQL de produção |
-| `JWT_SECRET` | Segredo para assinatura dos tokens |
-| `PORT` | Porta exposta pelo serviço (Render utiliza `10000` por padrão) |
-| `CORS_ORIGINS` | Lista de origens permitidas separadas por vírgula |
-| `RATE_LIMIT_MAX` | Máximo de requisições a cada janela de 15 minutos |
-
-### Build e execução de produção
+Frontend (dev server com proxy para `:8000`):
 
 ```bash
+cd conciliaai-frontend
 npm install
-npm run build
-node dist/index.js
+npm run dev                                # http://localhost:3000
 ```
 
-### Deploy na Render
+## API
 
-1. Crie um novo **Web Service** conectado a este repositório.
-2. Defina o branch principal e o comando de build `npm run build`.
-3. Configure o comando de start `npm start`.
-4. Preencha as variáveis de ambiente listadas acima.
-5. Vincule o banco PostgreSQL (Render PostgreSQL ou externo) e atualize `DATABASE_URL`.
-6. Habilite **Auto Deploy** para novos commits na branch principal.
+Toda a API é versionada sob **`/api/v1`** (incluindo autenticação em
+`/api/v1/auth/*`). Os erros seguem um envelope padronizado
+`{ detail, error_code, request_id }` com header `X-Request-ID`.
 
-### Validação pós-deploy
+Destaques:
 
-- Teste os endpoints com Postman/Insomnia apontando para `https://conciliaia-api.onrender.com`.
-- Acesse `/api-docs` para validar o Swagger público.
-- Monitore logs e métricas no painel da Render após cada release.
-- Configure alertas (ex.: via Slack) para erros e degradação de performance.
+- **Autenticação:** `POST /api/v1/auth/login` → `{access_token, refresh_token, token_type, expires_in}`.
+- **Vendas / Transações:** CRUD + importação CSV/EDI + export.
+- **Reconciliação assíncrona:** `POST /api/v1/reconciliation-jobs` (202) → `GET .../{id}/status` (polling) → `GET .../metrics`.
+- **Divergências / Matches:** dados reais por tenant, com resolução de divergências.
+- **Extensibilidade:** `GET /api/v1/acquirers` (registro plugável de parsers) e `GET /api/v1/reconciliation-rules` (tabela de decisão de auto-approval/SLA por tenant).
 
-## 🧪 Testes
+Referência completa em [`docs/API-REFERENCE.md`](docs/API-REFERENCE.md).
 
-### Executar Todos os Testes
+## Estrutura do projeto
+
+```
+src/
+  api/              # FastAPI: main, dependencies, middleware, errors, rotas
+    v1/routes/      # endpoints versionados (/api/v1/*)
+    routes/         # auth, notifications, cash_flow (montados sob /api/v1)
+  application/      # services, use_cases, strategies (matching)
+  domain/           # entities, value_objects, repositories (interfaces)
+  infrastructure/   # persistence (SQLAlchemy/Postgres), acquirers, security, scheduler
+conciliaai-frontend/  # React + Vite + MUI
+alembic/              # migrations (0001_initial, 0002_reconciliation_jobs)
+scripts/              # seed_database, run_migrations, create-schema.sql, ...
+docs/                 # documentação
+```
+
+## Testes e CI
+
 ```bash
-# Suite completa (unit + integration + accuracy + performance)
-make test-all
-
-# Por tipo:
-make test                  # Unit + Integration
-make test-accuracy         # Accuracy validation (10k dataset)
-make test-performance      # Performance benchmarks
-make test-stress           # Stress tests
-make test-load             # Load tests (Locust)
-make test-load-k6          # Load tests (K6)
+pytest tests/unit                       # testes unitários
+pytest tests/integration -m integration # testes de integração (requer Postgres)
+flake8 src/ tests/                      # lint (config em setup.cfg)
 ```
 
-### Resultados de Performance
-```bash
-📊 Matching Performance (100 transactions):
-   ExactMatcher: 23.45ms
-   FuzzyMatcher: 31.78ms
-   Cascade Full: 47.12ms
-   Throughput: 2,123 txn/s
+CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda em `master`/`main`/`develop`
+— flake8 → mypy (advisory) → `alembic upgrade head` → `pytest tests/unit` → `pytest tests/integration`.
 
-📊 API Latency:
-   P50: 12.3ms
-   P95: 47.5ms
-   P99: 68.2ms
+## Documentação
 
-📊 Database Performance:
-   Batch Insert: 1,234 records/s
-   Date Range Query: 18.7ms
-   Complex Query: 42.3ms
+- [`docs/ARCHITECTURE-POSTURE.md`](docs/ARCHITECTURE-POSTURE.md) — postura arquitetural (Docker único, escalável por design, backlog estratégico).
+- [`docs/API-REFERENCE.md`](docs/API-REFERENCE.md) — referência da API.
+- [`docs/SECURITY.md`](docs/SECURITY.md) — modelo de segurança.
+- [`docs/ACQUIRER_INTEGRATIONS.md`](docs/ACQUIRER_INTEGRATIONS.md) — integrações com adquirentes.
+- [`docs/business/`](docs/business/) e [`docs/ux/`](docs/ux/) — domínio de negócio e UX.
 
-📊 Load Test (100 concurrent users, 5 min):
-   Total Requests: 37,500
-   Success Rate: 99.98%
-   Throughput: 125 req/s
-   Error Rate: 0.02%
-```
+## Licença
 
-## 🏗️ Arquitetura
-```
-┌─────────────────────────────────────────────────┐
-│         Presentation Layer (FastAPI)            │
-│   REST API + JWT Auth + Rate Limiting          │
-└──────────────────┬──────────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────────┐
-│          Application Layer                      │
-│                                                  │
-│  ┌──────────────┐  ┌──────────────┐           │
-│  │ Use Cases    │  │ Services     │           │
-│  │ - Reconcile  │  │ - Matching   │           │
-│  │              │  │ - Anomaly    │           │
-│  └──────────────┘  └──────────────┘           │
-│                                                  │
-│  ┌─────────────────────────────────┐           │
-│  │     Matching Strategies         │           │
-│  │  • ExactMatcher (confidence 1.0)│           │
-│  │  • FuzzyMatcher (0.85-0.99)     │           │
-│  │  • InstallmentMatcher (0.90+)   │           │
-│  │  • MLMatcher (0.70-0.94)        │           │
-│  └─────────────────────────────────┘           │
-└──────────────────┬──────────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────────┐
-│            Domain Layer                         │
-│                                                  │
-│  • 7 Value Objects (Money, NSU, Percentage...) │
-│  • 8 Entities (Sale, Transaction, Match...)    │
-│  • 24 Business Rules (BR-001 to BR-024)        │
-│  • 6 Business Invariants (INV-001 to INV-006)  │
-└──────────────────┬──────────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────────┐
-│        Infrastructure Layer                     │
-│                                                  │
-│  • PostgreSQL (async, pooled connections)      │
-│  • Alembic migrations                           │
-│  • Cielo EDI Parser (SFTP)                     │
-│  • Rede SOAP Client (legacy)                   │
-│  • Stone API Client (REST + OAuth 2.0)         │
-│  • JWT Authentication                           │
-│  • Rate Limiting (token bucket)                 │
-└─────────────────────────────────────────────────┘
-```
-
-## 📁 Estrutura do Projeto
-```
-conciliaai-v7/
-├── src/
-│   ├── domain/
-│   │   ├── entities/              # 8 entidades
-│   │   └── value_objects/         # 7 value objects
-│   ├── application/
-│   │   ├── strategies/            # 4 matching strategies
-│   │   ├── services/              # 3 services
-│   │   ├── use_cases/             # Use cases
-│   │   └── interfaces/            # Contratos
-│   ├── infrastructure/
-│   │   ├── persistence/           # PostgreSQL
-│   │   ├── acquirers/             # Parsers EDI/API
-│   │   └── security/              # JWT + Auth
-│   └── api/
-│       ├── routes/                # Endpoints
-│       ├── middleware/            # Auth, Tenant, Rate Limit
-│       └── dependencies.py        # DI container
-├── tests/
-│   ├── unit/                      # 45+ unit tests
-│   ├── integration/               # 12+ integration tests
-│   ├── accuracy/                  # Accuracy validation
-│   ├── performance/               # Performance benchmarks
-│   ├── stress/                    # Stress tests
-│   ├── load/                      # Load tests (Locust, K6)
-│   └── e2e/                       # End-to-end tests
-├── alembic/                       # Database migrations
-├── scripts/                       # Automation scripts
-├── docs/                          # Documentation
-├── examples/                      # Usage examples
-└── reports/                       # Test reports
-```
-
-## 🎯 Features Implementadas
-
-### Core Features
-
-- ✅ **Matching Engine** - 4 estratégias em cascata (99.5% accuracy)
-- ✅ **Anomaly Detection** - 6 tipos de divergências (99.2% recall)
-- ✅ **Multi-Tenancy** - Isolamento completo de dados
-- ✅ **Authentication** - JWT access + refresh tokens
-- ✅ **Rate Limiting** - Token bucket (100 req/min)
-- ✅ **PostgreSQL** - Async, pooled, optimized indexes
-- ✅ **Acquirer Parsers** - Cielo EDI, Rede SOAP, Stone API
-
-### 🆕 Importação EDI Direto
-
-O ConciliaAI agora aceita arquivos EDI diretamente das adquirentes, sem necessidade de conversão manual para CSV.
-
-**Formatos Suportados:**
-- ✅ **Rede:** EEVC (Extrato Eletrônico de Vendas Crédito)
-- 🚧 **Cielo:** Em desenvolvimento
-- 🚧 **Stone:** Em desenvolvimento
-
-**Como Usar:**
-
-1. **Via Frontend:**
-   - Acesse: Reconciliação > Importar Transações
-   - Escolha: "EDI"
-   - Selecione arquivo .txt da Rede
-   - Clique: "Importar"
-
-2. **Via API:**
-```bash
-curl -X POST "http://localhost:8000/api/v1/transactions/import-edi?acquirer=rede" \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "file=@rede_eevc_test.txt"
-```
-
-3. **Via Script:**
-```bash
-./scripts/test_rede_edi_upload.sh demo_data/rede_oficial/rede_eevc_test.txt
-```
-
+Ver [`LICENSE`](LICENSE).

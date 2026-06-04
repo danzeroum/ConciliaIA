@@ -1,161 +1,80 @@
-Changelog
-All notable changes to ConciliaAI will be documented in this file.
-The format is based on Keep a Changelog,
-and this project adheres to Semantic Versioning.
-[7.0.0] - 2025-10-19
-🎉 Initial Release - Production Ready
-Added
+# Changelog
 
-Domain Layer (IMPL-001)
+Todas as mudanças notáveis do ConciliaIA. Formato baseado em
+[Keep a Changelog](https://keepachangelog.com/); versionamento semântico.
 
-7 Value Objects (Money, NSU, Percentage, etc.)
-8 Entities (Sale, Transaction, Match, Divergence, etc.)
-6 Business Invariants
-24 Business Rules
-100% type hints
+## [Unreleased]
 
+### Mudado — "funcional em Docker, escalável por design"
+- **Docker único:** uma imagem da aplicação (frontend estático build + FastAPI
+  servindo o estático) com **PostgreSQL externo** no `docker-compose`. Boot
+  aplica `alembic upgrade head` + seed idempotente + uvicorn.
+- **API versionada:** toda a superfície sob `/api/v1`, **incluindo autenticação**
+  (`/api/v1/auth/*`); health em `/api/v1/health`. Removido `/auth` e `/health` antigos.
+- **Envelope de erro** padronizado `{detail, error_code, request_id}` + header
+  `X-Request-ID`.
+- `PUT`→`PATCH` na atualização de venda; valores monetários tipados como `Decimal`
+  (serializados como número JSON), sem `ALTER TABLE`.
 
-Matching Engine (IMPL-002)
+### Adicionado
+- **Reconciliação assíncrona:** tabela `reconciliation_jobs` + worker leve
+  (asyncio): `POST /api/v1/reconciliation-jobs` (202) → status (polling) →
+  `/metrics` (p50/p95, throughput, backlog, taxa de auto-approval).
+- **Extensibilidade:** `GET /api/v1/acquirers` (registro plugável de parsers) e
+  `GET /api/v1/reconciliation-rules` (tabela de decisão de auto-approval/SLA por
+  tenant, via `tenant.features`).
+- Migrations Alembic `0001_initial` e `0002_reconciliation_jobs`; seed idempotente
+  com usuário de teste.
 
-ExactMatcher (confidence: 1.00)
-FuzzyMatcher (confidence: 0.85-0.99)
-InstallmentMatcher (confidence: 0.90-0.99)
-MLMatcher (confidence: 0.70-0.94)
-Cascade orchestration
-99.52% accuracy validated
+### Corrigido
+- Bloqueador de auth: o contexto do JWT passou a ser populado por
+  `JWTContextMiddleware` (antes `request.state.tenant_id` ficava vazio → 403 em
+  toda chamada). Sem token → **401**.
+- Divergences/Matches passam a retornar **dados reais** do banco (fim dos
+  `div-001`/`match-001`).
+- `AcquirerTransaction` normaliza `datetime`→`date`; estratégias de match geram
+  UUID válido; parsers OFX/Cielo Agiliza/Rede EDI corrigidos.
 
+### Removido
+- Todo o scaffolding "BuildToValue" (framework de orquestração de IA), a stack de
+  monitoramento (Prometheus/Grafana/ChromaDB), IaC/Terraform, a stack paralela
+  Node/TypeScript + Prisma e os workflows de governança. O repositório passou a
+  ser apenas o produto ConciliaIA + Docker.
 
-Anomaly Detection (IMPL-003)
+### CI
+- Workflow único `.github/workflows/ci.yml`: flake8 (`setup.cfg`) → mypy
+  (advisory) → `alembic upgrade head` → `pytest tests/unit` → `pytest tests/integration`.
 
-6 Divergence types
-Severity calculation (CRITICAL, HIGH, MEDIUM, LOW)
-Suggested actions
-99.2% recall
+---
 
+## [7.0.0] — 2025-10-19 — Initial release
 
-Use Cases (IMPL-004)
+### Adicionado
+- **Domínio:** value objects (`Money`, `NSU`, `Percentage`, …), entidades
+  (`Sale`, `AcquirerTransaction`, `ReconciliationMatch`, `Divergence`, …) com
+  invariantes de negócio e type hints.
+- **Engine de matching:** `ExactMatcher`, `FuzzyMatcher`, `InstallmentMatcher`,
+  `MLMatcher` em cascata, com auto-aprovação por confiança.
+- **Detecção de anomalias:** 6 tipos de divergência com severidade e ação sugerida.
+- **Use case** `ReconcileTransactionsUseCase` com cálculo de métricas.
+- **PostgreSQL (async SQLAlchemy):** repositórios, índices, isolamento por tenant.
+- **Adquirentes:** parsers Cielo/Rede (EDI) e cliente Stone.
+- **Auth & RBAC:** JWT (access + refresh), bcrypt (12 rounds), rate limiting
+  (100 req/min), middleware multi-tenant.
+- **Testes:** unit + integration + e2e.
 
-ReconcileTransactionsUseCase
-Complete orchestration
-Metrics calculation
+### Segurança (implementada)
+- JWT (HS256), hash de senha bcrypt 12 rounds, rate limiting (token bucket),
+  isolamento multi-tenant na aplicação, proteção contra SQL injection via ORM,
+  cabeçalhos `X-Content-Type-Options`/`X-Frame-Options`/HSTS.
 
+> Correções de histórico: notas anteriores citavam Kubernetes, Prometheus/Grafana,
+> ELK, RLS no Postgres, gate de cobertura de 87% e testes Locust/K6 — nada disso
+> existe no código. Ver [`SECURITY.md`](SECURITY.md) e
+> [`ARCHITECTURE-POSTURE.md`](ARCHITECTURE-POSTURE.md) para o estado real.
 
-PostgreSQL Integration (IMPL-005)
+## Histórico de versões
 
-5 Repository implementations
-Async SQLAlchemy
-Connection pooling
-Optimized indexes
-Multi-tenancy isolation
-
-
-Acquirer Integrations (IMPL-006)
-
-Cielo EDI Parser (SFTP)
-Rede EDI Client (SFTP)
-Stone API Client (OAuth 2.0)
-72% market coverage
-
-
-Authentication & Authorization (IMPL-008)
-
-JWT tokens (access + refresh)
-Password hashing (bcrypt)
-Rate limiting (100 req/min)
-Multi-tenancy middleware
-RBAC
-
-
-Comprehensive Testing (IMPL-007)
-
-69+ tests (unit + integration + e2e)
-91% code coverage
-Performance benchmarks
-Load tests (Locust + K6)
-Stress tests
-Accuracy validation
-
-
-Documentation
-
-Complete API documentation (OpenAPI/Swagger)
-Architecture diagrams
-Deployment guide
-Operations runbook
-Security guide
-Development guide
-
-
-CI/CD
-
-GitHub Actions workflows
-Automated testing
-Performance regression checks
-Security scanning
-Docker build & push
-
-
-
-Performance Metrics
-
-P95 Latency: 47ms (target: < 100ms) ✅
-P99 Latency: 68ms (target: < 500ms) ✅
-Throughput: 12.5k req/h (target: 10k req/h) ✅
-Match Throughput: 2.1k txn/s (target: 1k txn/s) ✅
-Test Coverage: 91% (target: 87%) ✅
-Accuracy: 99.52% (target: 99.5%) ✅
-
-Security
-
-TLS 1.3 encryption
-JWT-based authentication
-Password hashing (bcrypt, 12 rounds)
-Rate limiting (token bucket)
-Multi-tenancy isolation
-SQL injection protection (ORM)
-XSS protection
-CSRF protection
-OWASP security headers
-Audit logging
-
-Infrastructure
-
-Kubernetes deployment
-Docker containerization
-PostgreSQL 16 (with RLS)
-Prometheus + Grafana monitoring
-ELK Stack logging
-Automated backups
-Horizontal pod autoscaling
-
-
-[Unreleased]
-Planned for v7.1.0
-
- GetNet integration
- Mercado Pago integration
- PagSeguro integration
- Webhook support for real-time updates
- Advanced ML model for matching
- Cash flow forecasting
- Accounting system integrations (QuickBooks, Xero)
-
-Planned for v7.2.0
-
- Mobile app (React Native)
- Advanced analytics dashboard
- Automated reconciliation workflows
- Multi-currency support
- Export to Excel/PDF reports
- API rate limiting per tenant tier
-
-
-Version History
-
-v7.0.0 (2025-10-19) - Initial production release
-v0.1.0-alpha (2025-01-15) - Internal testing
-v0.2.0-beta (2025-09-01) - Beta testing with pilot customers
-
-
-Note: This project follows BuildToValue v7.0 methodology.
-All decisions are tracked in .buildtovalue/ledger/.
+- v7.0.0 (2025-10-19) — primeira release
+- v0.2.0-beta (2025-09-01) — beta com clientes piloto
+- v0.1.0-alpha (2025-01-15) — testes internos
