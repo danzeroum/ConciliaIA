@@ -50,6 +50,14 @@ class AcquirerTransaction:
     created_at: datetime = field(default_factory=datetime.utcnow)
 
     def __post_init__(self) -> None:
+        # The persistence layer stores ``transaction_date``/``settlement_date``
+        # in DateTime columns, so values read back are ``datetime``. The entity
+        # contract is ``date`` — normalize to keep date comparisons valid.
+        if isinstance(self.transaction_date, datetime):
+            object.__setattr__(self, "transaction_date", self.transaction_date.date())
+        if isinstance(self.settlement_date, datetime):
+            object.__setattr__(self, "settlement_date", self.settlement_date.date())
+
         if isinstance(self.acquirer, str):
             object.__setattr__(self, "acquirer", Acquirer(self.acquirer))
 

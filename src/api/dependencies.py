@@ -13,6 +13,7 @@ from src.application.services import (
 )
 from src.application.strategies import ExactMatcher, FuzzyMatcher, InstallmentMatcher, MLMatcher
 from src.application.use_cases.cielo_conciliator import ImportCieloReportUseCase
+from src.application.services.reconciliation_job_service import ReconciliationJobService
 from src.application.use_cases.reconcile_transactions import ReconcileTransactionsUseCase
 from src.domain.entities import Tenant
 from src.infrastructure.acquirers import CieloAgilizaParser, CieloConciliatorClient
@@ -45,6 +46,7 @@ rate_limiter: RateLimiterType = None
 auth_middleware: AuthMiddlewareType = None
 auto_import_scheduler: AutoImportScheduler | None = None
 cielo_conciliator_client: CieloConciliatorClient | None = None
+reconciliation_job_service: "ReconciliationJobService | None" = None
 
 security = HTTPBearer()
 
@@ -153,10 +155,12 @@ def require_roles(required_roles: list[str]):
     return _require_roles
 
 
-def get_reconciliation_use_case(
-    session: AsyncSession = Depends(get_db_session),
-    _tenant: Tenant = Depends(get_current_tenant),
-) -> ReconcileTransactionsUseCase:
+def build_reconciliation_use_case(session: AsyncSession) -> ReconcileTransactionsUseCase:
+    """Construct the reconciliation use case from a database session.
+
+    Shared by the HTTP dependency and the background reconciliation worker so
+    both wire the exact same repositories and services.
+    """
     sale_repo = PostgreSQLSaleRepository(session)
     transaction_repo = PostgreSQLTransactionRepository(session)
     match_repo = PostgreSQLMatchRepository(session)
@@ -178,6 +182,21 @@ def get_reconciliation_use_case(
         matching_service=matching_service,
         anomaly_service=anomaly_service,
     )
+
+
+def get_reconciliation_use_case(
+    session: AsyncSession = Depends(get_db_session),
+    _tenant: Tenant = Depends(get_current_tenant),
+) -> ReconcileTransactionsUseCase:
+    return build_reconciliation_use_case(session)
+
+
+def get_reconciliation_job_service() -> ReconciliationJobService:
+    if reconciliation_job_service is None:
+        raise HTTPException(
+            status_code=500, detail="Reconciliation job service not initialized"
+        )
+    return reconciliation_job_service
 
 
 __all__ = [

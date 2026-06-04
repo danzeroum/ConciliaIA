@@ -30,7 +30,7 @@ class ExactMatcher(BaseMatcher):
 
             matches.append(
                 ReconciliationMatch(
-                    id=f"match-{uuid4()}",
+                    id=str(uuid4()),
                     tenant_id=sale.tenant_id,
                     sale_id=sale.id,
                     transaction_id=match.id,

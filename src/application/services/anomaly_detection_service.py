@@ -70,7 +70,7 @@ class AnomalyDetectionService:
 
             divergences.append(
                 Divergence(
-                    id=f"div-{uuid4()}",
+                    id=str(uuid4()),
                     tenant_id=tenant_id,
                     divergence_type=DivergenceType.MISSING_TRANSACTION,
                     severity=severity,
@@ -103,7 +103,7 @@ class AnomalyDetectionService:
             if key in seen:
                 divergences.append(
                     Divergence(
-                        id=f"div-{uuid4()}",
+                        id=str(uuid4()),
                         tenant_id=tenant_id,
                         divergence_type=DivergenceType.DUPLICATE_TRANSACTION,
                         severity=Severity.HIGH,

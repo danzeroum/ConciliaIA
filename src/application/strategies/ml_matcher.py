@@ -40,7 +40,7 @@ class MLMatcher(BaseMatcher):
             if best_match:
                 matches.append(
                     ReconciliationMatch(
-                        id=f"match-{uuid4()}",
+                        id=str(uuid4()),
                         tenant_id=sale.tenant_id,
                         sale_id=sale.id,
                         transaction_id=best_match.id,

@@ -30,11 +30,13 @@ from src.api.v1.routes import (
     ingestion,
     matches,
     reconciliation,
+    reconciliation_jobs,
     reports,
     sales,
     stats,
     transactions,
 )
+from src.application.services.reconciliation_job_service import ReconciliationJobService
 from src.infrastructure.acquirers import CieloConciliatorClient
 from src.infrastructure.logging import setup_logging
 from src.infrastructure.persistence.database import Database
@@ -91,6 +93,11 @@ async def lifespan(app: FastAPI):
     await dependencies.auto_import_scheduler.initialise()
 
     dependencies.cielo_conciliator_client = CieloConciliatorClient()
+
+    dependencies.reconciliation_job_service = ReconciliationJobService(
+        session_factory=dependencies.database.session_factory,
+        use_case_builder=dependencies.build_reconciliation_use_case,
+    )
 
     logger.info("application_started", environment=os.getenv("ENVIRONMENT"))
 
@@ -173,6 +180,7 @@ app.include_router(cielo_conciliator.router, prefix="/api/v1")
 app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(notifications.router, prefix="/api/v1", tags=["Notifications"])
 app.include_router(reconciliation.router, prefix="/api/v1", tags=["Reconciliation"])
+app.include_router(reconciliation_jobs.router, prefix="/api/v1", tags=["Reconciliation"])
 app.include_router(divergences.router, prefix="/api/v1", tags=["Divergences"])
 app.include_router(matches.router, prefix="/api/v1", tags=["Matches"])
 app.include_router(sales.router, prefix="/api/v1", tags=["Sales"])

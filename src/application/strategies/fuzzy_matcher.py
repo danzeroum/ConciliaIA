@@ -41,7 +41,7 @@ class FuzzyMatcher(BaseMatcher):
                 match_type = self._determine_match_type(sale, best_match)
                 matches.append(
                     ReconciliationMatch(
-                        id=f"match-{uuid4()}",
+                        id=str(uuid4()),
                         tenant_id=sale.tenant_id,
                         sale_id=sale.id,
                         transaction_id=best_match.id,
