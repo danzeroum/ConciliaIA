@@ -36,14 +36,13 @@
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Guia de contribuição. |
 | [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Código de conduta. |
 
-## Em revisão (desatualizados — não usar como fonte da verdade)
+## Operação e configuração
 
-Estes docs ainda contêm referências a infraestrutura/processos que **não existem
-mais** no código (ex.: Kubernetes, Prometheus/Grafana, orquestração legada).
-Pendentes de reescrita ou remoção:
+| Doc | Conteúdo |
+|---|---|
+| [`RUNBOOK.md`](RUNBOOK.md) | Operação do deploy real (docker-compose, migrations, health, logs, troubleshooting). |
+| [`CONFIGURATION-GUIDE.md`](CONFIGURATION-GUIDE.md) | Variáveis de ambiente (obrigatórias, opcionais e legadas). |
 
-- `ARCHITECTURE-DIAGRAMS.md`, `RUNBOOK.md`, `HANDOFF-DOCUMENT.md`,
-  `PERFORMANCE-TUNING.md`, `CONFIGURATION-GUIDE.md`.
+> Para a postura de arquitetura/operação, a fonte da verdade é
+> [`ARCHITECTURE-POSTURE.md`](ARCHITECTURE-POSTURE.md) e o [`README.md`](../README.md).
 
-> Para o estado real da arquitetura/operação, use `ARCHITECTURE-POSTURE.md` e o
-> `README.md`.
