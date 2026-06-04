@@ -94,7 +94,15 @@ async def lifespan(app: FastAPI):
     dependencies.auto_import_scheduler.start()
     await dependencies.auto_import_scheduler.initialise()
 
-    dependencies.cielo_conciliator_client = CieloConciliatorClient()
+    # The Cielo integration is optional: if its credentials are not configured
+    # the app must still boot (the Cielo-specific routes will return 503 when
+    # used). This keeps "docker-compose up" working out of the box without
+    # requiring acquirer credentials just to start the server.
+    try:
+        dependencies.cielo_conciliator_client = CieloConciliatorClient()
+    except Exception as exc:  # pragma: no cover - configuration dependent
+        dependencies.cielo_conciliator_client = None
+        logger.warning("cielo_conciliator_disabled", reason=str(exc))
 
     dependencies.reconciliation_job_service = ReconciliationJobService(
         session_factory=dependencies.database.session_factory,
