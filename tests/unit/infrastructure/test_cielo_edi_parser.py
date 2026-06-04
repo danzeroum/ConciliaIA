@@ -90,7 +90,10 @@ class TestCieloEDIParser:
         )
         line_one = line_template.format(nsu="123456789")
         line_two = line_template.format(nsu="987654321")
-        pad = lambda l: l + ("0" * max(0, 120 - len(l)))
+
+        def pad(value: str) -> str:
+            return value + ("0" * max(0, 120 - len(value)))
+
         edi_content = "\n".join([pad(line_one), pad(line_two)])
         transactions = parser.parse(edi_content, tenant_id="tenant-123")
         assert len(transactions) == 2

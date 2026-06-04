@@ -5,9 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
 
 import structlog
+
+if TYPE_CHECKING:
+    from src.domain.value_objects import Money
 
 from src.domain.entities import AcquirerTransaction
 from src.domain.repositories import IAcquirerTransactionRepository
