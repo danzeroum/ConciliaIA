@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+import unicodedata
 from datetime import datetime, time
 from decimal import Decimal
 from typing import Dict, List
@@ -23,7 +24,14 @@ def _normalise_header(header: str) -> str:
     representation.
     """
 
-    slug = re.sub(r"[^\w]+", "_", header.strip().lower())
+    # Strip accents so accented headers (e.g. "Data Transação", "Valor Líquido",
+    # "Autorização", "Últimos 4") reduce to the ASCII aliases below.
+    ascii_header = (
+        unicodedata.normalize("NFKD", header.strip().lower())
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+    slug = re.sub(r"[^\w]+", "_", ascii_header)
     slug = re.sub(r"_{2,}", "_", slug)
     return slug.strip("_")
 
@@ -48,6 +56,26 @@ def _parse_percentage(value: str | None) -> Decimal | None:
     return (decimal_value / Decimal("100")).quantize(Decimal("0.0001"))
 
 
+# Cielo exports use Portuguese status labels; map them to the canonical
+# (English) ``TransactionStatus`` values.
+_STATUS_MAP = {
+    "aprovada": "approved",
+    "aprovado": "approved",
+    "approved": "approved",
+    "cancelada": "cancelled",
+    "cancelado": "cancelled",
+    "cancelled": "cancelled",
+    "canceled": "cancelled",
+    "contestada": "chargeback",
+    "chargeback": "chargeback",
+    "pendente": "pending",
+    "pending": "pending",
+    "liquidada": "settled",
+    "paga": "settled",
+    "settled": "settled",
+}
+
+
 class CieloAgilizaParser(BaseAcquirerParser):
     """Convert CSV rows from the Cielo Conciliator portal into transactions."""
 
@@ -55,14 +83,14 @@ class CieloAgilizaParser(BaseAcquirerParser):
         "nsu": {"nsu", "nsu_da_transacao", "nsu_transacao"},
         "authorization_code": {"codigo_de_autorizacao", "cod_autorizacao", "autorizacao"},
         "transaction_date": {"data_da_venda", "data_transacao", "data_da_transacao"},
-        "transaction_time": {"hora_da_venda", "hora_transacao"},
+        "transaction_time": {"hora_da_venda", "hora_transacao", "hora"},
         "settlement_date": {"data_pagamento", "data_prevista_pagamento"},
         "gross_amount": {"valor_bruto", "valor_da_venda", "valor_bruto_transacao"},
         "net_amount": {"valor_liquido", "valor_recebido", "valor_liquido_transacao"},
         "mdr_rate": {"taxa_mdr", "taxa_administracao", "taxa"},
         "mdr_amount": {"valor_taxa", "valor_taxas", "valor_desconto"},
         "card_brand": {"bandeira", "bandeira_cartao"},
-        "card_last_4": {"ultimos_digitos", "ultimos4", "final_cartao"},
+        "card_last_4": {"ultimos_digitos", "ultimos4", "ultimos_4", "final_cartao"},
         "installments": {"quantidade_parcelas", "total_parcelas", "parcelas"},
         "installment_number": {"numero_parcela", "parcela_atual"},
         "status": {"status", "status_transacao"},
@@ -136,6 +164,11 @@ class CieloAgilizaParser(BaseAcquirerParser):
         mdr_amount = _parse_decimal(record.get("mdr_amount"))
         mdr_rate = _parse_percentage(record.get("mdr_rate"))
 
+        # The Agiliza export carries the MDR rate but not always the MDR amount;
+        # derive it from gross - net when absent.
+        if mdr_amount is None and gross_amount is not None and net_amount is not None:
+            mdr_amount = gross_amount - net_amount
+
         transaction_date = self._parse_date(record["transaction_date"]).date()
         settlement_date = record.get("settlement_date")
         settlement_date_value = (
@@ -150,7 +183,7 @@ class CieloAgilizaParser(BaseAcquirerParser):
         installment_number = self._parse_int(record.get("installment_number"))
         status = record.get("status") or "approved"
         if isinstance(status, str):
-            status = status.lower()
+            status = _STATUS_MAP.get(status.strip().lower(), "approved")
 
         transaction_time_value = None
         transaction_time = record.get("transaction_time")

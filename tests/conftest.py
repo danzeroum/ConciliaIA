@@ -55,6 +55,13 @@ def configure_api_dependencies() -> Iterator[None]:
     )
     dependencies.auth_middleware = AuthMiddleware(dependencies.jwt_handler)
 
+    # Provide a fallback database so ``get_db_session`` never errors for requests
+    # that do not go through the per-test ``db_session`` override (e.g. a request
+    # that fails body validation before touching the DB).
+    from src.infrastructure.persistence.database import Database
+
+    dependencies.database = Database(TEST_DATABASE_URL)
+
     if not getattr(app.state, "rate_limit_middleware_installed", False):
         app.add_middleware(
             RateLimitMiddleware, rate_limiter=dependencies.rate_limiter
@@ -68,6 +75,7 @@ def configure_api_dependencies() -> Iterator[None]:
         dependencies.password_hasher = None
         dependencies.rate_limiter = None
         dependencies.auth_middleware = None
+        dependencies.database = None
 
 
 @pytest.fixture(scope="session")
@@ -102,7 +110,16 @@ async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, Non
         await connection.begin()
 
         async with AsyncSession(connection, expire_on_commit=False) as session:
-            yield session
+            # Route the application's ``get_db_session`` dependency to this same
+            # transactional session so requests made over HTTP (e.g. the auth
+            # endpoints) see the data created by the test fixtures.
+            from src.api.dependencies import get_db_session
+
+            app.dependency_overrides[get_db_session] = lambda: session
+            try:
+                yield session
+            finally:
+                app.dependency_overrides.pop(get_db_session, None)
 
         await connection.rollback()
 
@@ -150,15 +167,16 @@ async def test_user(
             id=UUID(USER_TEST_ID),
             tenant_id=test_tenant.id,
             email="test@example.com",
-            password=hashed_password,
-            role="user",
+            password_hash=hashed_password,
+            full_name="Test User",
+            roles=["user"],
             is_active=True,
         )
         db_session.add(user)
     else:
         user.tenant_id = test_tenant.id
         user.email = "test@example.com"
-        user.password = hashed_password
+        user.password_hash = hashed_password
         user.role = "user"
         user.is_active = True
 

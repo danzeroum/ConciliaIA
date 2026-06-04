@@ -21,9 +21,14 @@ class OFXParser:
         if not content:
             raise ValueError("OFX content is empty")
 
-        if content.startswith("<?xml"):
+        # Try the XML parser first: it handles OFX 2.x (``<?xml`` prologue) and
+        # also plain XML-style payloads that omit the prologue. If the content is
+        # not well-formed XML (e.g. OFX 1.x SGML with header lines / unclosed
+        # tags), fall back to the SGML parser.
+        try:
             return self._parse_ofx_v2(content)
-        return self._parse_ofx_v1(content)
+        except ValueError:
+            return self._parse_ofx_v1(content)
 
     def _parse_ofx_v2(self, xml_content: str) -> List[Dict[str, object]]:
         """Parse OFX 2.x XML payloads."""

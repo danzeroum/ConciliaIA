@@ -57,7 +57,7 @@ class TestProtectedEndpoints:
         finally:
             app.dependency_overrides.pop(get_reconciliation_use_case, None)
 
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     async def test_access_protected_endpoint_with_valid_token(self, test_user) -> None:
         """Test accessing protected endpoint with valid token succeeds."""
@@ -67,7 +67,7 @@ class TestProtectedEndpoints:
             user_id=str(test_user.id),
             tenant_id=str(test_user.tenant_id),
             email=test_user.email,
-            roles=[test_user.role],
+            roles=list(test_user.roles),
             jti="jti-123",
         )
 

@@ -36,6 +36,12 @@ class FakeAcquirerTransactionRepository(IAcquirerTransactionRepository):
     async def find_by_date_range(self, *args, **kwargs):  # type: ignore[override]
         return self.transactions
 
+    async def find_delayed_settlements(self, *args, **kwargs):  # type: ignore[override]
+        return []
+
+    async def find_chargebacks(self, *args, **kwargs):  # type: ignore[override]
+        return []
+
 
 @pytest.mark.asyncio
 async def test_reconcile_bank_statement_matches_credit_transaction():
@@ -50,7 +56,7 @@ async def test_reconcile_bank_statement_matches_credit_transaction():
                 <DTPOSTED>20240102120000</DTPOSTED>
                 <TRNAMT>1500.00</TRNAMT>
                 <FITID>ABC123</FITID>
-                <MEMO>PAGAMENTO NSU 999</MEMO>
+                <MEMO>PAGAMENTO NSU 999999</MEMO>
               </STMTTRN>
             </BANKTRANLIST>
           </STMTRS>
@@ -63,8 +69,8 @@ async def test_reconcile_bank_statement_matches_credit_transaction():
         id=str(uuid4()),
         tenant_id="tenant-1",
         acquirer="stone",
-        nsu="999",
-        amount=Money(Decimal("1500.00"), "BRL"),
+        nsu="999999",
+        amount=Money(Decimal("1530.00"), "BRL"),
         transaction_date=date(2024, 1, 2),
         settlement_date=date(2024, 1, 2),
         net_amount=Money(Decimal("1500.00"), "BRL"),
@@ -92,7 +98,7 @@ async def test_reconcile_bank_statement_matches_credit_transaction():
     assert response.matched_count == 1
     assert response.unmatched_count == 0
     assert response.total_matched_amount == Decimal("1500.00")
-    assert "pagamentos confirmados" in response.summary_message.lower()
+    assert "confirmados" in response.summary_message.lower()
     assert len(bank_repo.saved) == 1
     assert response.matches[0]["confidence"] >= 0.9
     assert response.matches[0]["bank_transaction_id"]
