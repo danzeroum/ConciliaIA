@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -95,6 +96,7 @@ function KPICard({ title, value, subtitle, icon, color = 'primary', trend }: KPI
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { data: stats, isLoading, error } = useDashboardStats(30);
 
   if (isLoading) {
@@ -127,7 +129,7 @@ export default function Dashboard() {
         <Typography variant="h4" fontWeight="bold">
           Dashboard
         </Typography>
-        <Button variant="outlined" onClick={() => (window.location.href = '/reconciliation')}>
+        <Button variant="outlined" onClick={() => navigate('/reconciliation')}>
           Nova Reconciliação
         </Button>
       </Box>
@@ -282,7 +284,7 @@ export default function Dashboard() {
                 <Button
                   variant="outlined"
                   fullWidth
-                  onClick={() => (window.location.href = '/reconciliation')}
+                  onClick={() => navigate('/reconciliation')}
                   sx={{ justifyContent: 'flex-start' }}
                 >
                   🔄 Executar Nova Reconciliação
@@ -290,7 +292,7 @@ export default function Dashboard() {
                 <Button
                   variant="outlined"
                   fullWidth
-                  onClick={() => (window.location.href = '/divergences')}
+                  onClick={() => navigate('/divergences')}
                   sx={{ justifyContent: 'flex-start' }}
                 >
                   ⚠️ Ver Divergências ({stats.kpis.pending_divergences} pendentes)
@@ -298,7 +300,7 @@ export default function Dashboard() {
                 <Button
                   variant="outlined"
                   fullWidth
-                  onClick={() => (window.location.href = '/reports')}
+                  onClick={() => navigate('/reports')}
                   sx={{ justifyContent: 'flex-start' }}
                 >
                   📈 Gerar Relatórios
@@ -306,7 +308,7 @@ export default function Dashboard() {
                 <Button
                   variant="outlined"
                   fullWidth
-                  onClick={() => (window.location.href = '/sales/import')}
+                  onClick={() => navigate('/reconciliation')}
                   sx={{ justifyContent: 'flex-start' }}
                 >
                   📤 Importar Dados

@@ -110,6 +110,20 @@ class PostgreSQLMatchRepository(MatchRepository):
 
         return [self.mapper.to_entity(model) for model in models]
 
+    async def find_recent(self, tenant_id: str, limit: int = 50) -> List[ReconciliationMatch]:
+        """Find the most recent matches for a tenant, newest first."""
+        stmt = (
+            select(MatchModel)
+            .where(MatchModel.tenant_id == tenant_id)
+            .order_by(MatchModel.matched_at.desc())
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+
+        return [self.mapper.to_entity(model) for model in models]
+
     async def find_by_date_range(
         self, tenant_id: str, start_date: date, end_date: date
     ) -> List[ReconciliationMatch]:

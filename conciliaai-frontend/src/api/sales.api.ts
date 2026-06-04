@@ -86,7 +86,7 @@ export const salesApi = {
 
   // Update sale
   update: async (id: string, data: Partial<CreateSaleRequest>): Promise<Sale> => {
-    const response = await apiClient.put(`/api/v1/sales/${id}`, data);
+    const response = await apiClient.patch(`/api/v1/sales/${id}`, data);
     return response.data;
   },
 

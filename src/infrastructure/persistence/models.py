@@ -389,3 +389,32 @@ class AlertHistoryModel(Base):
         Index("idx_alert_history_tenant", "tenant_id", "triggered_at"),
         Index("idx_alert_history_rule", "rule_id", "triggered_at"),
     )
+
+
+class ReconciliationJobModel(Base):
+    """Asynchronous reconciliation job and its lifecycle/checkpoints."""
+
+    __tablename__ = "reconciliation_jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    # Free-form progress checkpoints (e.g. {"phase": "matching", "percent": 40}).
+    checkpoints = Column(JSONB, default=dict)
+    # Reconciliation outcome (matched, divergences, accuracy, precision, recall).
+    result = Column(JSONB)
+    error = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    started_at = Column(DateTime)
+    finished_at = Column(DateTime)
+
+    tenant = relationship("TenantModel")
+
+    __table_args__ = (
+        Index("idx_reconciliation_jobs_tenant_status", "tenant_id", "status"),
+        Index("idx_reconciliation_jobs_tenant_created", "tenant_id", "created_at"),
+    )

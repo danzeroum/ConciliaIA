@@ -17,8 +17,8 @@ export default function Login() {
   const login = useAuthStore((state) => state.login);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  const [email, setEmail] = useState('test@example.com');
-  const [password, setPassword] = useState('SecurePassword123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -112,18 +112,6 @@ export default function Login() {
               )}
             </Button>
           </form>
-
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary" display="block" fontWeight="bold">
-              Credenciais de teste:
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-              📧 Email: test@example.com
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              🔑 Senha: SecurePassword123!
-            </Typography>
-          </Box>
         </Paper>
       </Box>
     </Container>

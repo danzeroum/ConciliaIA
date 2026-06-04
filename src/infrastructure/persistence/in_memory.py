@@ -188,6 +188,17 @@ class InMemoryMatchRepository(MatchRepository):
             and start_date <= match.matched_at.date() <= end_date
         ]
 
+    async def find_recent(
+        self, tenant_id: str, limit: int = 50
+    ) -> List[ReconciliationMatch]:
+        matches = [
+            match
+            for match in self._matches.values()
+            if match.tenant_id == tenant_id
+        ]
+        matches.sort(key=lambda m: m.matched_at, reverse=True)
+        return matches[:limit]
+
 
 class InMemoryDivergenceRepository(DivergenceRepository):
     """Store divergences for inspection."""
@@ -243,3 +254,32 @@ class InMemoryDivergenceRepository(DivergenceRepository):
             and divergence.detected_at.date() >= start_date
             and divergence.detected_at.date() <= end_date
         ]
+
+    async def find_paginated(
+        self,
+        tenant_id: str,
+        *,
+        status: DivergenceStatus | None = None,
+        divergence_type: str | None = None,
+        severity: Severity | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[List[Divergence], int]:
+        items = [
+            divergence
+            for divergence in self._divergences.values()
+            if divergence.tenant_id == tenant_id
+            and (status is None or divergence.status == status)
+            and (
+                divergence_type is None
+                or getattr(divergence.divergence_type, "value", divergence.divergence_type)
+                == divergence_type
+            )
+            and (severity is None or divergence.severity == severity)
+        ]
+        items.sort(key=lambda d: d.detected_at, reverse=True)
+        total = len(items)
+        page = max(page, 1)
+        page_size = max(page_size, 1)
+        start = (page - 1) * page_size
+        return items[start : start + page_size], total

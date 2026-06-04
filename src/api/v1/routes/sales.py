@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import List
 from uuid import UUID
 
@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_tenant, get_db_session
+from src.api.serialization import MoneyAmount
 from src.application.services.sales_service import SalesService
 from src.domain.entities import Tenant
 from src.infrastructure.persistence.repositories.postgresql_match_repository import (
@@ -50,7 +51,7 @@ class SaleResponse(BaseModel):
     id: str
     tenant_id: str
     nsu: str
-    amount: float
+    amount: MoneyAmount
     sale_date: str
     payment_method: str
     installments: int
@@ -122,7 +123,7 @@ async def create_sale(
         id=sale.id,
         tenant_id=sale.tenant_id,
         nsu=str(sale.nsu),
-        amount=float(sale.amount.amount),
+        amount=sale.amount.amount,
         sale_date=sale.date.isoformat(),
         payment_method=sale.payment_method,
         installments=sale.installments,
@@ -166,18 +167,19 @@ async def list_sales(
     )
 
     match_map = {}
+    # Avoid an O(history) full scan when no date filter is supplied: default to
+    # the last 30 days, which matches the typical reconciliation horizon. When
+    # the caller provides a range, honour it (using a 30-day lookback as the
+    # lower bound if only ``end_date`` is given).
+    default_window = timedelta(days=30)
     if start_date or end_date:
-        matches = await match_repo.find_by_date_range(
-            tenant.id,
-            start_date or date(1970, 1, 1),
-            end_date or date.today(),
-        )
+        range_end = end_date or date.today()
+        range_start = start_date or (range_end - default_window)
     else:
-        matches = await match_repo.find_by_date_range(
-            tenant.id,
-            date(1970, 1, 1),
-            date.today(),
-        )
+        range_end = date.today()
+        range_start = range_end - default_window
+
+    matches = await match_repo.find_by_date_range(tenant.id, range_start, range_end)
     for match in matches:
         match_map.setdefault(match.sale_id, []).append(match.id)
 
@@ -186,7 +188,7 @@ async def list_sales(
             id=sale.id,
             tenant_id=sale.tenant_id,
             nsu=str(sale.nsu),
-            amount=float(sale.amount.amount),
+            amount=sale.amount.amount,
             sale_date=sale.date.isoformat(),
             payment_method=sale.payment_method,
             installments=sale.installments,
@@ -236,7 +238,7 @@ async def get_sale(
         id=sale.id,
         tenant_id=sale.tenant_id,
         nsu=str(sale.nsu),
-        amount=float(sale.amount.amount),
+        amount=sale.amount.amount,
         sale_date=sale.date.isoformat(),
         payment_method=sale.payment_method,
         installments=sale.installments,
@@ -249,7 +251,7 @@ async def get_sale(
     )
 
 
-@router.put(
+@router.patch(
     "/sales/{sale_id}",
     response_model=SaleResponse,
     summary="Update sale",
@@ -282,7 +284,7 @@ async def update_sale(
         id=sale.id,
         tenant_id=sale.tenant_id,
         nsu=str(sale.nsu),
-        amount=float(sale.amount.amount),
+        amount=sale.amount.amount,
         sale_date=sale.date.isoformat(),
         payment_method=sale.payment_method,
         installments=sale.installments,

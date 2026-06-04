@@ -7,12 +7,20 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import structlog
 
 from src.api import dependencies
-from src.api.middleware import AuthMiddleware, RateLimitMiddleware, TenantMiddleware
+from src.api.errors import install_error_handling
+from src.api.middleware import (
+    AuthMiddleware,
+    JWTContextMiddleware,
+    RateLimitMiddleware,
+    TenantMiddleware,
+)
 from src.api.routes import auth, cash_flow, notifications
 from src.api.v1.routes import (
+    acquirers,
     alerts,
     auto_import,
     bank_reconciliation,
@@ -23,11 +31,14 @@ from src.api.v1.routes import (
     ingestion,
     matches,
     reconciliation,
+    reconciliation_jobs,
+    reconciliation_rules,
     reports,
     sales,
     stats,
     transactions,
 )
+from src.application.services.reconciliation_job_service import ReconciliationJobService
 from src.infrastructure.acquirers import CieloConciliatorClient
 from src.infrastructure.logging import setup_logging
 from src.infrastructure.persistence.database import Database
@@ -83,7 +94,20 @@ async def lifespan(app: FastAPI):
     dependencies.auto_import_scheduler.start()
     await dependencies.auto_import_scheduler.initialise()
 
-    dependencies.cielo_conciliator_client = CieloConciliatorClient()
+    # The Cielo integration is optional: if its credentials are not configured
+    # the app must still boot (the Cielo-specific routes will return 503 when
+    # used). This keeps "docker-compose up" working out of the box without
+    # requiring acquirer credentials just to start the server.
+    try:
+        dependencies.cielo_conciliator_client = CieloConciliatorClient()
+    except Exception as exc:  # pragma: no cover - configuration dependent
+        dependencies.cielo_conciliator_client = None
+        logger.warning("cielo_conciliator_disabled", reason=str(exc))
+
+    dependencies.reconciliation_job_service = ReconciliationJobService(
+        session_factory=dependencies.database.session_factory,
+        use_case_builder=dependencies.build_reconciliation_use_case,
+    )
 
     logger.info("application_started", environment=os.getenv("ENVIRONMENT"))
 
@@ -113,6 +137,11 @@ app.add_middleware(
     RateLimitMiddleware,
     rate_limiter=dependencies.rate_limiter,
 )
+# Runs ahead of the tenant/rate-limit middlewares (added above) so that the
+# decoded JWT identity is already on ``request.state`` when they execute.
+if dependencies.jwt_handler is None:
+    raise RuntimeError("JWT handler failed to initialise")
+app.add_middleware(JWTContextMiddleware, jwt_handler=dependencies.jwt_handler)
 # =========================================================================
 # CORS configuration
 # =========================================================================
@@ -147,7 +176,12 @@ app.add_middleware(
     max_age=600,
 )
 
-app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+# Standardized error envelope ({detail, error_code, request_id}) plus the
+# X-Request-ID correlation header. Added last so the request-id middleware is
+# outermost and the id is available to every handler and error response.
+install_error_handling(app)
+
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(cash_flow.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(auto_import.router, prefix="/api/v1", tags=["Auto Import"])
@@ -156,6 +190,9 @@ app.include_router(cielo_conciliator.router, prefix="/api/v1")
 app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 app.include_router(notifications.router, prefix="/api/v1", tags=["Notifications"])
 app.include_router(reconciliation.router, prefix="/api/v1", tags=["Reconciliation"])
+app.include_router(reconciliation_jobs.router, prefix="/api/v1", tags=["Reconciliation"])
+app.include_router(reconciliation_rules.router, prefix="/api/v1", tags=["Reconciliation"])
+app.include_router(acquirers.router, prefix="/api/v1", tags=["Acquirers"])
 app.include_router(divergences.router, prefix="/api/v1", tags=["Divergences"])
 app.include_router(matches.router, prefix="/api/v1", tags=["Matches"])
 app.include_router(sales.router, prefix="/api/v1", tags=["Sales"])
@@ -178,19 +215,61 @@ async def apply_security_headers(request, call_next):
     return response
 
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "version": "7.0.0"}
+# The canonical health endpoint lives at ``/api/v1/health`` (see
+# ``v1/routes/health.py``); the previously duplicated bare ``/health`` route
+# was removed to keep a single source of truth.
 
 
-@app.get("/")
-async def root():
-    return {
-        "message": "ConciliaAI API v7.0",
-        "docs": "/docs",
-        "health": "/health",
-        "login": "/auth/login",
-    }
+# ---------------------------------------------------------------------------
+# Single-image frontend serving
+# ---------------------------------------------------------------------------
+# When the React build is bundled into the image (``FRONTEND_DIST`` points at a
+# directory containing ``index.html``), FastAPI serves the static assets and
+# falls back to ``index.html`` for client-side routes. This is what makes the
+# "Docker único" deployment work: one application image (frontend + backend),
+# with PostgreSQL always kept as an EXTERNAL service.
+_FRONTEND_DIST = os.getenv("FRONTEND_DIST", "/app/static")
+_FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
+_FRONTEND_AVAILABLE = os.path.isfile(_FRONTEND_INDEX)
+
+# Reserved prefixes that must never be swallowed by the SPA fallback.
+_API_PREFIXES = ("/api", "/auth", "/docs", "/redoc", "/openapi", "/health")
+
+
+if _FRONTEND_AVAILABLE:
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    _assets_dir = os.path.join(_FRONTEND_DIST, "assets")
+    if os.path.isdir(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    async def spa_root() -> "FileResponse":
+        return FileResponse(_FRONTEND_INDEX)
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        # API/doc routes are matched by their routers before reaching here; an
+        # unmatched request under a reserved prefix is a genuine 404.
+        if any(("/" + full_path).startswith(prefix) for prefix in _API_PREFIXES):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+
+        candidate = os.path.join(_FRONTEND_DIST, full_path)
+        if full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(_FRONTEND_INDEX)
+
+else:
+
+    @app.get("/")
+    async def root():
+        return {
+            "message": "ConciliaAI API v7.0",
+            "docs": "/docs",
+            "health": "/api/v1/health",
+            "login": "/api/v1/auth/login",
+        }
 
 
 __all__ = ["app"]

@@ -1,34 +1,12 @@
+/**
+ * @deprecated Use `@/api/axios-config` directly.
+ *
+ * This module previously created a second, independent axios instance with a
+ * different base URL and no token-refresh handling. It now re-exports the single
+ * unified client so any remaining import keeps working while pointing at the
+ * same instance (request auth + 401 refresh interceptor).
+ */
+import { apiClient } from '@/api/axios-config';
 
-import axios from 'axios';
-
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
-export const apiClient = axios.create({
-  baseURL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
+export { apiClient };
 export default apiClient;

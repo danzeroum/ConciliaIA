@@ -27,15 +27,24 @@
     ports:
       - "8000:8000"
     environment:
-      PYTHONPATH: /app/src
+      PYTHONPATH: /app:/app/src
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@postgres:5432/${POSTGRES_DB:-conciliaai}
       LOG_LEVEL: INFO
-      ENVIRONMENT: production
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      # Required by the app at import time. Override in production via .env
+      # (generate with: openssl rand -hex 32).
+      SECRET_KEY: ${SECRET_KEY:-dev-only-secret-change-me-in-production-0000000000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-app_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
       POSTGRES_DB: ${POSTGRES_DB:-conciliaai}
+      # Optional Cielo integration — the app boots without these (the Cielo
+      # routes return 503 until configured).
+      CIELO_CONCILIATOR_BASE_URL: ${CIELO_CONCILIATOR_BASE_URL:-}
+      CIELO_CONCILIATOR_CLIENT_ID: ${CIELO_CONCILIATOR_CLIENT_ID:-}
+      CIELO_CONCILIATOR_CLIENT_SECRET: ${CIELO_CONCILIATOR_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy

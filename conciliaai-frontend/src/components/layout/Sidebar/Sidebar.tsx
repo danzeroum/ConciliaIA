@@ -6,6 +6,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Toolbar,
   useMediaQuery,
   useTheme,
@@ -16,6 +17,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import WarningIcon from '@mui/icons-material/Warning';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -31,18 +33,44 @@ interface MenuItem {
   path: string;
 }
 
-const menuItems: MenuItem[] = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-  { text: 'Vendas', icon: <ShoppingCartIcon />, path: '/sales' },
-  { text: 'Transações', icon: <ReceiptIcon />, path: '/transactions' },
-  { text: 'Reconciliação', icon: <CompareArrowsIcon />, path: '/reconciliation' },
-  { text: 'Pagamentos Bancários', icon: <AccountBalanceIcon />, path: '/bank-reconciliation' },
-  { text: 'Divergências', icon: <WarningIcon />, path: '/divergences' },
-  { text: 'Relatórios', icon: <AssessmentIcon />, path: '/reports' },
-  { text: 'Fluxo de Caixa', icon: <AssessmentIcon />, path: '/reports/cashflow' },
-  { text: 'Alertas', icon: <NotificationsActiveIcon />, path: '/alerts' },
-  { text: 'Configurações', icon: <SettingsIcon />, path: '/settings' },
-  { text: 'Importação Cielo', icon: <CloudDownloadIcon />, path: '/settings/auto-import' },
+interface MenuGroup {
+  subheader: string;
+  items: MenuItem[];
+}
+
+// Grouped navigation: related destinations are clustered under a section label
+// so the sidebar scans quickly as the number of pages grows. "Fluxo de Caixa"
+// now has its own wallet icon (it previously reused the Reports icon).
+const menuGroups: MenuGroup[] = [
+  {
+    subheader: 'Visão Geral',
+    items: [{ text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' }],
+  },
+  {
+    subheader: 'Conciliação',
+    items: [
+      { text: 'Vendas', icon: <ShoppingCartIcon />, path: '/sales' },
+      { text: 'Transações', icon: <ReceiptIcon />, path: '/transactions' },
+      { text: 'Reconciliação', icon: <CompareArrowsIcon />, path: '/reconciliation' },
+      { text: 'Pagamentos Bancários', icon: <AccountBalanceIcon />, path: '/bank-reconciliation' },
+      { text: 'Divergências', icon: <WarningIcon />, path: '/divergences' },
+    ],
+  },
+  {
+    subheader: 'Análises',
+    items: [
+      { text: 'Relatórios', icon: <AssessmentIcon />, path: '/reports' },
+      { text: 'Fluxo de Caixa', icon: <AccountBalanceWalletIcon />, path: '/reports/cashflow' },
+    ],
+  },
+  {
+    subheader: 'Configuração',
+    items: [
+      { text: 'Alertas', icon: <NotificationsActiveIcon />, path: '/alerts' },
+      { text: 'Configurações', icon: <SettingsIcon />, path: '/settings' },
+      { text: 'Importação Cielo', icon: <CloudDownloadIcon />, path: '/settings/auto-import' },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -63,17 +91,26 @@ export function Sidebar() {
   const drawer = (
     <>
       <Toolbar />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => handleItemClick(item.path)}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
+      <List component="nav" aria-label="Navegação principal">
+        {menuGroups.map((group) => (
+          <li key={group.subheader}>
+            <ul style={{ padding: 0, listStyle: 'none' }}>
+              <ListSubheader disableSticky>{group.subheader}</ListSubheader>
+              {group.items.map((item) => (
+                <ListItem key={item.path} disablePadding>
+                  <ListItemButton
+                    selected={location.pathname === item.path}
+                    onClick={() => handleItemClick(item.path)}
+                    aria-label={item.text}
+                    aria-current={location.pathname === item.path ? 'page' : undefined}
+                  >
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </ul>
+          </li>
         ))}
       </List>
     </>

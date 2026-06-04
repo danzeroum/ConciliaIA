@@ -71,3 +71,8 @@ __pycache__/
 *.sqlite3
 alembic/versions/__pycache__/
 migrations/__pycache__/
+
+# Frontend (rebuilt inside the image; never ship local artifacts)
+conciliaai-frontend/node_modules/
+conciliaai-frontend/dist/
+node_modules/

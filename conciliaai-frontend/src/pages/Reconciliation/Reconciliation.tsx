@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -16,19 +17,45 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import { ImportCSVDialog } from '@/components/features/ImportCSVDialog';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
 import { useImportSales } from '@/hooks/useSales';
 import { useImportTransactions, useImportTransactionsEDI } from '@/hooks/useTransactions';
 import { useKPIs } from '@/hooks/useStats';
+import { useReconciliationJob } from '@/hooks/useReconciliationJob';
 import { formatCurrency } from '@/utils/formatters';
 
+// Default reconciliation window: the last 30 days (YYYY-MM-DD).
+function defaultRange(): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { start: fmt(start), end: fmt(end) };
+}
+
 export function ReconciliationPage() {
+  const navigate = useNavigate();
   const [importSalesOpen, setImportSalesOpen] = React.useState(false);
   const [importTransactionsOpen, setImportTransactionsOpen] = React.useState(false);
   const [importEDIOpen, setImportEDIOpen] = React.useState(false);
+  const [confirmRunOpen, setConfirmRunOpen] = React.useState(false);
   const importSales = useImportSales();
   const importTransactions = useImportTransactions();
   const importEDI = useImportTransactionsEDI();
   const { data: kpis } = useKPIs(7);
+  const { start: startReconciliation, job, isRunning } = useReconciliationJob();
+
+  const handleConfirmRun = async () => {
+    const { start, end } = defaultRange();
+    await startReconciliation(start, end);
+    setConfirmRunOpen(false);
+  };
+
+  const runButtonLabel = isRunning
+    ? job?.status === 'running'
+      ? 'Reconciliando...'
+      : 'Iniciando...'
+    : 'Executar Reconciliação';
 
   return (
     <Box display="flex" flexDirection="column" gap={3}>
@@ -37,9 +64,11 @@ export function ReconciliationPage() {
         <Button
           variant="contained"
           startIcon={<SyncIcon />}
-          onClick={() => window.open('/api/v1/reconciliation/run', '_blank')}
+          disabled={isRunning}
+          onClick={() => setConfirmRunOpen(true)}
+          aria-label="Executar reconciliação dos últimos 30 dias"
         >
-          Executar Reconciliação
+          {runButtonLabel}
         </Button>
       </Box>
 
@@ -95,7 +124,7 @@ export function ReconciliationPage() {
                   primary="Revise divergências e gere relatórios"
                   secondary="Acompanhe a evolução da conciliação e exporte dados para auditoria."
                 />
-                <Button size="small" onClick={() => (window.location.href = '/divergences')}>
+                <Button size="small" onClick={() => navigate('/divergences')}>
                   Ver divergências
                 </Button>
               </ListItem>
@@ -195,6 +224,16 @@ export function ReconciliationPage() {
             para CSV.
           </Typography>
         }
+      />
+
+      <ConfirmDialog
+        open={confirmRunOpen}
+        title="Executar reconciliação"
+        message="A reconciliação dos últimos 30 dias será processada em segundo plano. Você será notificado ao concluir. Deseja continuar?"
+        confirmLabel="Executar"
+        loading={isRunning}
+        onConfirm={handleConfirmRun}
+        onCancel={() => setConfirmRunOpen(false)}
       />
     </Box>
   );

@@ -9,6 +9,8 @@ import structlog
 
 from src.infrastructure.security import RateLimiter
 
+from .paths import is_rate_limited
+
 logger = structlog.get_logger(__name__)
 
 
@@ -21,7 +23,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.logger = logger.bind(middleware="RateLimitMiddleware")
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if request.url.path == "/health":
+        # Static frontend assets and SPA routes are not throttled so a first
+        # page load (many JS chunks) is never blocked.
+        if not is_rate_limited(request.url.path):
             return await call_next(request)
 
         identifier = getattr(request.state, "tenant_id", None)

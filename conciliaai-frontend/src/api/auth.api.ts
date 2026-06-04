@@ -14,18 +14,18 @@ export interface LoginResponse {
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
-    const response = await apiClient.post('/auth/login', data);
+    const response = await apiClient.post('/api/v1/auth/login', data);
     return response.data;
   },
 
   refresh: async (refreshToken: string): Promise<LoginResponse> => {
-    const response = await apiClient.post('/auth/refresh', {
+    const response = await apiClient.post('/api/v1/auth/refresh', {
       refresh_token: refreshToken,
     });
     return response.data;
   },
 
   logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout');
+    await apiClient.post('/api/v1/auth/logout');
   },
 };

@@ -15,7 +15,7 @@ import {
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-import { apiClient } from '../../services/api';
+import { apiClient } from '@/api/axios-config';
 
 interface ScheduleResponse {
   id: string;
@@ -37,7 +37,7 @@ const AutoImportSettings = () => {
   useEffect(() => {
     const loadSchedule = async () => {
       try {
-        const response = await apiClient.get<ScheduleResponse[]>('/auto-import/schedule');
+        const response = await apiClient.get<ScheduleResponse[]>('/api/v1/auto-import/schedule');
         if (response.data.length) {
           const schedule = response.data[0];
           setEnabled(true);
@@ -65,7 +65,7 @@ const AutoImportSettings = () => {
     setMessage('');
     try {
       if (!enabled) {
-        await apiClient.delete('/auto-import/schedule');
+        await apiClient.delete('/api/v1/auto-import/schedule');
         setMessage('Importação automática desativada.');
         setScheduleId(null);
         return;
@@ -80,10 +80,10 @@ const AutoImportSettings = () => {
       };
 
       if (scheduleId) {
-        await apiClient.put(`/auto-import/schedule/${scheduleId}`, payload);
+        await apiClient.put(`/api/v1/auto-import/schedule/${scheduleId}`, payload);
         setMessage('✅ Importação automática atualizada!');
       } else {
-        const response = await apiClient.post<ScheduleResponse>('/auto-import/schedule', payload);
+        const response = await apiClient.post<ScheduleResponse>('/api/v1/auto-import/schedule', payload);
         if (response.data) {
           setScheduleId(response.data.id);
           setMessage('✅ Importação automática configurada com sucesso!');

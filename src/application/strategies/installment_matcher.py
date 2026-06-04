@@ -42,7 +42,7 @@ class InstallmentMatcher(BaseMatcher):
             for transaction in group:
                 matches.append(
                     ReconciliationMatch(
-                        id=f"match-{uuid4()}",
+                        id=str(uuid4()),
                         tenant_id=sale.tenant_id,
                         sale_id=sale.id,
                         transaction_id=transaction.id,

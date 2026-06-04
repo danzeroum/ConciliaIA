@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Box, Card, CardContent, Chip, CircularProgress, Typography } from '@mui/material';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 
-import { apiClient } from '../../services/api';
+import { apiClient } from '@/api/axios-config';
 
 interface AlertItem {
   type: string;
@@ -29,7 +29,7 @@ const AlertsPage = () => {
       setLoading(true);
       setError('');
       try {
-        const response = await apiClient.get<AlertItem[]>('/alerts/proactive');
+        const response = await apiClient.get<AlertItem[]>('/api/v1/alerts/proactive');
         setAlerts(response.data);
       } catch (err: any) {
         setError(err.response?.data?.detail || 'Não foi possível carregar os alertas.');
