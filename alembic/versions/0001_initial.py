@@ -37,6 +37,29 @@ _REQUIRED_EXTENSIONS = (
     "btree_gin",
 )
 
+# Tables that make up this baseline. The list is PINNED to the schema as of this
+# revision so later models added to ``Base.metadata`` (e.g. reconciliation_jobs
+# in 0002) are NOT created here — otherwise ``create_all`` would always emit the
+# latest full schema and collide with subsequent migrations.
+_BASELINE_TABLES = (
+    "tenants",
+    "sales",
+    "acquirer_transactions",
+    "reconciliation_matches",
+    "bank_transactions",
+    "bank_reconciliations",
+    "divergences",
+    "settlements",
+    "users",
+    "import_schedules",
+    "notifications",
+    "alert_history",
+)
+
+
+def _baseline_tables():
+    return [Base.metadata.tables[name] for name in _BASELINE_TABLES]
+
 
 def upgrade() -> None:
     bind = op.get_bind()
@@ -44,9 +67,9 @@ def upgrade() -> None:
     for extension in _REQUIRED_EXTENSIONS:
         op.execute(f'CREATE EXTENSION IF NOT EXISTS "{extension}"')
 
-    Base.metadata.create_all(bind=bind)
+    Base.metadata.create_all(bind=bind, tables=_baseline_tables())
 
 
 def downgrade() -> None:
     bind = op.get_bind()
-    Base.metadata.drop_all(bind=bind)
+    Base.metadata.drop_all(bind=bind, tables=_baseline_tables())
