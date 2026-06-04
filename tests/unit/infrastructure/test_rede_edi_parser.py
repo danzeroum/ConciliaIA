@@ -139,4 +139,3 @@ class TestRedeEDIParser:
         assert txn.mdr_amount is not None
         assert txn.mdr_amount.amount == Decimal("10.00")
         assert txn.transaction_date == date(2024, 1, 17)
-*** End Patch
