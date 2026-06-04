@@ -73,7 +73,8 @@ class RedeEDIParser(BaseAcquirerParser):
         record_type: {
             "record_type": FieldSpec(0, 3),
             "establishment": FieldSpec(3, 12),
-            "nsu": FieldSpec(12, 24),
+            # EEFI records carry a financial reference (not a transaction NSU)
+            # at 12-24; the NSU is synthesized per record type in _parse_eefi.
             "transaction_date": FieldSpec(24, 32, "date"),
             "gross_amount": FieldSpec(32, 47, "decimal", 2),
             "net_amount": FieldSpec(47, 62, "decimal", 2),
@@ -275,9 +276,17 @@ class RedeEDIParser(BaseAcquirerParser):
                 mdr_rate = (mdr_amount / gross_amount).quantize(Decimal("0.0001"))
         transaction_date: date = record["transaction_date"]
 
+        # The authorization code is optional; a malformed value (outside the
+        # domain's 4-10 char rule) must not drop the whole transaction.
+        auth_code = record.get("authorization_code")
+        if isinstance(auth_code, str):
+            auth_code = auth_code.strip() or None
+            if auth_code is not None and not (4 <= len(auth_code) <= 10):
+                auth_code = None
+
         canonical: MutableMapping[str, object] = {
             "nsu": str(record["nsu"]),
-            "authorization_code": record.get("authorization_code"),
+            "authorization_code": auth_code,
             "amount": str(gross_amount.quantize(Decimal("0.01"))),
             "transaction_date": transaction_date,
             "card_brand": record.get("card_brand", "unknown"),

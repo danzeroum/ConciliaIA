@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .money import Money
 
 
 @dataclass(frozen=True)

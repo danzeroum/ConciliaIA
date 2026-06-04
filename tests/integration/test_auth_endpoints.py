@@ -21,7 +21,7 @@ class TestAuthEndpoints:
         """Test successful login."""
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
-                "/auth/login",
+                "/api/v1/auth/login",
                 json={
                     "email": "test@example.com",
                     "password": "SecurePassword123!",
@@ -40,7 +40,7 @@ class TestAuthEndpoints:
         """Test login with invalid email format."""
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
-                "/auth/login",
+                "/api/v1/auth/login",
                 json={
                     "email": "invalid-email",
                     "password": "Password123!",
@@ -53,7 +53,7 @@ class TestAuthEndpoints:
         """Test token refresh."""
         async with AsyncClient(app=app, base_url="http://test") as client:
             login_response = await client.post(
-                "/auth/login",
+                "/api/v1/auth/login",
                 json={
                     "email": "test@example.com",
                     "password": "SecurePassword123!",
@@ -63,7 +63,7 @@ class TestAuthEndpoints:
             refresh_token = login_response.json()["refresh_token"]
 
             refresh_response = await client.post(
-                "/auth/refresh",
+                "/api/v1/auth/refresh",
                 json={"refresh_token": refresh_token},
             )
 
@@ -76,7 +76,7 @@ class TestAuthEndpoints:
     async def test_logout(self) -> None:
         """Test logout."""
         async with AsyncClient(app=app, base_url="http://test") as client:
-            response = await client.post("/auth/logout")
+            response = await client.post("/api/v1/auth/logout")
 
         assert response.status_code == 200
         assert response.json()["message"] == "Logged out successfully"

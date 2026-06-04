@@ -7,7 +7,7 @@ from typing import Dict, List
 
 import structlog
 
-from src.domain.entities import SettlementStatus, TransactionStatus
+from src.domain.entities import TransactionStatus
 from src.infrastructure.persistence.repositories import (
     SettlementRepository,
     TransactionRepository,

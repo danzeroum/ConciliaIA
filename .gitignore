@@ -144,3 +144,6 @@ docs/_build/
 # Except example files
 !.env.example
 !config/keys.example.yaml
+
+# Coverage artifacts
+coverage.xml
