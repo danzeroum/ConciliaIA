@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from src.api import dependencies
+from src.api.errors import install_error_handling
 from src.api.middleware import (
     AuthMiddleware,
     JWTContextMiddleware,
@@ -158,7 +159,12 @@ app.add_middleware(
     max_age=600,
 )
 
-app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+# Standardized error envelope ({detail, error_code, request_id}) plus the
+# X-Request-ID correlation header. Added last so the request-id middleware is
+# outermost and the id is available to every handler and error response.
+install_error_handling(app)
+
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(cash_flow.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(auto_import.router, prefix="/api/v1", tags=["Auto Import"])
@@ -189,9 +195,9 @@ async def apply_security_headers(request, call_next):
     return response
 
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "version": "7.0.0"}
+# The canonical health endpoint lives at ``/api/v1/health`` (see
+# ``v1/routes/health.py``); the previously duplicated bare ``/health`` route
+# was removed to keep a single source of truth.
 
 
 # ---------------------------------------------------------------------------
@@ -241,8 +247,8 @@ else:
         return {
             "message": "ConciliaAI API v7.0",
             "docs": "/docs",
-            "health": "/health",
-            "login": "/auth/login",
+            "health": "/api/v1/health",
+            "login": "/api/v1/auth/login",
         }
 
 

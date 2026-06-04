@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_tenant, get_db_session
+from src.api.serialization import MoneyAmount
 from src.domain.entities import Divergence, DivergenceStatus, Severity
 from src.domain.entities import Tenant
 from src.infrastructure.persistence.repositories.postgresql_divergence_repository import (
@@ -29,7 +30,7 @@ class DivergenceItem(BaseModel):
     sale_id: Optional[str] = Field(None, description="Related sale identifier")
     transaction_id: Optional[str] = Field(None, description="Related transaction identifier")
     severity: str = Field(..., description="Severity level")
-    amount_at_risk: Decimal = Field(..., description="Amount at risk in BRL")
+    amount_at_risk: MoneyAmount = Field(..., description="Amount at risk in BRL")
     variance_percent: Optional[float] = Field(None, description="Variance percentage")
     status: str = Field(..., description="Lifecycle status")
     detected_at: datetime = Field(..., description="Detection timestamp")

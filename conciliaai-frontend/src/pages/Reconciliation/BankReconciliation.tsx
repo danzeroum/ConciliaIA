@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { apiClient } from '../../services/api';
+import { apiClient } from '@/api/axios-config';
 
 interface BankPaymentForm {
   payment_date: string;
@@ -89,7 +89,7 @@ const BankReconciliationPage = () => {
       }
 
       const response = await apiClient.post<AutoMatchResponse>(
-        '/bank-reconciliation/auto-match',
+        '/api/v1/bank-reconciliation/auto-match',
         payload
       );
       setResult(response.data);

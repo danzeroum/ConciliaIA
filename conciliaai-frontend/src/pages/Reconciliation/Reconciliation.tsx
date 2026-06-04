@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -22,6 +23,7 @@ import { useKPIs } from '@/hooks/useStats';
 import { formatCurrency } from '@/utils/formatters';
 
 export function ReconciliationPage() {
+  const navigate = useNavigate();
   const [importSalesOpen, setImportSalesOpen] = React.useState(false);
   const [importTransactionsOpen, setImportTransactionsOpen] = React.useState(false);
   const [importEDIOpen, setImportEDIOpen] = React.useState(false);
@@ -95,7 +97,7 @@ export function ReconciliationPage() {
                   primary="Revise divergências e gere relatórios"
                   secondary="Acompanhe a evolução da conciliação e exporte dados para auditoria."
                 />
-                <Button size="small" onClick={() => (window.location.href = '/divergences')}>
+                <Button size="small" onClick={() => navigate('/divergences')}>
                   Ver divergências
                 </Button>
               </ListItem>

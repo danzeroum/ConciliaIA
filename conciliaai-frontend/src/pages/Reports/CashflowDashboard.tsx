@@ -17,7 +17,7 @@ import {
   Button,
 } from '@mui/material';
 
-import { apiClient } from '../../services/api';
+import { apiClient } from '@/api/axios-config';
 
 interface CashflowTimelineItem {
   date: string;
@@ -55,7 +55,7 @@ const CashflowDashboard = () => {
     setError('');
     try {
       const response = await apiClient.get<CashflowResponse>(
-        `/reports/cashflow-overview?start_date=${startDate}&end_date=${endDate}`
+        `/api/v1/reports/cashflow-overview?start_date=${startDate}&end_date=${endDate}`
       );
       setData(response.data);
     } catch (err: any) {

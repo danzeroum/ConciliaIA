@@ -52,9 +52,14 @@ class JWTContextMiddleware(BaseHTTPMiddleware):
 
         if token_data is None:
             self.logger.warning("jwt_context_missing", path=path)
+            request_id = getattr(request.state, "request_id", None)
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Invalid or expired token"},
+                content={
+                    "detail": "Invalid or expired token",
+                    "error_code": "unauthorized",
+                    "request_id": request_id,
+                },
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
