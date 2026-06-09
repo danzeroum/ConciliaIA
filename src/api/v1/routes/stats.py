@@ -43,11 +43,22 @@ class TrendDataPoint(BaseModel):
     value: float
 
 
+class TopDivergenceType(BaseModel):
+    type: str
+    count: int
+
+
+class AcquirerBreakdown(BaseModel):
+    acquirer: str
+    transactions: int
+    amount: float
+
+
 class DashboardStatsResponse(BaseModel):
     kpis: KPIMetrics
     accuracy_trend: List[TrendDataPoint]
-    top_divergence_types: List[Dict[str, int]]
-    acquirer_breakdown: List[Dict[str, float | int]]
+    top_divergence_types: List[TopDivergenceType]
+    acquirer_breakdown: List[AcquirerBreakdown]
 
 
 async def _compute_dashboard_stats(
