@@ -9,7 +9,6 @@ run is enough to obtain a working environment with real data.
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import sys
 from datetime import date, time, timedelta
@@ -153,7 +152,7 @@ async def _ensure_test_user(session, tenant_id: str) -> bool:
         password_hash=hasher.hash_password(TEST_USER_PASSWORD),
         full_name="Test User MVP",
         is_active=True,
-        roles=["user", "admin"],
+        roles=["user", "admin", "analyst"],
     )
     session.add(user)
     await session.flush()

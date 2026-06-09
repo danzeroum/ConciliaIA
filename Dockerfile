@@ -19,7 +19,7 @@ FROM node:20-slim AS frontend-builder
 WORKDIR /frontend
 
 # Install dependencies first for better layer caching.
-COPY conciliaai-frontend/package.json conciliaai-frontend/package-lock.json* ./
+COPY conciliaai-frontend/package.json conciliaai-frontend/package-lock.json ./
 RUN npm install --no-audit --no-fund
 
 # Build the SPA. Same-origin API calls (empty base URL) because the

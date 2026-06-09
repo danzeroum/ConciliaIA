@@ -213,6 +213,7 @@ async def apply_security_headers(request, call_next):
     response.headers.setdefault(
         "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
     )
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers["Server"] = "ConciliaAI"
     return response
 

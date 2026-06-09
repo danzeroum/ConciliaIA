@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import json
-from datetime import datetime
 from typing import Awaitable, Callable
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+
+logger = structlog.get_logger(__name__)
 
 # HTTP methods that modify state and should be audited.
 _MUTABLE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -57,8 +58,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
         try:
             await self._write_log(request, path, method, response.status_code)
         except Exception:
-            # Audit failures must never break the request flow.
-            pass
+            # Audit failures must never break the request flow, but they must
+            # be observable instead of silently swallowed.
+            logger.warning(
+                "audit_log_write_failed", path=path, method=method, exc_info=True
+            )
 
         return response
 
@@ -70,6 +74,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         status_code: int,
     ) -> None:
         from src.api import dependencies as deps  # local import avoids circular
+        from src.infrastructure.persistence.models import AuditLogModel
 
         if deps.database is None:
             return
@@ -81,35 +86,29 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         resource_type, resource_id = _parse_resource(path)
         action = f"{method.lower()}:{resource_type}"
-        ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "")
-        user_agent = request.headers.get("User-Agent", "")
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            ip = forwarded.split(",")[0].strip()
+        else:
+            ip = request.client.host if request.client else None
+        user_agent = request.headers.get("User-Agent")
         log_status = "success" if status_code < 400 else "error"
 
-        row = {
-            "id": str(uuid4()),
-            "tenant_id": str(tenant_id),
-            "user_id": str(user_id),
-            "action": action,
-            "resource_type": resource_type,
-            "resource_id": resource_id,
-            "ip_address": ip[:45] if ip else None,
-            "user_agent": user_agent[:500] if user_agent else None,
-            "status": log_status,
-            "created_at": datetime.utcnow(),
-        }
-
+        # Use the ORM (typed columns) instead of raw SQL so UUID/JSONB values
+        # are bound with the correct Postgres types and the insert is portable.
         async for session in deps.database.get_session():
-            from sqlalchemy import text
-
-            await session.execute(
-                text(
-                    "INSERT INTO audit_logs "
-                    "(id, tenant_id, user_id, action, resource_type, resource_id, "
-                    " ip_address, user_agent, status, created_at) "
-                    "VALUES (:id, :tenant_id, :user_id, :action, :resource_type, :resource_id, "
-                    "        :ip_address, :user_agent, :status, :created_at)"
-                ),
-                row,
+            session.add(
+                AuditLogModel(
+                    id=uuid4(),
+                    tenant_id=UUID(str(tenant_id)),
+                    user_id=str(user_id),
+                    action=action,
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    ip_address=ip[:45] if ip else None,
+                    user_agent=user_agent[:500] if user_agent else None,
+                    status=log_status,
+                )
             )
             await session.commit()
             break
