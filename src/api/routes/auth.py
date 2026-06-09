@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr
 import structlog
 
 from src.api import dependencies
+from src.api.dependencies import get_current_user
 from src.infrastructure.repositories.postgresql_user_repository import PostgreSQLUserRepository
 from src.infrastructure.security import JWTHandler, PasswordHasher
 
@@ -144,6 +145,29 @@ async def refresh_token(
         access_token=access_token,
         refresh_token=new_refresh_token,
         expires_in=900,
+    )
+
+
+class UserMeResponse(BaseModel):
+    """Authenticated user profile extracted from the JWT."""
+
+    id: str
+    email: str
+    name: str
+    roles: list[str]
+    tenant_id: str
+
+
+@router.get("/me", response_model=UserMeResponse)
+async def get_me(user: dict = Depends(get_current_user)) -> UserMeResponse:
+    """Return the profile of the currently authenticated user."""
+
+    return UserMeResponse(
+        id=user.get("sub", ""),
+        email=user.get("email", ""),
+        name=user.get("name", user.get("email", "")),
+        roles=user.get("roles", []),
+        tenant_id=user.get("tenant_id", ""),
     )
 
 

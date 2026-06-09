@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_tenant, get_db_session
+from src.api.dependencies import get_current_tenant, get_db_session, require_roles
 from src.application.services.export_service import ExportService
 from src.application.services.report_service import ReportService
 from src.domain.entities import Tenant
@@ -69,6 +69,7 @@ def get_export_service(
 )
 async def export_sales_excel(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ExportService = Depends(get_export_service),
     start_date: date | None = Query(None, description="Data inicial do filtro"),
     end_date: date | None = Query(None, description="Data final do filtro"),
@@ -98,6 +99,7 @@ async def export_sales_excel(
 )
 async def export_accuracy_report_excel(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ExportService = Depends(get_export_service),
     start_date: date = Query(..., description="Data inicial do relatório"),
     end_date: date = Query(..., description="Data final do relatório"),
@@ -127,6 +129,7 @@ async def export_accuracy_report_excel(
 )
 async def export_divergence_report_excel(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ExportService = Depends(get_export_service),
     start_date: date = Query(..., description="Data inicial do relatório"),
     end_date: date = Query(..., description="Data final do relatório"),

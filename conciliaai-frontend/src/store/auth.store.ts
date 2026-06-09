@@ -21,6 +21,26 @@ interface AuthState {
   updateUser: (user: Partial<User>) => void;
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return {};
+  }
+}
+
+function userFromToken(token: string, fallbackEmail: string): User {
+  const payload = decodeJwtPayload(token);
+  return {
+    id: (payload.sub as string) || '',
+    email: (payload.email as string) || fallbackEmail,
+    name: (payload.name as string) || (payload.email as string) || fallbackEmail,
+    roles: Array.isArray(payload.roles) ? (payload.roles as string[]) : [],
+    tenantId: (payload.tenant_id as string) || '',
+  };
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -32,13 +52,7 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         const response = await authApi.login({ email, password });
 
-        const user: User = {
-          id: 'user-123',
-          email,
-          name: 'User Name',
-          roles: ['user'],
-          tenantId: 'tenant-123',
-        };
+        const user = userFromToken(response.access_token, email);
 
         set({
           user,
@@ -49,8 +63,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        authApi.logout().catch(() => {
-        });
+        authApi.logout().catch(() => {});
 
         set({
           user: null,
@@ -61,13 +74,15 @@ export const useAuthStore = create<AuthState>()(
       },
 
       refreshAccessToken: async () => {
-        const { refreshToken } = get();
+        const { refreshToken, user } = get();
         if (!refreshToken) throw new Error('No refresh token');
 
         const response = await authApi.refresh(refreshToken);
+        const updatedUser = userFromToken(response.access_token, user?.email ?? '');
         set({
           accessToken: response.access_token,
           refreshToken: response.refresh_token,
+          user: updatedUser,
         });
       },
 

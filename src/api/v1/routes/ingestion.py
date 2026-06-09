@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from src.api.dependencies import get_current_tenant, get_ingestion_service
+from src.api.dependencies import get_current_tenant, get_ingestion_service, require_roles
 from src.application.services import IngestionService
 from src.domain.entities import Tenant
 from src.infrastructure.acquirers import TORCValidationError
@@ -22,6 +22,7 @@ router = APIRouter()
 async def ingest_rede_torc(
     file: UploadFile = File(...),
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: IngestionService = Depends(get_ingestion_service),
 ) -> dict:
     """Upload and ingest a Rede TORC offline file for the tenant."""

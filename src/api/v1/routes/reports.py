@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_tenant, get_db_session
+from src.api.dependencies import get_current_tenant, get_db_session, require_roles
 from src.application.services.report_service import ReportService
 from src.domain.entities import Tenant
 from src.infrastructure.persistence.repositories.postgresql_divergence_repository import (
@@ -162,6 +162,7 @@ def get_report_service(
 )
 async def get_accuracy_report(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ReportService = Depends(get_report_service),
     start_date: date = Query(..., description="Report start date"),
     end_date: date = Query(..., description="Report end date"),
@@ -187,6 +188,7 @@ async def get_accuracy_report(
 )
 async def get_divergence_analysis(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ReportService = Depends(get_report_service),
     start_date: date = Query(..., description="Report start date"),
     end_date: date = Query(..., description="Report end date"),
@@ -213,6 +215,7 @@ async def get_divergence_analysis(
 )
 async def get_acquirer_performance(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ReportService = Depends(get_report_service),
     start_date: date = Query(..., description="Report start date"),
     end_date: date = Query(..., description="Report end date"),
@@ -234,6 +237,7 @@ async def get_acquirer_performance(
 )
 async def get_settlement_analysis(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ReportService = Depends(get_report_service),
     start_date: date = Query(..., description="Report start date"),
     end_date: date = Query(..., description="Report end date"),
@@ -260,6 +264,7 @@ async def get_settlement_analysis(
 )
 async def get_mdr_variance(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ReportService = Depends(get_report_service),
     start_date: date = Query(..., description="Report start date"),
     end_date: date = Query(..., description="Report end date"),
@@ -282,6 +287,7 @@ async def get_mdr_variance(
 )
 async def get_cashflow_overview(
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     service: ReportService = Depends(get_report_service),
     start_date: date = Query(..., description="Start date"),
     end_date: date = Query(..., description="End date"),

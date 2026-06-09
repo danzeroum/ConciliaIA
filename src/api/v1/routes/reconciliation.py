@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from src.api.dependencies import get_current_tenant, get_reconciliation_use_case
+from src.api.dependencies import get_current_tenant, get_reconciliation_use_case, require_roles
 from src.application.use_cases.reconcile_transactions import (
     ReconcileTransactionsUseCase,
 )
@@ -45,6 +45,7 @@ class ReconciliationResponse(BaseModel):
 async def execute_reconciliation(
     request: ReconciliationRequest,
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     use_case: ReconcileTransactionsUseCase = Depends(get_reconciliation_use_case),
 ) -> ReconciliationResponse:
     """Execute reconciliation for the authenticated tenant."""

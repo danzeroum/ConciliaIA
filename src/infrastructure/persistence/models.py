@@ -391,6 +391,35 @@ class AlertHistoryModel(Base):
     )
 
 
+class AuditLogModel(Base):
+    """Append-only audit trail for sensitive mutations."""
+
+    __tablename__ = "audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(String(255), nullable=False, index=True)
+    action = Column(String(100), nullable=False, index=True)
+    resource_type = Column(String(50), nullable=False)
+    resource_id = Column(String(255), nullable=False)
+    changes = Column(JSONB, nullable=True)
+    ip_address = Column(String(45))
+    user_agent = Column(String(500))
+    status = Column(String(20), nullable=False, default="success")
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    tenant = relationship("TenantModel")
+
+    __table_args__ = (
+        Index("idx_audit_logs_tenant_created", "tenant_id", "created_at"),
+        Index("idx_audit_logs_user_action", "user_id", "action"),
+        Index("idx_audit_logs_resource", "resource_type", "resource_id"),
+    )
+
+
 class ReconciliationJobModel(Base):
     """Asynchronous reconciliation job and its lifecycle/checkpoints."""
 
