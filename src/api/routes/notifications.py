@@ -12,7 +12,10 @@ from src.infrastructure.persistence.repositories.notification_repository import 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 
-@router.get("/")
+# Empty path (not "/") so the collection is served at ``/api/v1/notifications``
+# without a trailing slash — matching the rest of the API and the frontend
+# client. With "/" the SPA catch-all intercepts the no-slash request → 404.
+@router.get("")
 async def list_notifications(
     unread_only: bool = False,
     tenant_id: str = Depends(get_current_tenant_id),
