@@ -73,7 +73,7 @@ export function BankReconciliationUpload() {
       formData.append('file', file);
 
       const response = await apiClient.post<ReconciliationResult>(
-        '/bank-reconciliation/upload-ofx',
+        '/api/v1/bank-reconciliation/upload-ofx',
         formData,
         {
           headers: {
