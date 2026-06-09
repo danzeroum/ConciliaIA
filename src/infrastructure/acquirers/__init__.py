@@ -5,6 +5,8 @@ from .cielo_agiliza_parser import CieloAgilizaParser
 from .cielo_conciliator_client import CieloConciliatorClient, CieloConciliatorError
 from .cielo_edi_client import CieloEDIClient
 from .cielo_edi_parser import CieloEDIParser
+from .rede_client import RedeAPIClient
+from .rede_api_parser import RedeAPIParser
 from .rede_edi_client import RedeEDIClient
 from .rede_edi_parser import RedeEDIParser
 from .rede_eefi_parser import RedeEEFIParser
@@ -20,6 +22,8 @@ __all__ = [
     "CieloConciliatorError",
     "CieloEDIClient",
     "CieloEDIParser",
+    "RedeAPIClient",
+    "RedeAPIParser",
     "RedeEDIClient",
     "RedeEDIParser",
     "RedeEEFIParser",
