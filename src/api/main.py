@@ -13,6 +13,7 @@ import structlog
 from src.api import dependencies
 from src.api.errors import install_error_handling
 from src.api.middleware import (
+    AuditMiddleware,
     AuthMiddleware,
     JWTContextMiddleware,
     RateLimitMiddleware,
@@ -142,6 +143,7 @@ app.add_middleware(
 if dependencies.jwt_handler is None:
     raise RuntimeError("JWT handler failed to initialise")
 app.add_middleware(JWTContextMiddleware, jwt_handler=dependencies.jwt_handler)
+app.add_middleware(AuditMiddleware)
 # =========================================================================
 # CORS configuration
 # =========================================================================
@@ -211,6 +213,7 @@ async def apply_security_headers(request, call_next):
     response.headers.setdefault(
         "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
     )
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers["Server"] = "ConciliaAI"
     return response
 

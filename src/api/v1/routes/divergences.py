@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_tenant, get_db_session
+from src.api.dependencies import get_current_tenant, get_db_session, require_roles
 from src.api.serialization import MoneyAmount
 from src.domain.entities import Divergence, DivergenceStatus, Severity
 from src.domain.entities import Tenant
@@ -172,6 +172,7 @@ async def resolve_divergence(
     divergence_id: str,
     request: ResolveDivergenceRequest,
     tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     repository: PostgreSQLDivergenceRepository = Depends(get_divergence_repository),
 ) -> DivergenceItem:
     """Mark a divergence as resolved."""
