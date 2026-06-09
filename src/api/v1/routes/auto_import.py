@@ -40,6 +40,7 @@ class ScheduleResponse(BaseModel):
     is_active: bool
     last_run_at: Optional[datetime]
     next_run_at: Optional[datetime]
+    webhook_url: Optional[str] = None
 
 
 @router.post("/schedule", response_model=ScheduleResponse, status_code=status.HTTP_201_CREATED)
@@ -79,6 +80,7 @@ async def create_schedule(
         is_active=schedule.is_active,
         last_run_at=schedule.last_run_at,
         next_run_at=schedule.next_run_at,
+        webhook_url=schedule.webhook_url,
     )
 
 
@@ -112,6 +114,7 @@ async def update_schedule(
         is_active=schedule.is_active,
         last_run_at=schedule.last_run_at,
         next_run_at=schedule.next_run_at,
+        webhook_url=schedule.webhook_url,
     )
 
 
@@ -161,6 +164,7 @@ async def list_schedules(
             is_active=s.is_active,
             last_run_at=s.last_run_at,
             next_run_at=s.next_run_at,
+            webhook_url=s.webhook_url,
         )
         for s in schedules
     ]
