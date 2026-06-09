@@ -45,10 +45,12 @@
       CIELO_CONCILIATOR_BASE_URL: ${CIELO_CONCILIATOR_BASE_URL:-}
       CIELO_CONCILIATOR_CLIENT_ID: ${CIELO_CONCILIATOR_CLIENT_ID:-}
       CIELO_CONCILIATOR_CLIENT_SECRET: ${CIELO_CONCILIATOR_CLIENT_SECRET:-}
-      # Optional Rede REST API (sales/conciliation) — routes return 503 until set.
+      # Optional Rede "Gestão de Vendas" API — routes return 503 until set.
       REDE_API_BASE_URL: ${REDE_API_BASE_URL:-}
       REDE_CLIENT_ID: ${REDE_CLIENT_ID:-}
       REDE_CLIENT_SECRET: ${REDE_CLIENT_SECRET:-}
+      REDE_PARENT_COMPANY_NUMBER: ${REDE_PARENT_COMPANY_NUMBER:-}
+      REDE_SUBSIDIARIES: ${REDE_SUBSIDIARIES:-}
       REDE_SCOPE: ${REDE_SCOPE:-}
     depends_on:
       postgres:

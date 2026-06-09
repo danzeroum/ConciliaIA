@@ -68,18 +68,43 @@ async def ingest_rede_torc(
 async def ingest_rede_api(
     start_date: date = Query(..., description="Data inicial (YYYY-MM-DD)"),
     end_date: date = Query(..., description="Data final (YYYY-MM-DD)"),
+    parent_company_number: str | None = Query(
+        None, description="Ponto de venda Rede (usa REDE_PARENT_COMPANY_NUMBER se omitido)"
+    ),
+    preview: bool = Query(
+        False, description="Retorna a resposta crua da Rede sem persistir (validar contrato)"
+    ),
     tenant: Tenant = Depends(get_current_tenant),
     _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
     client: RedeAPIClient = Depends(get_rede_api_client),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:
-    """Fetch transactions from Rede's REST API and persist them for the tenant.
+    """Fetch sales from Rede's Gestão de Vendas API and persist them for the tenant.
 
-    Requires REDE_API_BASE_URL/REDE_CLIENT_ID/REDE_CLIENT_SECRET (otherwise 503).
-    The HTTP contract is provisional — see ``RedeAPIClient``; if Rede's real
-    endpoints/fields differ, adjust the client (paths are env-configurable).
+    Requires REDE_API_BASE_URL/REDE_CLIENT_ID/REDE_CLIENT_SECRET (otherwise 503) and a
+    point-of-sale number (``parent_company_number`` or REDE_PARENT_COMPANY_NUMBER).
+    Use ``preview=true`` to return the raw Rede response (without persisting) so the
+    response field mapping can be finalized.
     """
-    transactions = await client.fetch_transactions(tenant.id, start_date, end_date)
+    pcn = parent_company_number or client.parent_company_number
+    if not pcn:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "parentCompanyNumber é obrigatório — passe ?parent_company_number= "
+                "ou defina REDE_PARENT_COMPANY_NUMBER."
+            ),
+        )
+
+    if preview:
+        raw = await client.fetch_sales_page(
+            parent_company_number=pcn, start_date=start_date, end_date=end_date, size=5
+        )
+        return {"preview": raw}
+
+    transactions = await client.fetch_transactions(
+        tenant.id, start_date, end_date, parent_company_number=pcn
+    )
     repository = PostgreSQLTransactionRepository(session)
     for transaction in transactions:
         await repository.save(transaction)
