@@ -23,11 +23,12 @@ interface ScheduleResponse {
   time_of_day: string;
   days_to_import: number;
   is_active: boolean;
+  webhook_url?: string | null;
 }
 
 const AutoImportSettings = () => {
   const [enabled, setEnabled] = useState(false);
-  const [apiToken, setApiToken] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
   const [scheduleType, setScheduleType] = useState('daily');
   const [timeOfDay, setTimeOfDay] = useState('03:00');
   const [message, setMessage] = useState('');
@@ -44,6 +45,7 @@ const AutoImportSettings = () => {
           setScheduleType(schedule.schedule_type);
           setTimeOfDay(schedule.time_of_day);
           setScheduleId(schedule.id);
+          setWebhookUrl(schedule.webhook_url ?? '');
         }
       } catch (error) {
         console.warn('Não foi possível carregar o agendamento atual', error);
@@ -72,11 +74,10 @@ const AutoImportSettings = () => {
       }
 
       const payload = {
-        api_token: apiToken,
         schedule_type: scheduleType,
         time_of_day: timeOfDay,
         days_to_import: 1,
-        credential_hint: apiToken ? `${apiToken.slice(0, 4)}…` : undefined,
+        webhook_url: webhookUrl.trim() || undefined,
       };
 
       if (scheduleId) {
@@ -125,13 +126,13 @@ const AutoImportSettings = () => {
           {enabled && (
             <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <TextField
-                label="Token da API Cielo"
-                type="password"
+                label="URL de webhook para alertas (opcional)"
+                type="url"
                 fullWidth
-                value={apiToken}
-                onChange={(event) => setApiToken(event.target.value)}
-                helperText="Token obtido em Cielo Conciliador → Integrações"
-                required
+                value={webhookUrl}
+                onChange={(event) => setWebhookUrl(event.target.value)}
+                placeholder="https://exemplo.com/webhook"
+                helperText="Se preenchido, enviamos um alerta para esta URL quando a importação falhar. A autenticação com a Cielo é feita no servidor (variáveis de ambiente) — você não precisa informar um token aqui."
               />
 
               <Box>
@@ -166,7 +167,8 @@ const AutoImportSettings = () => {
               </Box>
 
               <Alert icon={<CheckCircleIcon />} severity="info">
-                O ConciliaAI enviará um alerta apenas se ocorrer algum erro na importação automática.
+                Se você informar uma URL de webhook acima, o ConciliaAI enviará um alerta para
+                ela apenas se ocorrer algum erro na importação automática.
               </Alert>
             </Box>
           )}
@@ -182,7 +184,7 @@ const AutoImportSettings = () => {
             fullWidth
             sx={{ mt: 3 }}
             onClick={handleSave}
-            disabled={loading || (enabled && !apiToken)}
+            disabled={loading}
           >
             {loading ? 'Salvando...' : 'Salvar Configurações'}
           </Button>

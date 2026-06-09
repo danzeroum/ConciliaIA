@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, Iterable
 
+import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import structlog
@@ -22,6 +23,14 @@ logger = structlog.get_logger(__name__)
 
 RunnerType = Callable[[ImportSchedule], Awaitable[None]]
 SessionFactory = Callable[[], AsyncSession]
+
+
+async def _post_webhook(url: str, payload: dict) -> int:
+    """POST ``payload`` as JSON to ``url`` and return the HTTP status code."""
+    timeout = aiohttp.ClientTimeout(total=10)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, json=payload) as response:
+            return response.status
 
 
 class AutoImportScheduler:
@@ -155,6 +164,33 @@ class AutoImportScheduler:
                     schedule_id=schedule_id,
                     error=str(exc),
                 )
+                await self._notify_failure(schedule, str(exc))
+
+    async def _notify_failure(self, schedule: ImportSchedule, error_message: str) -> None:
+        """Send a best-effort failure alert to the schedule's webhook, if set.
+
+        Failures here must never break the scheduler — they are only logged.
+        """
+        webhook_url = getattr(schedule, "webhook_url", None)
+        if not webhook_url:
+            return
+        payload = {
+            "event": "auto_import_failed",
+            "schedule_id": schedule.id,
+            "tenant_id": schedule.tenant_id,
+            "acquirer": schedule.acquirer,
+            "error": error_message,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+        try:
+            status_code = await _post_webhook(webhook_url, payload)
+            self._logger.info(
+                "auto_import_alert_sent", schedule_id=schedule.id, status=status_code
+            )
+        except Exception as exc:
+            self._logger.warning(
+                "auto_import_alert_failed", schedule_id=schedule.id, error=str(exc)
+            )
 
     @asynccontextmanager
     async def _session_scope(self):
