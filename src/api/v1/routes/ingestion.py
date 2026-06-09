@@ -3,14 +3,25 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_tenant, get_ingestion_service, require_roles
+from src.api.dependencies import (
+    get_current_tenant,
+    get_db_session,
+    get_ingestion_service,
+    get_rede_api_client,
+    require_roles,
+)
 from src.application.services import IngestionService
 from src.domain.entities import Tenant
-from src.infrastructure.acquirers import TORCValidationError
+from src.infrastructure.acquirers import RedeAPIClient, TORCValidationError
+from src.infrastructure.persistence.repositories.postgresql_transaction_repository import (
+    PostgreSQLTransactionRepository,
+)
 
 router = APIRouter()
 
@@ -47,3 +58,30 @@ async def ingest_rede_torc(
         await file.close()
         if tmp_path and tmp_path.exists():
             tmp_path.unlink()
+
+
+@router.post(
+    "/ingestion/rede-api",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Fetch Rede transactions from the REST API",
+)
+async def ingest_rede_api(
+    start_date: date = Query(..., description="Data inicial (YYYY-MM-DD)"),
+    end_date: date = Query(..., description="Data final (YYYY-MM-DD)"),
+    tenant: Tenant = Depends(get_current_tenant),
+    _: dict = Depends(require_roles(["analyst", "admin", "manager"])),
+    client: RedeAPIClient = Depends(get_rede_api_client),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Fetch transactions from Rede's REST API and persist them for the tenant.
+
+    Requires REDE_API_BASE_URL/REDE_CLIENT_ID/REDE_CLIENT_SECRET (otherwise 503).
+    The HTTP contract is provisional — see ``RedeAPIClient``; if Rede's real
+    endpoints/fields differ, adjust the client (paths are env-configurable).
+    """
+    transactions = await client.fetch_transactions(tenant.id, start_date, end_date)
+    repository = PostgreSQLTransactionRepository(session)
+    for transaction in transactions:
+        await repository.save(transaction)
+    await session.commit()
+    return {"imported": len(transactions)}

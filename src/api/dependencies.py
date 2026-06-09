@@ -16,7 +16,7 @@ from src.application.use_cases.cielo_conciliator import ImportCieloReportUseCase
 from src.application.services.reconciliation_job_service import ReconciliationJobService
 from src.application.use_cases.reconcile_transactions import ReconcileTransactionsUseCase
 from src.domain.entities import Tenant
-from src.infrastructure.acquirers import CieloAgilizaParser, CieloConciliatorClient
+from src.infrastructure.acquirers import CieloAgilizaParser, CieloConciliatorClient, RedeAPIClient
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.persistence.repositories.postgresql_divergence_repository import (
     PostgreSQLDivergenceRepository,
@@ -113,6 +113,20 @@ def get_cielo_conciliator_client() -> CieloConciliatorClient:
     if cielo_conciliator_client is None:
         raise HTTPException(status_code=500, detail="Cielo Conciliator não inicializado")
     return cielo_conciliator_client
+
+
+def get_rede_api_client() -> RedeAPIClient:
+    """Build the Rede REST client from env vars, or 503 if not configured."""
+    try:
+        return RedeAPIClient()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Rede API não configurada — defina REDE_API_BASE_URL, REDE_CLIENT_ID e "
+                f"REDE_CLIENT_SECRET. Detalhe: {exc}"
+            ),
+        )
 
 
 async def get_import_cielo_report_use_case(
