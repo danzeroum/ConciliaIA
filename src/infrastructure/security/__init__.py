@@ -1,6 +1,7 @@
 """Security helpers used by infrastructure components."""
 
 from .jwt_handler import JWTHandler, TokenData
+from .login_attempt_tracker import LoginAttemptTracker
 from .password_hasher import PasswordHasher
 from .rate_limiter import RateLimiter
 from .secrets_manager import (
@@ -8,6 +9,7 @@ from .secrets_manager import (
     SecretNotFoundException,
     SecretsManager,
 )
+from .jti_blocklist import TokenBlocklist
 
 __all__ = [
     "SecretsManager",
@@ -17,4 +19,6 @@ __all__ = [
     "TokenData",
     "PasswordHasher",
     "RateLimiter",
+    "LoginAttemptTracker",
+    "TokenBlocklist",
 ]

@@ -28,7 +28,13 @@ from src.infrastructure.persistence.repositories.postgresql_transaction_reposito
 )
 from src.infrastructure.scheduler import AutoImportScheduler
 from src.infrastructure.repositories.postgresql_user_repository import PostgreSQLUserRepository
-from src.infrastructure.security import JWTHandler, PasswordHasher, RateLimiter
+from src.infrastructure.security import (
+    JWTHandler,
+    LoginAttemptTracker,
+    PasswordHasher,
+    RateLimiter,
+    TokenBlocklist,
+)
 from src.api.middleware import AuthMiddleware
 
 # Global instances initialised during app startup
@@ -47,6 +53,8 @@ auth_middleware: AuthMiddlewareType = None
 auto_import_scheduler: AutoImportScheduler | None = None
 cielo_conciliator_client: CieloConciliatorClient | None = None
 reconciliation_job_service: "ReconciliationJobService | None" = None
+login_attempt_tracker: "LoginAttemptTracker | None" = None
+token_blocklist: "TokenBlocklist | None" = None
 
 security = HTTPBearer()
 
@@ -67,6 +75,18 @@ def get_rate_limiter() -> RateLimiter:
     if rate_limiter is None:
         raise HTTPException(status_code=500, detail="Rate limiter not initialized")
     return rate_limiter
+
+
+def get_login_attempt_tracker() -> LoginAttemptTracker:
+    if login_attempt_tracker is None:
+        raise HTTPException(status_code=500, detail="Login attempt tracker not initialized")
+    return login_attempt_tracker
+
+
+def get_token_blocklist() -> TokenBlocklist:
+    if token_blocklist is None:
+        raise HTTPException(status_code=500, detail="Token blocklist not initialized")
+    return token_blocklist
 
 
 def get_auto_import_scheduler() -> AutoImportScheduler:

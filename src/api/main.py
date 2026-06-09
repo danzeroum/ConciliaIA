@@ -44,7 +44,13 @@ from src.infrastructure.acquirers import CieloConciliatorClient
 from src.infrastructure.logging import setup_logging
 from src.infrastructure.persistence.database import Database
 from src.infrastructure.scheduler import AutoImportScheduler, build_auto_import_runner
-from src.infrastructure.security import JWTHandler, PasswordHasher, RateLimiter
+from src.infrastructure.security import (
+    JWTHandler,
+    LoginAttemptTracker,
+    PasswordHasher,
+    RateLimiter,
+    TokenBlocklist,
+)
 
 setup_logging(environment=os.getenv("ENVIRONMENT", "development"))
 logger = structlog.get_logger(__name__)
@@ -66,6 +72,12 @@ def _configure_security_components() -> None:
         )
     )
     dependencies.rate_limiter = RateLimiter(requests_per_minute=limiter_rate)
+
+    dependencies.login_attempt_tracker = LoginAttemptTracker(
+        max_attempts=int(os.getenv("LOGIN_MAX_ATTEMPTS", "5")),
+        lockout_seconds=int(os.getenv("LOGIN_LOCKOUT_SECONDS", "900")),
+    )
+    dependencies.token_blocklist = TokenBlocklist()
 
     if dependencies.jwt_handler is None:
         raise RuntimeError("JWT handler failed to initialise")
@@ -205,6 +217,17 @@ app.include_router(stats.router, prefix="/api/v1", tags=["Statistics"])
 app.include_router(ingestion.router, prefix="/api/v1", tags=["Ingestion"])
 
 
+# Conservative CSP for the same-origin MUI/Vite SPA. 'unsafe-inline' is needed
+# for MUI's runtime styles; scripts are restricted to same-origin bundles.
+# Override — or disable with "off" — via the CONTENT_SECURITY_POLICY env var.
+_DEFAULT_CSP = (
+    "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; "
+    "object-src 'none'; img-src 'self' data:; font-src 'self' data:; "
+    "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'"
+)
+_CONTENT_SECURITY_POLICY = os.getenv("CONTENT_SECURITY_POLICY", _DEFAULT_CSP)
+
+
 @app.middleware("http")
 async def apply_security_headers(request, call_next):
     response = await call_next(request)
@@ -214,6 +237,8 @@ async def apply_security_headers(request, call_next):
         "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
     )
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if _CONTENT_SECURITY_POLICY and _CONTENT_SECURITY_POLICY.lower() != "off":
+        response.headers.setdefault("Content-Security-Policy", _CONTENT_SECURITY_POLICY)
     response.headers["Server"] = "ConciliaAI"
     return response
 

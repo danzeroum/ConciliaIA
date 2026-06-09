@@ -63,6 +63,23 @@ class JWTContextMiddleware(BaseHTTPMiddleware):
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        # Reject tokens whose jti was revoked (logout / refresh rotation).
+        from src.api import dependencies as _deps
+
+        blocklist = getattr(_deps, "token_blocklist", None)
+        if blocklist is not None and blocklist.is_revoked(token_data.jti):
+            self.logger.warning("jwt_revoked", path=path)
+            request_id = getattr(request.state, "request_id", None)
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": "Token has been revoked",
+                    "error_code": "unauthorized",
+                    "request_id": request_id,
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         request.state.user_id = token_data.sub
         request.state.tenant_id = token_data.tenant_id
         request.state.email = token_data.email
