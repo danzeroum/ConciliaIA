@@ -169,7 +169,7 @@ async def test_user(
             email="test@example.com",
             password_hash=hashed_password,
             full_name="Test User",
-            roles=["user"],
+            roles=["user", "analyst"],
             is_active=True,
         )
         db_session.add(user)
@@ -177,7 +177,7 @@ async def test_user(
         user.tenant_id = test_tenant.id
         user.email = "test@example.com"
         user.password_hash = hashed_password
-        user.role = "user"
+        user.roles = ["user", "analyst"]
         user.is_active = True
 
     await db_session.flush()
